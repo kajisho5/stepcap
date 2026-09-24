@@ -1,0 +1,68 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stepcap"
+version = "0.0.0"
+description = "Record desktop clicks and turn them into step-by-step guides with annotated screenshots (Markdown / single-file HTML). Local, no cloud, no account."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "kajisho5" }]
+keywords = ["screenshot", "documentation", "how-to", "step-by-step", "guide", "recorder", "manual", "sop"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "Intended Audience :: System Administrators",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Documentation",
+  "Topic :: Multimedia :: Graphics :: Capture :: Screen Capture",
+]
+dependencies = [
+  "pillow>=10.1",
+  "mss>=9.0",
+  "pynput>=1.7.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+demo = ["playwright>=1.45"]
+
+[project.scripts]
+stepcap = "stepcap.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/kajisho5/stepcap"
+Issues = "https://github.com/kajisho5/stepcap/issues"
+Changelog = "https://github.com/kajisho5/stepcap/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/stepcap"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/stepcap", "tests", "README.md", "README.ja.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]  # ambiguous unicode: we ship Japanese strings on purpose
+
+[tool.ruff.lint.per-file-ignores]
+"src/stepcap/build/html.py" = ["E501"]
