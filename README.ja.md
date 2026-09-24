@@ -54,6 +54,79 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 
 ![1 回の記録から、左に guide.html、右に入力変数と参照画像付きの SKILL.md](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/guide-and-skill.png)
 
+### 出力サンプル（GitHub 上でそのまま開けます）
+
+同じ合成記録から作ったものです（[`demos/build.py`](demos/build.py) で再生成できます）。
+
+| | 開く | 作り方 |
+|---|---|---|
+| 人向けの手順書 | [guide.md](docs/demo/sample/guide/guide.md) · [guide.html](docs/demo/sample/guide/guide.html) · [checklist.html](docs/demo/sample/guide/checklist.html) | `stepcap export --format both` → `guide/` |
+| スキルの下書き（LLM なし） | [SKILL.md](docs/demo/sample/skill/create-project-move-card/SKILL.md) + [references/](docs/demo/sample/skill/create-project-move-card/references) | `stepcap skill`（`--agent none`、既定） |
+| Claude Code が清書したスキル | [SKILL.refined-by-claude.md](docs/demo/sample/SKILL.refined-by-claude.md) | 実際に `stepcap skill --agent claude` を 1 回実行した結果 |
+
+GitHub は `.html` をソースとして表示します。`guide.html` / `checklist.html` はダウンロードしてブラウザで開いてください。
+
+<details>
+<summary>清書後のスキルの抜粋: 入力した値は変数に、CLI / API の確認が先に、各手順に確認ポイント</summary>
+
+```markdown
+## Inputs
+
+- `{{project_name}}` - name for the new project (e.g. "Q3 launch plan").
+- `{{template}}` - board template to use, e.g. "Kanban board" (optional; the "Create" button defaults to "Kanban board" if left unset).
+- `{{is_private}}` - whether the project should be marked private, true/false (optional; defaults to unchecked/public).
+- `{{card_name}}` - name of the card to move (e.g. "Draft brief").
+- `{{source_column}}` - the column the card currently sits in, e.g. "To do" (helps you find it; not otherwise needed).
+- `{{target_column}}` - the column to move the card into, e.g. "In progress".
+
+## Steps
+
+Check first whether Acme Tasks exposes a CLI or API for creating projects and
+moving cards (e.g. from its Settings or developer docs) - if so, prefer that
+over the UI steps below. Otherwise, use the UI:
+
+1. **Open Projects and start a new project.** In the Acme Tasks sidebar, click
+   "Projects", then click "+ New project" (top right).
+   [step 1](references/step-01.png)
+   - Check: a "New project" dialog opens with a "Project name" field, a
+     "Template" dropdown, and a "Private project" checkbox.
+```
+
+</details>
+
+実行例（出力は実際のもの。長い一覧は省略、プロンプトとパスは短縮）:
+
+```console
+$ stepcap export demo --format both -o dist --name create-project-move-card
+Guide dist/guide: 15 files
+Skill 'create-project-move-card': 12 steps -> dist/skill/create-project-move-card (62 lines, ~698 tokens)
+  valid (Agent Skills spec + no secrets)
+
+$ stepcap skill demo -o skills --name create-project-move-card --agent claude
+claude will be able to read these files (secrets already masked):
+  skills/create-project-move-card/SKILL.md
+  skills/create-project-move-card/_context/INSTRUCTIONS.md
+  skills/create-project-move-card/_context/events.jsonl
+  skills/create-project-move-card/_context/steps.json
+  skills/create-project-move-card/references/step-01.png ...
+Command: claude -p '...' --permission-mode acceptEdits --allowedTools Read,Edit,Write
+Run it? [y/N] y
+Skill 'create-project-move-card': 12 steps -> skills/create-project-move-card (98 lines, ~1223 tokens)
+  valid (Agent Skills spec + no secrets)
+
+$ stepcap shell demo          # 別のターミナルで（stepcap record -o demo の記録中に）
+stepcap: commands in this bash are added to demo (secrets masked, output not recorded). Type `exit` to finish.
+[stepcap] ~/work$ git status --short
+fatal: not a git repository (or any of the parent directories): .git
+[stepcap] ~/work$ export GITHUB_TOKEN=ghp_Q1w2...
+[stepcap] ~/work$ exit
+stepcap: 2 command(s) recorded in demo/terminal.jsonl
+
+$ cat demo/terminal.jsonl
+{"kind":"terminal","time":1790262966.16,"command":"git status --short","cwd":"/home/you/work","exit":128}
+{"kind":"terminal","time":1790262966.162,"command":"export GITHUB_TOKEN=[REDACTED:github-token]","cwd":"/home/you/work","exit":0}
+```
+
 ![stepcap: 記録して、生成された手順書をページ送り](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/demo.gif)
 
 | 生成された `guide.html`（ライト / ダーク、目次、印刷用 CSS） | `stepcap edit`（並べ替え・改名・ぼかし） |

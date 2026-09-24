@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -261,3 +262,20 @@ def test_cli_check_skill(demo_session, tmp_path, capsys):
     assert main(["check-skill", res.skill_dir, "--json"]) == 1
     data = json.loads(capsys.readouterr().out)
     assert not data["ok"] and "github-token" in data["problems"][0]
+
+
+SAMPLE = Path(__file__).resolve().parents[1] / "docs" / "demo" / "sample"
+
+
+def test_committed_sample_skill_is_valid_and_links_resolve():
+    skill = SAMPLE / "skill" / "create-project-move-card"
+    problems, info = validate_skill(skill)
+    assert problems == [] and info["links"] == 12
+    refined = (SAMPLE / "SKILL.refined-by-claude.md").read_text(encoding="utf-8")
+    frontmatter.parse(refined)
+    links = re.findall(r"\]\(([^)]+)\)", refined)
+    assert len(links) >= 12
+    for link in links:
+        assert (SAMPLE / link).exists(), link
+    assert (SAMPLE / "guide" / "guide.md").is_file()
+    assert (SAMPLE / "guide" / "guide.html").is_file()

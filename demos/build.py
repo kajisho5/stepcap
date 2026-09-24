@@ -28,13 +28,17 @@ from make_events import make_events  # noqa: E402
 
 from stepcap.build.annotate import font  # noqa: E402
 from stepcap.build.pipeline import BuildOptions, run_build  # noqa: E402
-from stepcap.session import read_json  # noqa: E402
+from stepcap.session import SESSION_FILE, read_json, write_json  # noqa: E402
 from stepcap.simulate import simulate  # noqa: E402
 from stepcap.skill import frontmatter  # noqa: E402
-from stepcap.skill.run import SkillOptions, run_skill  # noqa: E402
+from stepcap.skill.run import SkillOptions, run_export, run_skill  # noqa: E402
 
 OUT = ROOT / "demos" / "out"
 DOCS = ROOT / "docs" / "demo"
+SAMPLE = DOCS / "sample"
+SKILL_NAME = "create-project-move-card"
+REFINED = SAMPLE / "SKILL.refined-by-claude.md"  # one real `--agent claude` run, kept as is
+FIXED_START = "2026-09-24T10:00:00+09:00"  # pinned so sample outputs do not change daily
 W = 960  # GIF width
 CAPTION_H = 92
 BG = (22, 24, 29)
@@ -174,6 +178,20 @@ def guide_and_skill(session: Path, doc: dict) -> Path:
     return out
 
 
+def export_sample(session: Path) -> list[Path]:
+    """docs/demo/sample/: the exported guide + draft skill, browsable on GitHub."""
+    keep = REFINED.read_bytes() if REFINED.exists() else None
+    if SAMPLE.exists():
+        shutil.rmtree(SAMPLE)
+    res = run_export(
+        session, "both", SAMPLE, SkillOptions(out_dir=SAMPLE / "skill", name=SKILL_NAME)
+    )
+    assert res.ok, res.skill
+    if keep is not None:
+        REFINED.write_bytes(keep)
+    return [SAMPLE / "guide" / "guide.md", SAMPLE / "skill" / SKILL_NAME / "SKILL.md"]
+
+
 def chromium_path() -> str | None:
     env = os.environ.get("STEPCAP_CHROMIUM")
     if env:
@@ -251,6 +269,9 @@ def main() -> int:
     DOCS.mkdir(parents=True, exist_ok=True)
     session = OUT / "demo"
     simulate(make_events(), session)
+    meta = read_json(session / SESSION_FILE)
+    meta["started"] = FIXED_START
+    write_json(session / SESSION_FILE, meta)
     run_build(session, BuildOptions())
     doc = read_json(session / "steps.json")
 
@@ -273,6 +294,7 @@ def main() -> int:
     )
     written.append(DOCS / "step-spotlight.png")
 
+    written += export_sample(session)
     if args.browser:
         written += browser_shots(session)
     for p in written:
