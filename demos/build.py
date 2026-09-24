@@ -203,6 +203,14 @@ def main() -> int:
     zdoc = read_json(zoom_dir / "steps.json")
     Image.open(zoom_dir / zdoc["steps"][4]["rendered"]).save(DOCS / "step-zoom.png", optimize=True)
     written.append(DOCS / "step-zoom.png")
+    spot_dir = OUT / "spotlight"
+    shutil.copytree(session, spot_dir, ignore=shutil.ignore_patterns("images", "guide.*"))
+    run_build(spot_dir, BuildOptions(zoom=800, spotlight=True, formats=("md",)))
+    sdoc = read_json(spot_dir / "steps.json")
+    Image.open(spot_dir / sdoc["steps"][3]["rendered"]).save(
+        DOCS / "step-spotlight.png", optimize=True
+    )
+    written.append(DOCS / "step-spotlight.png")
 
     if args.browser:
         written += browser_shots(session)

@@ -62,3 +62,4 @@ issues #2 … #43 (created 2026-09-24; `scripts/roadmap_to_issues.py` adds new r
 | RM-053 | planned | build | Batch build for many sessions and a combined index page |
 | RM-054 | planned | build | Diff two recordings of the same procedure (changed steps) |
 | RM-055 | done | build | Frame the clicked element (image-based detection, ring fallback, draw/remove in `edit`, `--marker box\|ring`) |
+| RM-056 | done | build | Arrows (automatic for small targets, hand-drawn in `edit`) and `--spotlight` |

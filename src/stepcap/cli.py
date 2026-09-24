@@ -82,6 +82,8 @@ def cmd_build(args: argparse.Namespace) -> int:
             reset=args.reset,
             dry_run=args.dry_run,
             marker=args.marker,
+            spotlight=args.spotlight,
+            auto_arrows=args.auto_arrows,
         )
         res = run_build(Path(args.session), opts)
     except (SessionError, ValueError) as exc:
@@ -261,6 +263,19 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("box", "ring"),
         help="box: frame the clicked button/field when it can be detected, else a ring "
         "(default); ring: always a ring. Saved in steps.json.",
+    )
+    b.add_argument(
+        "--spotlight",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="dim everything except the clicked element (default: off). Saved in steps.json.",
+    )
+    b.add_argument(
+        "--auto-arrows",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="add an arrow pointing at small targets such as checkboxes (default: on). "
+        "Saved in steps.json.",
     )
     b.add_argument(
         "--reset",

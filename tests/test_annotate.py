@@ -111,3 +111,47 @@ def test_zoom_centres_on_box():
     step = {"kind": "click", "point": {"img_x": 10, "img_y": 10}, "box": [900, 600, 100, 40]}
     left, top, right, bottom = annotate.zoom_box(step, (1440, 900), 400)
     assert left <= 900 and right >= 1000 and top <= 600 and bottom >= 640
+
+
+def luminance(img, box):
+    raw = img.crop(box).convert("L").tobytes()
+    return sum(raw) / len(raw)
+
+
+def test_spotlight_dims_outside_the_target_only():
+    step = {"kind": "click", "point": {"img_x": 700, "img_y": 420}, "box": [600, 400, 200, 44]}
+    plain = annotate.annotate(blank(), step, 1)
+    lit = annotate.annotate(blank(), step, 1, spot=True)
+    assert luminance(lit, (0, 700, 300, 900)) < luminance(plain, (0, 700, 300, 900)) - 40
+    assert luminance(lit, (640, 410, 760, 434)) > 250  # inside the frame stays bright
+    ring_step = {"kind": "click", "point": {"img_x": 700, "img_y": 420}}
+    lit_ring = annotate.annotate(blank(), ring_step, 1, spot=True)
+    assert luminance(lit_ring, (708, 416, 713, 424)) > 240  # inside the ring, off the dot
+    assert luminance(lit_ring, (0, 0, 200, 200)) < 200
+
+
+def test_auto_arrow_only_for_small_targets():
+    small = {"kind": "click", "point": {"img_x": 512, "img_y": 512}, "box": [502, 502, 21, 21]}
+    big = {"kind": "click", "point": {"img_x": 700, "img_y": 420}, "box": [600, 400, 200, 44]}
+    st = annotate.MarkerStyle.for_image(1440, 900)
+    rect = annotate.box_rect(small["box"], st, 1440, 900)
+    tail, head = annotate.auto_arrow(rect, st, 1440, 900)
+    # points at the target from the side facing the image centre (up and right here)
+    assert tail[0] > head[0] and tail[1] < head[1]
+    with_arrow = annotate.annotate(blank(), small, 1)
+    without = annotate.annotate(blank(), small, 1, auto_arrows=False)
+    mid = ((tail[0] + head[0]) // 2, (tail[1] + head[1]) // 2)
+    probe = (mid[0] - 4, mid[1] - 4, mid[0] + 4, mid[1] + 4)
+    assert accent_pixels(with_arrow, probe) > 5 and accent_pixels(without, probe) == 0
+    big_out = annotate.annotate(blank(), big, 1)
+    assert accent_pixels(big_out, (820, 460, 900, 520)) == 0  # no arrow near a big button
+
+
+def test_hand_drawn_arrows_are_always_drawn():
+    step = {"kind": "manual", "arrows": [[100, 100, 400, 300]]}
+    out = annotate.annotate(blank(), step, 1)
+    assert accent_pixels(out, (240, 190, 260, 210)) > 5
+    assert annotate.annotate(blank(), {"kind": "manual", "arrows": [[1, 2]]}, 1).size == (
+        1440,
+        900,
+    )

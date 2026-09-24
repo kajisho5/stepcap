@@ -41,11 +41,15 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 |---|---|
 | ![guide.html](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/guide-html.png) | ![編集 UI](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/edit-ui.png) |
 
-クリックしたボタン・入力欄・カードは、番号付きの枠で囲みます。部品の範囲はスクリーンショットから検出するので、OCR や OS のアクセシビリティ API は使いません。判定に自信がないとき（無地の画面上の文字、グラデーションなど）は、クリック位置に番号付きの丸を描きます。枠は `stepcap edit` で描き直したり消したりできます（常に丸にしたい場合は `--marker ring`）。ドラッグには矢印、スクロールには方向矢印、ショートカットにはキーラベルが付きます。`--zoom 640` を指定するとクリック周辺の切り抜きがメイン画像になり、全画面のサムネイルが添えられます。
+クリックしたボタン・入力欄・カードは、番号付きの枠で囲みます。部品の範囲はスクリーンショットから検出するので、OCR や OS のアクセシビリティ API は使いません。判定に自信がないとき（無地の画面上の文字、グラデーションなど）は、クリック位置に番号付きの丸を描きます。枠は `stepcap edit` で描き直したり消したりできます（常に丸にしたい場合は `--marker ring`）。チェックボックスのような小さい部品には、自動で矢印も付きます。`--spotlight` を付けると対象以外を暗くします。矢印は `stepcap edit` で手描きで追加することもできます。ドラッグには矢印、スクロールには方向矢印、ショートカットにはキーラベルが付きます。`--zoom 640` を指定するとクリック周辺の切り抜きがメイン画像になり、全画面のサムネイルが添えられます。
 
 | ボタンを枠で囲む | ドラッグ | `--zoom 640` |
 |---|---|---|
 | ![クリック](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-click.png) | ![ドラッグ](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-drag.png) | ![ズーム](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-zoom.png) |
+
+| `--spotlight` + 小さいチェックボックスへの自動矢印 |
+|---|
+| ![スポットライト](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-spotlight.png) |
 
 上の画像はすべて [`demos/build.py`](demos/build.py) が合成セッション（`stepcap simulate`）から生成しています。実データは含まれず、いつでも再生成できます。
 
@@ -58,7 +62,8 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 - **出力**: `guide.md` + `images/`、単一ファイルの `guide.html`（目次・ライト / ダーク・印刷 CSS）、編集用の正本 `steps.json`
 - **再ビルドしても編集を上書きしない**: 人・`stepcap edit`・AI エージェントが `steps.json` に加えた編集は保持されます（最初から作り直すときは `--reset`）
 - **クリックした部品を枠で囲む**: ボタン・入力欄・チェックボックス・カードをスクリーンショットから検出して囲みます。自信がないときは丸にします
-- **ローカル編集 UI**（`stepcap edit`）: ドラッグで並べ替え、削除、タイトル / 説明の編集、枠の描き直し / 削除、矩形ぼかし（`work/` のコピーに適用し、原本 `raw/` は変更しません）、再ビルド
+- **矢印とスポットライト**: 小さい部品には自動で矢印を付けます。`--spotlight` で対象以外を暗くでき、編集 UI では矢印を手描きで追加できます
+- **ローカル編集 UI**（`stepcap edit`）: ドラッグで並べ替え、削除、タイトル / 説明の編集、枠の描き直し / 削除、矢印の追加、枠・自動矢印・スポットライトの切り替え、矩形ぼかし（`work/` のコピーに適用し、原本 `raw/` は変更しません）、再ビルド
 - **プライバシー重視の初期設定**: `--record-typing` を付けない限り入力内容は保存しません。パスワード / ログイン画面では常にマスクします。`--exclude-app` を指定したアプリが前面の間は記録もスクショもしません。通信は一切行いません
 
 ### できないこと（v0.1）
@@ -89,8 +94,8 @@ stepcap record [-o SESSION_DIR] [--monitor all|active] [--record-typing]
                [--exclude-app NAME ...] [--hotkey-stop F9] [--hotkey-pause F8]
                [--hotkey-manual F7] [--note-prompt auto|gui|terminal|none] [--dry-run] [--json]
 stepcap build SESSION_DIR [-f md,html] [--zoom 800] [--width 1600] [--lang en|ja]
-              [--title "..."] [--marker box|ring] [--image-format webp|jpeg|png]
-              [--quality 85] [--reset]
+              [--title "..."] [--marker box|ring] [--[no-]spotlight] [--[no-]auto-arrows]
+              [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
 stepcap edit SESSION_DIR [--port 8765] [--host 127.0.0.1] [--no-browser]
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]

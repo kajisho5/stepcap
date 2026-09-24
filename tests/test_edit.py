@@ -1,5 +1,6 @@
 import hashlib
 import json
+import re
 import threading
 import urllib.request
 from urllib.error import HTTPError
@@ -43,7 +44,8 @@ def test_ui_and_steps(server):
     base, session = server
     status, html = call(base, "GET", "/")
     assert status == 200 and b"stepcap edit" in html
-    assert b"http://" not in html and b"https://" not in html  # no external requests
+    # no external requests (the SVG namespace URI is an identifier, not a request)
+    assert not re.search(rb"(src|href)=[\"']https?:|url\(https?:|fetch\([\"']https?:", html)
     status, data = call(base, "GET", "/api/steps")
     assert status == 200 and len(data["doc"]["steps"]) == 12
     assert data["usage"]["0002"] == 4  # dialog screenshot shared by 4 steps
@@ -170,3 +172,38 @@ def test_frame_validation(server):
     assert (
         call(base, "POST", "/api/box", {"id": click["id"], "rect": [5000, 5000, 10, 10]})[0] == 400
     )
+
+
+def test_arrows_and_options(server):
+    base, session = server
+    doc = call(base, "GET", "/api/steps")[1]["doc"]
+    step = doc["steps"][0]
+    status, res = call(
+        base,
+        "POST",
+        "/api/arrows",
+        {"id": step["id"], "arrows": [[10, 10, 200, 150], [5000, -5, 300, 300]]},
+    )
+    assert status == 200 and res["arrows"] == [[10, 10, 200, 150], [1439, 0, 300, 300]]
+    saved = json.loads((session / "steps.json").read_text("utf-8"))["steps"][0]
+    assert saved["arrows"] == res["arrows"]
+    assert call(base, "POST", "/api/arrows", {"id": step["id"], "arrows": []})[1]["arrows"] == []
+    assert "arrows" not in json.loads((session / "steps.json").read_text("utf-8"))["steps"][0]
+    assert call(base, "POST", "/api/arrows", {"id": step["id"], "arrows": [[1, 1, 2, 2]]})[0] == 400
+    assert call(base, "POST", "/api/arrows", {"id": step["id"], "arrows": "x"})[0] == 400
+    assert call(base, "POST", "/api/arrows", {"id": "nope", "arrows": []})[0] == 400
+
+    status, res = call(
+        base, "POST", "/api/options", {"marker": "ring", "spotlight": True, "auto_arrows": False}
+    )
+    assert status == 200 and res == {
+        "ok": True,
+        "marker": "ring",
+        "spotlight": True,
+        "auto_arrows": False,
+    }
+    assert call(base, "POST", "/api/options", {"marker": "star"})[0] == 400
+    assert call(base, "POST", "/api/options", {"spotlight": "yes"})[0] == 400
+    call(base, "POST", "/api/build", {"formats": "md"})
+    saved = json.loads((session / "steps.json").read_text("utf-8"))
+    assert saved["marker"] == "ring" and saved["spotlight"] is True
