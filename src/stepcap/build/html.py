@@ -103,7 +103,7 @@ def render(doc: dict[str, Any], images: list[dict[str, Any]], meta_line: str, ve
             w, h = img["main_size"]
             parts.append(
                 f'<figure><img src="{data_uri(img["main_bytes"], img["mime"])}" alt="{alt}" '
-                f'width="{w}" height="{h}" loading="lazy">'
+                f'width="{w}" height="{h}">'
             )
             win = step.get("window_title") or step.get("app_name")
             if win:
@@ -116,7 +116,7 @@ def render(doc: dict[str, Any], images: list[dict[str, Any]], meta_line: str, ve
             label = escape(naming.text(lang, "full_screen"))
             parts.append(
                 f'<figure class="thumb"><img src="{data_uri(img["thumb_bytes"], img["mime"])}" '
-                f'alt="{label} ({n})" width="{w}" height="{h}" loading="lazy">'
+                f'alt="{label} ({n})" width="{w}" height="{h}">'
                 f"<figcaption>{label}</figcaption></figure>"
             )
         parts.append("</section>")
