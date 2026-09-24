@@ -86,3 +86,41 @@ def test_reorder_delete_rename_blur_save_build(demo_session):
     ]
     assert blurred == [doc["steps"][1]["screenshot"] + ".png"]
     assert "Type the project name" in (demo_session / "guide.md").read_text("utf-8")
+
+
+def test_draw_frame_and_use_ring(demo_session):
+    srv = create_server(demo_session, "127.0.0.1", 0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}/"
+    try:
+        with sync_api.sync_playwright() as p:
+            browser = _launch(p)
+            page = browser.new_page(viewport={"width": 1280, "height": 1600}, bypass_csp=True)
+            page.goto(url)
+            page.wait_for_selector(".step img")
+            card = page.locator(".step").nth(0)  # "+ New project" click, auto-framed
+            assert card.locator(".frame").is_visible()
+            assert not card.locator(".marker").is_visible()
+            card.locator("button", has_text="Use ring").click()
+            page.wait_for_function(
+                "() => document.getElementById('status').textContent.startsWith('Ring restored')"
+            )
+            assert card.locator(".marker").is_visible()
+            card.locator("button", has_text="Draw frame").click()
+            bb = card.locator(".shot img").bounding_box()
+            page.mouse.move(bb["x"] + bb["width"] * 0.1, bb["y"] + bb["height"] * 0.1)
+            page.mouse.down()
+            page.mouse.move(bb["x"] + bb["width"] * 0.3, bb["y"] + bb["height"] * 0.2, steps=4)
+            page.mouse.up()
+            page.wait_for_function(
+                "() => document.getElementById('status').textContent.startsWith('Frame saved')"
+            )
+            assert card.locator(".frame").is_visible()
+            browser.close()
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    step = json.loads((demo_session / "steps.json").read_text("utf-8"))["steps"][0]
+    assert step["box_source"] == "manual"
+    x, y, w, h = step["box"]
+    assert abs(x - 144) <= 3 and abs(y - 90) <= 3 and abs(w - 288) <= 4 and abs(h - 90) <= 4

@@ -27,7 +27,7 @@ issues #2 … #43 (created 2026-09-24; `scripts/roadmap_to_issues.py` adds new r
 | RM-018 | planned | build | Configurable marker style (colour, size, shape, spotlight dimming) |
 | RM-019 | planned | build | Step grouping into sections (by window / app change) |
 | RM-020 | planned | build | Optional local OCR to name the clicked element (off by default) |
-| RM-021 | planned | build | Use accessibility APIs (UIA / AX / AT-SPI) to name clicked controls |
+| RM-021 | planned | build | Use accessibility APIs (UIA / AX / AT-SPI) to name clicked controls and get exact frames |
 | RM-022 | planned | build | More UI languages for automatic texts (zh, ko, de, fr, es) |
 | RM-023 | planned | build | Animated GIF / WebP per step option for drags |
 | RM-024 | planned | build | Include a CJK-capable font for simulate / captions |
@@ -61,3 +61,4 @@ issues #2 … #43 (created 2026-09-24; `scripts/roadmap_to_issues.py` adds new r
 | RM-052 | planned | dev | Performance benchmark for 4K / multi-monitor recording |
 | RM-053 | planned | build | Batch build for many sessions and a combined index page |
 | RM-054 | planned | build | Diff two recordings of the same procedure (changed steps) |
+| RM-055 | done | build | Frame the clicked element (image-based detection, ring fallback, draw/remove in `edit`, `--marker box\|ring`) |

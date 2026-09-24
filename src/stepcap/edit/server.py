@@ -28,6 +28,7 @@ from urllib.parse import urlsplit
 from PIL import Image, ImageFilter
 
 from stepcap.build import steps as steps_mod
+from stepcap.build.annotate import BOX_KINDS
 from stepcap.build.pipeline import (
     GUIDE_HTML,
     BuildOptions,
@@ -150,6 +151,38 @@ class EditApp:
             tmp.replace(path)
         return {"ok": True, "screenshot": sid, "rect": [x0, y0, x1 - x0, y1 - y0]}
 
+    def set_box(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Set (``rect``) or remove (``rect: null``) the highlight frame of one step."""
+        rect = body.get("rect")
+        if rect is not None and (
+            not isinstance(rect, list)
+            or len(rect) != 4
+            or not all(isinstance(v, (int, float)) for v in rect)
+        ):
+            raise ApiError(400, "rect must be [x, y, width, height] in image pixels, or null")
+        with self.lock:
+            doc = steps_mod.load_steps(self.session)
+            if doc is None:
+                raise ApiError(409, "steps.json does not exist yet; reload the page")
+            step = next((s for s in doc["steps"] if s.get("id") == body.get("id")), None)
+            if step is None:
+                raise ApiError(400, f"unknown step id {body.get('id')!r}")
+            if step.get("kind") not in BOX_KINDS:
+                raise ApiError(400, "only click and typing steps can have a frame")
+            box = None
+            if rect is not None:
+                w, h = step.get("image_size") or (10**6, 10**6)
+                x, y, bw, bh = (round(v) for v in rect)
+                x0, y0 = max(0, min(x, x + bw)), max(0, min(y, y + bh))
+                x1, y1 = min(w, max(x, x + bw)), min(h, max(y, y + bh))
+                if x1 - x0 < 3 or y1 - y0 < 3:
+                    raise ApiError(400, "rectangle is empty or outside the image")
+                box = [x0, y0, x1 - x0, y1 - y0]
+            step["box"] = box
+            step["box_source"] = "manual"
+            write_json(self.session / STEPS_FILE, doc)
+        return {"ok": True, "id": step["id"], "box": box}
+
     def reset_image(self, body: dict[str, Any]) -> dict[str, Any]:
         sid = self._sid(body.get("screenshot"))
         with self.lock:
@@ -268,6 +301,7 @@ def make_handler(app: EditApp, allowed_hosts: set[str] | None):
             routes = {
                 "/api/steps": app.save_steps,
                 "/api/blur": app.blur,
+                "/api/box": app.set_box,
                 "/api/reset-image": app.reset_image,
                 "/api/build": app.build,
             }
@@ -280,6 +314,8 @@ def make_handler(app: EditApp, allowed_hosts: set[str] | None):
                 return self._json(exc.status, {"error": str(exc)})
             except (SessionError, ValueError, OSError) as exc:
                 return self._json(500, {"error": str(exc)})
+            except Exception as exc:  # report instead of dropping the connection
+                return self._json(500, {"error": f"{type(exc).__name__}: {exc}"})
 
     return Handler
 

@@ -81,6 +81,7 @@ def cmd_build(args: argparse.Namespace) -> int:
             quality=args.quality,
             reset=args.reset,
             dry_run=args.dry_run,
+            marker=args.marker,
         )
         res = run_build(Path(args.session), opts)
     except (SessionError, ValueError) as exc:
@@ -255,6 +256,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="image format for the guide (default: webp)",
     )
     b.add_argument("--quality", type=int, default=85, help="webp/jpeg quality 1-100 (default 85)")
+    b.add_argument(
+        "--marker",
+        choices=("box", "ring"),
+        help="box: frame the clicked button/field when it can be detected, else a ring "
+        "(default); ring: always a ring. Saved in steps.json.",
+    )
     b.add_argument(
         "--reset",
         action="store_true",

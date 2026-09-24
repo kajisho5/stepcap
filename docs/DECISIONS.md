@@ -35,3 +35,7 @@ One line per decision, newest last. Format: `YYYY-MM-DD — decision — reason`
 - 2026-09-24 — PyInstaller gets pynput backends as explicit hidden imports (`scripts/build_binary.py`) — `--collect-submodules pynput` silently drops them when no display is available at build time; doctor falls back to `__version__` when dist-info is missing in frozen apps.
 - 2026-09-24 — README images use absolute raw.githubusercontent.com URLs — relative paths do not render on PyPI.
 - 2026-09-24 — ROADMAP issues were created through the GitHub API (no `gh` in the build environment); `scripts/roadmap_to_issues.py` is the idempotent `gh` equivalent for later rows.
+- 2026-09-24 — Frame the clicked element by flood-filling its surface colour from the click (raw/ screenshot, no new dependency) — works on every OS today; accessibility APIs (exact bounds) stay on the roadmap (RM-021).
+- 2026-09-24 — Detection is conservative and falls back to the ring: reject fills that leak out of the search window, are too small/large, or are not rectangle-like (solidity < 0.88 rejects letter holes like "o"); seeds of the same colour that fall outside the first region are filled too, and any leak means "text on a page", not a control.
+- 2026-09-24 — Low colour tolerance (18) — 1 px anti-aliased borders of white buttons on white bars leaked at 40.
+- 2026-09-24 — `box` + `box_source` (auto/manual) live in steps.json; auto detection runs once per step, manual frames/removals from `edit` are never overwritten; `marker` (box/ring) is saved like `lang`.

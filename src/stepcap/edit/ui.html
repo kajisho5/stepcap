@@ -53,6 +53,9 @@ border:1px solid var(--line);line-height:0;touch-action:none}
 .marker{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;
 border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer-events:none}
 .sel{position:absolute;border:2px dashed var(--primary);background:var(--blur);pointer-events:none}
+.sel.sel-frame{border-color:var(--accent);background:transparent}
+.frame{position:absolute;border:3px solid var(--accent);border-radius:6px;box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer-events:none}
+.frame[hidden],.marker[hidden]{display:none}
 .tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .tools .note{color:var(--muted);font-size:.8rem}
 .empty{text-align:center;color:var(--muted);padding:48px 0}
@@ -73,9 +76,11 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
   </div>
 </header>
 <main>
-  <p class="hint">Drag ⋮⋮ (or use ↑ ↓) to reorder · edit titles and descriptions · “Blur area” then drag
-    over the screenshot to hide sensitive data (applies to the working copy; originals in raw/ are
-    never changed) · Save writes steps.json · Build regenerates guide.md / guide.html.</p>
+  <p class="hint">Drag ⋮⋮ (or use ↑ ↓) to reorder · edit titles and descriptions · “Draw frame” then drag
+    around the clicked button to fix or add its highlight (“Use ring” goes back to the circle) ·
+    “Blur area” then drag over the screenshot to hide sensitive data (applies to the working copy;
+    originals in raw/ are never changed) · Save writes steps.json · Build regenerates guide.md /
+    guide.html.</p>
   <div id="list"></div>
 </main>
 <template id="tpl">
@@ -237,30 +242,58 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
     img.dataset.sid = sid;
     img.draggable = false;
     box.appendChild(img);
+    var canFrame = step.kind === "click" || step.kind === "type";
     var pt = step.kind === "drag" ? step.from : step.point;
+    var ring = null, frame = null;
     if (pt && pt.img_x !== undefined && step.kind !== "manual" && step.kind !== "key") {
-      var m = document.createElement("div");
-      m.className = "marker";
-      box.appendChild(m);
-      var place = function () {
-        if (!img.naturalWidth) { return; }
-        m.style.left = (100 * pt.img_x / img.naturalWidth) + "%";
-        m.style.top = (100 * pt.img_y / img.naturalHeight) + "%";
-      };
-      img.addEventListener("load", place);
+      ring = document.createElement("div");
+      ring.className = "marker";
+      box.appendChild(ring);
     }
+    if (canFrame) {
+      frame = document.createElement("div");
+      frame.className = "frame";
+      box.appendChild(frame);
+    }
+    function placeMarkers() {
+      if (!img.naturalWidth) { return; }
+      var W = img.naturalWidth, H = img.naturalHeight;
+      var b = canFrame && step.box && step.box.length === 4 ? step.box : null;
+      if (frame) {
+        frame.hidden = !b;
+        if (b) {
+          frame.style.left = (100 * b[0] / W) + "%";
+          frame.style.top = (100 * b[1] / H) + "%";
+          frame.style.width = (100 * b[2] / W) + "%";
+          frame.style.height = (100 * b[3] / H) + "%";
+        }
+      }
+      if (ring) {
+        ring.hidden = !!b;
+        ring.style.left = (100 * pt.img_x / W) + "%";
+        ring.style.top = (100 * pt.img_y / H) + "%";
+      }
+    }
+    img.addEventListener("load", placeMarkers);
     wrap.appendChild(box);
 
     var tools = node.querySelector(".tools");
-    var blurBtn = document.createElement("button");
-    blurBtn.type = "button";
-    blurBtn.textContent = "Blur area";
-    blurBtn.setAttribute("aria-pressed", "false");
-    var resetBtn = document.createElement("button");
-    resetBtn.type = "button";
-    resetBtn.textContent = "Reset image";
-    tools.appendChild(blurBtn);
-    tools.appendChild(resetBtn);
+    function button(label) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      tools.appendChild(b);
+      return b;
+    }
+    var blurBtn = button("Blur area");
+    var resetBtn = button("Reset image");
+    var frameBtn = null, unframeBtn = null;
+    if (canFrame) {
+      frameBtn = button("Draw frame");
+      unframeBtn = button("Use ring");
+      frameBtn.title = "Drag a rectangle around the button / field that was clicked";
+      unframeBtn.title = "Remove the frame and show the ring on the click position";
+    }
     var shared = state.usage[sid] || 1;
     if (shared > 1) {
       var note = document.createElement("span");
@@ -269,20 +302,38 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
       tools.appendChild(note);
     }
 
-    var on = false;
-    blurBtn.addEventListener("click", function () {
-      on = !on;
-      blurBtn.classList.toggle("on", on);
-      blurBtn.setAttribute("aria-pressed", String(on));
-      box.classList.toggle("blurring", on);
-      setStatus(on ? "Drag over the screenshot to blur a rectangle" : "");
-    });
+    var mode = null;  // "blur" | "frame" | null
+    function setMode(m) {
+      mode = mode === m ? null : m;
+      blurBtn.classList.toggle("on", mode === "blur");
+      blurBtn.setAttribute("aria-pressed", String(mode === "blur"));
+      if (frameBtn) {
+        frameBtn.classList.toggle("on", mode === "frame");
+        frameBtn.setAttribute("aria-pressed", String(mode === "frame"));
+      }
+      box.classList.toggle("blurring", mode !== null);
+      setStatus(mode === "blur" ? "Drag over the screenshot to blur a rectangle"
+        : mode === "frame" ? "Drag a rectangle around the clicked button or field" : "");
+    }
+    blurBtn.addEventListener("click", function () { setMode("blur"); });
+    if (frameBtn) {
+      frameBtn.addEventListener("click", function () { setMode("frame"); });
+      unframeBtn.addEventListener("click", function () { saveFrame(null); });
+    }
     resetBtn.addEventListener("click", function () {
       api("POST", "/api/reset-image", { screenshot: sid }).then(function () {
         refreshImages(sid);
         setStatus("Image restored from raw/");
       }).catch(function (err) { setStatus(err.message, true); });
     });
+
+    function saveFrame(rect) {
+      api("POST", "/api/box", { id: step.id, rect: rect }).then(function (res) {
+        step.box = res.box;
+        placeMarkers();
+        setStatus((rect ? "Frame saved" : "Ring restored") + ". Press Build to update the guide.");
+      }).catch(function (err) { setStatus(err.message, true); });
+    }
 
     var start = null, sel = null;
     function toImg(e) {
@@ -292,12 +343,12 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
       return { cx: x, cy: y, ix: x * img.naturalWidth / r.width, iy: y * img.naturalHeight / r.height };
     }
     box.addEventListener("pointerdown", function (e) {
-      if (!on) { return; }
+      if (!mode) { return; }
       e.preventDefault();
       box.setPointerCapture(e.pointerId);
       start = toImg(e);
       sel = document.createElement("div");
-      sel.className = "sel";
+      sel.className = mode === "frame" ? "sel sel-frame" : "sel";
       box.appendChild(sel);
     });
     box.addEventListener("pointermove", function (e) {
@@ -315,6 +366,11 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
       sel.remove();
       var rect = [Math.min(s.ix, p.ix), Math.min(s.iy, p.iy), Math.abs(p.ix - s.ix), Math.abs(p.iy - s.iy)];
       if (rect[2] < 3 || rect[3] < 3) { return; }
+      if (mode === "frame") {
+        setMode("frame");
+        saveFrame(rect.map(Math.round));
+        return;
+      }
       setStatus("Blurring…");
       api("POST", "/api/blur", { screenshot: sid, rect: rect }).then(function () {
         refreshImages(sid);
