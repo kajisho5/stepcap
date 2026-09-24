@@ -1,0 +1,76 @@
+name: binaries
+
+# Called by release.yml for every release (a release created with GITHUB_TOKEN does not
+# trigger `on: release` workflows). Run manually to build without publishing.
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach the binaries to (leave empty to only build)"
+        type: string
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: build (${{ matrix.asset }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            asset: stepcap-windows-x64.exe
+            exe: dist/stepcap.exe
+          - os: macos-latest
+            asset: stepcap-macos-arm64
+            exe: dist/stepcap
+          - os: ubuntu-22.04  # older glibc = runs on more distributions
+            asset: stepcap-linux-x64
+            exe: dist/stepcap
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install . pyinstaller
+      - name: Build
+        run: python scripts/build_binary.py
+      - name: Smoke test (simulate -> build with the binary)
+        shell: bash
+        run: |
+          ${{ matrix.exe }} --version
+          python tests/fixtures/make_events.py > ev.json
+          ${{ matrix.exe }} simulate ev.json -o smoke
+          ${{ matrix.exe }} build smoke -f md,html
+          test -f smoke/guide.html
+          ${{ matrix.exe }} doctor --json > doctor.json || true
+          python -c "import json;d=json.load(open('doctor.json'));print([c['id'] for c in d['checks'] if c['status']=='fail'])"
+      - name: Rename and checksum
+        shell: bash
+        run: |
+          mkdir -p out
+          cp "${{ matrix.exe }}" "out/${{ matrix.asset }}"
+          cd out && python -c "import hashlib,sys;n='${{ matrix.asset }}';print(hashlib.sha256(open(n,'rb').read()).hexdigest()+'  '+n)" > "${{ matrix.asset }}.sha256"
+      - name: Attach to release
+        if: inputs.tag != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" out/* --clobber --repo "${{ github.repository }}"
+      - name: Upload artifact (manual runs)
+        if: inputs.tag == ''
+        uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.asset }}
+          path: out/*

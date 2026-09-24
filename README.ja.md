@@ -35,17 +35,17 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 
 ## デモ
 
-![stepcap: 記録して、生成された手順書をページ送り](docs/demo/demo.gif)
+![stepcap: 記録して、生成された手順書をページ送り](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/demo.gif)
 
 | 生成された `guide.html`（ライト / ダーク、目次、印刷用 CSS） | `stepcap edit`（並べ替え・改名・ぼかし） |
 |---|---|
-| ![guide.html](docs/demo/guide-html.png) | ![編集 UI](docs/demo/edit-ui.png) |
+| ![guide.html](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/guide-html.png) | ![編集 UI](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/edit-ui.png) |
 
 クリック位置には番号付きの二重リングを描きます。ドラッグには矢印、スクロールには方向矢印、ショートカットにはキーラベルが付きます。`--zoom 640` を指定するとクリック周辺の切り抜きがメイン画像になり、全画面のサムネイルが添えられます。
 
 | 全画面 | `--zoom 640` |
 |---|---|
-| ![ドラッグ](docs/demo/step-drag.png) | ![ズーム](docs/demo/step-zoom.png) |
+| ![ドラッグ](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-drag.png) | ![ズーム](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-zoom.png) |
 
 上の画像はすべて [`demos/build.py`](demos/build.py) が合成セッション（`stepcap simulate`）から生成しています。実データは含まれず、いつでも再生成できます。
 

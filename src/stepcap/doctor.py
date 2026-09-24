@@ -34,13 +34,15 @@ class Check:
 # ------------------------------------------------------------------ probes (OS-dependent)
 def _dep_version(module: str) -> tuple[str | None, str | None]:
     try:
-        from importlib.metadata import version
-
-        dist = {"PIL": "pillow"}.get(module, module)
-        __import__(module)
-        return version(dist), None
+        mod = __import__(module)
     except Exception as exc:  # ImportError, or pynput's backend error
         return None, f"{type(exc).__name__}: {exc}".splitlines()[0]
+    try:
+        from importlib.metadata import version
+
+        return version({"PIL": "pillow"}.get(module, module)), None
+    except Exception:  # frozen binaries (PyInstaller) may ship without dist-info
+        return str(getattr(mod, "__version__", "bundled")), None
 
 
 def probe_screenshot() -> dict[str, Any]:
