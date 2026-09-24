@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import shlex
 import sys
 from pathlib import Path
 from typing import Any
@@ -155,6 +156,110 @@ def cmd_simulate(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+# ---------------------------------------------------------------------------- skill
+def _skill_options(args: argparse.Namespace, out_dir: Path):
+    from stepcap.skill.run import SkillOptions
+
+    return SkillOptions(
+        out_dir=out_dir,
+        name=args.name,
+        agent=args.agent,
+        install=getattr(args, "install", "none"),
+        scope=getattr(args, "scope", "user"),
+        force=args.force,
+        yes=args.yes,
+        dry_run=args.dry_run,
+    )
+
+
+def _print_skill(res: dict[str, Any], prefix: str = "") -> None:
+    if res["dry_run"]:
+        print(f"{prefix}[dry-run] skill {res['name']!r} -> {res['skill_dir']}")
+        for f in res["files"]:
+            print(f"{prefix}  would write {f}")
+        if res["agent"] != "none":
+            print(f"{prefix}  {res['agent']} would be able to read (secrets masked):")
+            for f in res["shared_files"]:
+                print(f"{prefix}    {f}")
+            print(f"{prefix}  command: {shlex.join(res['agent_command'])}")
+        if res["installed_to"]:
+            print(f"{prefix}  would install to {res['installed_to']}")
+        return
+    info = res.get("info") or {}
+    print(
+        f"{prefix}Skill {res['name']!r}: {res['steps']} steps -> {res['skill_dir']} "
+        f"({info.get('lines', '?')} lines, ~{info.get('tokens', '?')} tokens)"
+    )
+    for problem in res["problems"]:
+        print(f"{prefix}  INVALID: {problem}", file=sys.stderr)
+    if res["installed_to"]:
+        print(f"{prefix}  installed to {res['installed_to']}")
+    elif res["ok"]:
+        print(f"{prefix}  valid (Agent Skills spec + no secrets)")
+
+
+def cmd_skill(args: argparse.Namespace) -> int:
+    from stepcap.skill.run import SkillError, ask, run_skill
+
+    try:
+        res = run_skill(Path(args.session), _skill_options(args, Path(args.output)), ask)
+    except (SkillError, SessionError, ValueError) as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    data = res.to_dict()
+    if args.json:
+        _print_json(data)
+    else:
+        _print_skill(data)
+    return EXIT_OK if res.ok else EXIT_FAIL
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    from stepcap.build.pipeline import BuildOptions
+    from stepcap.skill.run import SkillError, ask, run_export
+
+    out = Path(args.output)
+    try:
+        res = run_export(
+            Path(args.session),
+            args.format,
+            out,
+            _skill_options(args, out / "skill"),
+            BuildOptions(lang=args.lang),
+            ask,
+        )
+    except (SkillError, SessionError, ValueError) as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    data = res.to_dict()
+    if args.json:
+        _print_json(data)
+        return EXIT_OK if res.ok else EXIT_FAIL
+    if res.guide_dir:
+        tag = "[dry-run] would write" if res.dry_run else "Guide"
+        print(f"{tag} {res.guide_dir}: {len(res.guide_files)} files")
+    if res.skill:
+        _print_skill(res.skill)
+    return EXIT_OK if res.ok else EXIT_FAIL
+
+
+def cmd_check_skill(args: argparse.Namespace) -> int:
+    from stepcap.skill.validate import validate_skill
+
+    problems, info = validate_skill(Path(args.skill_dir))
+    if args.json:
+        _print_json({"skill_dir": args.skill_dir, "ok": not problems, "problems": problems, **info})
+    elif problems:
+        for problem in problems:
+            print(f"INVALID: {problem}", file=sys.stderr)
+    else:
+        print(
+            f"{args.skill_dir}: valid ({info.get('lines')} lines, ~{info.get('tokens')} tokens, "
+            f"{info.get('links')} local links)"
+        )
+    return EXIT_FAIL if problems else EXIT_OK
+
+
 # ---------------------------------------------------------------------------- doctor
 def cmd_doctor(args: argparse.Namespace) -> int:
     from stepcap import doctor
@@ -170,11 +275,30 @@ def _positive_int(v: str) -> int:
     return n
 
 
+def _skill_args(k: argparse.ArgumentParser) -> None:
+    k.add_argument(
+        "--name",
+        help="skill name: a-z, 0-9 and hyphens (default: from the guide title or app name)",
+    )
+    k.add_argument(
+        "--agent",
+        choices=("none", "claude", "codex"),
+        default="none",
+        help="none: deterministic draft, no LLM (default). claude / codex: let your own "
+        "agent CLI rewrite the draft into a general skill (asks first; stepcap itself "
+        "sends nothing)",
+    )
+    k.add_argument("--yes", action="store_true", help="do not ask before running the agent")
+    k.add_argument("--force", action="store_true", help="replace existing output folders")
+    k.add_argument("--dry-run", action="store_true", help="show what would be written / shared")
+    k.add_argument("--json", action="store_true", help="machine-readable summary")
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="stepcap",
-        description="Record desktop clicks and turn them into step-by-step guides. "
-        "Local only: no cloud, no account, no network.",
+        description="Record desktop clicks once; get a step-by-step guide for people and an "
+        "Agent Skill (SKILL.md) for any agent. Local: no cloud, no account, no network.",
     )
     p.add_argument("--version", action="version", version=f"stepcap {__version__}")
     sub = p.add_subparsers(dest="command", metavar="COMMAND")
@@ -310,6 +434,55 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--dry-run", action="store_true")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_simulate)
+
+    k = sub.add_parser(
+        "skill",
+        help="write an Agent Skill (SKILL.md + references/) for Claude Code, Codex or any agent",
+    )
+    k.add_argument("session", metavar="SESSION_DIR")
+    k.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        metavar="OUT_DIR",
+        help="parent folder; the skill is written to OUT_DIR/<name>/",
+    )
+    _skill_args(k)
+    k.add_argument(
+        "--install",
+        choices=("none", "claude", "codex"),
+        default="none",
+        help="also copy the skill to where Claude Code (.claude/skills) or Codex "
+        "(.agents/skills) loads skills from",
+    )
+    k.add_argument(
+        "--scope",
+        choices=("user", "project"),
+        default="user",
+        help="with --install: your home folder (user, default) or the current folder (project)",
+    )
+    k.set_defaults(func=cmd_skill)
+
+    x = sub.add_parser("export", help="write the guide (for people) and/or the skill (for agents)")
+    x.add_argument("session", metavar="SESSION_DIR")
+    x.add_argument(
+        "--format",
+        choices=("guide", "skill", "both"),
+        default="both",
+        help="guide -> OUT_DIR/guide/, skill -> OUT_DIR/skill/<name>/ (default: both)",
+    )
+    x.add_argument("-o", "--output", required=True, metavar="OUT_DIR")
+    x.add_argument("--lang", choices=("en", "ja"), help="language of automatic guide texts")
+    _skill_args(x)
+    x.set_defaults(func=cmd_export)
+
+    c = sub.add_parser(
+        "check-skill",
+        help="validate a skill folder (Agent Skills spec, links, size, secret patterns)",
+    )
+    c.add_argument("skill_dir", metavar="SKILL_DIR")
+    c.add_argument("--json", action="store_true")
+    c.set_defaults(func=cmd_check_skill)
 
     d = sub.add_parser("doctor", help="check permissions, hooks and screen capture")
     d.add_argument("--json", action="store_true")

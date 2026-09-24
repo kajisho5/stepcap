@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from stepcap import __version__
+from stepcap.redact import redact_obj
 
 SESSION_FILE = "session.json"
 EVENTS_FILE = "events.jsonl"
@@ -95,6 +96,8 @@ class EventWriter:
         self.count = 0
 
     def write(self, event: dict[str, Any]) -> None:
+        # secrets in typed text, titles, URLs, clipboard and notes never reach the disk
+        event = redact_obj(event)
         line = json.dumps(event, ensure_ascii=False, separators=(",", ":"))
         with self._lock:
             self._fh.write(line + "\n")

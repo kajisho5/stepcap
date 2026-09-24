@@ -1,8 +1,10 @@
 # stepcap
 
-**画面操作を記録するだけで、クリック位置に番号付きマーカーを描いたスクリーンショット付きの手順書（Markdown / 単一 HTML）を自動生成します。**
+**1 回の記録から、人向けの手順書と、どのエージェントでも使える SKILL.md の両方を。ローカル完結・アカウント不要・Copilot 不要。**
 
-`完全ローカル · オフライン動作 · アカウント不要 · ブラウザもデスクトップアプリも記録 · 手順書はブラウザで開くだけ`
+*Record once. Get a how-to guide for humans and a SKILL.md for any agent. Local, no account, no Copilot.*
+
+`完全ローカル · オフライン動作 · アカウント不要 · ブラウザもデスクトップアプリも記録 · Windows / macOS / Linux`
 
 [![tests](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/kajisho5/stepcap/actions/workflows/codeql.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/codeql.yml)
@@ -13,12 +15,17 @@
 [![Python 3.11 | 3.13 tested](https://img.shields.io/badge/python-3.11%20%7C%203.13%20tested-blue)](.github/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-*Scribe / Tango のようなツールを、オープンソース・デスクトップ全体対応・オフラインで。*
-情シス、ヘルプデスク、総務、講師など「操作マニュアル」を作る人向けです。作業を 1 回やって F9 を押せば、手順書ができあがります。
+作業を 1 回やって F9 を押すと、stepcap は記録から **2 つ** を作ります。
+
+- **人向けの手順書**: `guide.md`、1 ファイルの `guide.html`、印刷用チェックリスト（番号付きの枠・矢印・ぼかし付き）
+- **エージェント用の Agent Skill**: [Agent Skills](https://agentskills.io/specification) 形式の `SKILL.md` と注釈付きスクリーンショット。Claude Code や Codex など、スキルを読めるエージェントが同じ作業を繰り返せます。入力した値は `{{変数}}` になります
+
+情シス、ヘルプデスク、総務、講師など「操作マニュアル」を作る人と、「次からはこの作業をエージェントにやらせたい」人向けです。
 
 - **完全ローカル**: データは PC の外に出ません。クラウド・会員登録は不要で、ネットワークを抜いた状態でも動きます
 - **ブラウザもデスクトップアプリも 1 本で記録**: Chrome / Edge / Firefox の Web アプリと、Excel・Zoom・OBS・機器の制御ソフトなどのデスクトップアプリを区別なく記録します（ブラウザ拡張型ツールの無料プランはブラウザ内のみ）
 - **手順書はブラウザで開くだけ**: `guide.html` は画像込みの 1 ファイルで、専用ビューアもログインも不要です。編集 UI（`stepcap edit`）もブラウザで動きます（127.0.0.1 で待ち受け）
+- **エージェントを選ばない**: スキルの下書きは LLM なしで作れます。一般化させたい場合は、読ませるファイルを表示して確認したうえで、**あなた自身の** `claude` / `codex` CLI を実行します。stepcap 自体は何も送信しません
 
 [English README](README.md)
 
@@ -28,8 +35,12 @@
 pipx install stepcap          # または pip install stepcap（Python 3.11 以上）
 stepcap doctor                # 権限・フックを確認し、足りない設定の手順を表示
 stepcap record -o my-guide    # 操作する → 終わったら F9
-stepcap build my-guide --lang ja   # my-guide/guide.md, guide.html, steps.json
+stepcap export my-guide --format both -o dist --lang ja
+#   -> dist/guide/  guide.md, guide.html, checklist.html, images/
+#   -> dist/skill/<名前>/  SKILL.md, references/step-NN.png
 ```
+
+セッションフォルダの中に手順書だけ作る場合は `stepcap build my-guide --lang ja`、スキルを作って Claude Code にインストールまでする場合は `stepcap skill my-guide -o skills --install claude` です（[エージェント用](#エージェント用-stepcap-skill) を参照）。
 
 `my-guide/checklist.html` は同じ手順を A4 に収めた印刷用チェックリストで、現場で紙に印を付けながら使えます。`my-guide/guide.html` は画像込みの 1 ファイルなので、そのままメール添付できます。Ctrl+P →「PDF に保存」で PDF にもなります。`guide.md` と `images/` は GitHub / Notion / Confluence に貼り付けられます。
 
@@ -73,23 +84,32 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 ### できないこと（v0.1）
 
 - **Wayland**（Linux）には非対応で、X11 のみです。Wayland では理由を表示して停止します
-- **OCR / AI による命名**はしません。タイトルはウィンドウ名ベースです。人が読みやすい文章にしたい場合は後述の Agent Skill を使ってください
+- **OCR / AI による命名**はしません。タイトルはウィンドウ名ベースです。人が読みやすい文章にしたい場合は同梱のエージェント用スキルか、`stepcap skill --agent claude|codex` を使ってください
 - **動画**、ナレーション、クラウド共有、チーム管理
 - PDF の直接出力（`guide.html` をブラウザで印刷 → PDF）
 
+## なぜ作ったか
+
+- Windows 標準の**ステップ記録ツール**（psr.exe）は Microsoft が非推奨化しています（2024 年 2 月の更新から予告表示。2026-09 時点ではまだ起動し、削除日は未発表）。Microsoft が案内する代替（Snipping Tool・Game Bar・Clipchamp）は動画の録画で、手順の記録ではありません
+- Microsoft の **skill-recorder** は「1 回の記録 → エージェント用スキル」の有用性を示しましたが、Copilot を利用できる GitHub アカウントが必要で、分析（Analyze）時にイベント記録と画面画像を GitHub のクラウドへ送り、対応先は Microsoft Scout / Copilot Cowork / Copilot Studio です
+
+stepcap はこの 2 つの空白を埋めます。1 回のローカル記録から手順書とスキルの両方を、どの OS でも、どのエージェント向けにも作れます。
+
 ## 他ツールとの比較
 
-各社の公開情報に基づきます（2026-09-24 時点で確認。価格は変わるため各リンクを参照してください）。
+各プロジェクトの公開情報に基づきます（2026-09-24 時点で確認。詳細は各リンクを参照してください）。
 
-| | OSS | 記録対象 | 動作環境 | アカウント / クラウド | 価格 |
+| | 動作環境 | 人向け手順書 | エージェント用 SKILL.md | アカウント | 外部送信 |
 |---|---|---|---|---|---|
-| **stepcap** | ✅ MIT | デスクトップ全体 | Windows / macOS / Linux(X11) | 不要・完全ローカル | 無料 |
-| [Scribe](https://scribe.com/pricing) | — | ブラウザ（Pro はデスクトップアプリも） | 拡張機能 + デスクトップアプリ | 必要・クラウド | Basic 無料（Web アプリのみ・PDF / HTML / Markdown 書き出し不可）、Pro Personal $25/ユーザー/月（年払い） |
-| [Tango](https://www.tango.ai/pricing) | — | ブラウザ（拡張機能） | ブラウザ | 必要・クラウド | 無料（ブラウザ記録・5 件まで・書き出し不可）、Pro $22/ユーザー/月（年払い・1〜2 名） |
-| [FlowShare](https://getflowshare.com/pricing/) | — | デスクトップ全体 | Windows | ライセンス | Professional $44/月（年払い）、$49（月払い） |
-| [Guidde](https://www.guidde.com/) | — | 動画ガイド（AI ナレーション） | 拡張機能 / デスクトップ / モバイルアプリ | 必要・クラウド | 公式サイト参照 |
-| [CliqRelay](https://github.com/CliqRelay/cliqrelay) | ✅ | ブラウザ（Chrome 拡張） | セルフホスト型プラットフォーム（Web アプリ + バックエンド） | セルフホスト | 無料 |
-| [Windows ステップ記録ツール](https://support.microsoft.com/en-us/windows/apps/steps-recorder-deprecation) | — | デスクトップ全体 | Windows | 不要 | OS 標準機能だが Microsoft が**非推奨化**。保存形式は .zip 内の .mht、既定では最後の 25 枚のみ保持 |
+| **stepcap** | Windows / macOS / Linux(X11) | ✅ MD・HTML・チェックリスト | ✅ どのエージェントでも（Claude Code、Codex など） | 不要 | なし（任意のエージェント連携は利用者自身の CLI） |
+| [skill-recorder](https://github.com/microsoft/skill-recorder) | macOS / Windows 11 / Ubuntu | —（スキルと自動化のみ） | ✅ Microsoft Scout / Copilot Cowork / Copilot Studio 向け | Copilot を使える GitHub アカウント | Analyze 時にイベントと画面画像を GitHub のクラウドへ |
+| [OpenSteps](https://github.com/ebanez8/openstep) | Windows 10 以降 | ✅ MD・HTML | — | 不要 | なし（ローカル） |
+| [BetterStepsRecorder](https://github.com/Mentaleak/BetterStepsRecorder) | Windows | ✅ HTML・RTF・ODT | — | 不要 | 記載なし |
+| [Scribe](https://scribe.com/pricing) | ブラウザ（Pro はデスクトップアプリも） | ✅（PDF / HTML / Markdown 書き出しは Pro） | — | 必要 | クラウド |
+| [Tango](https://www.tango.ai/pricing) | ブラウザ（Pro はデスクトップも） | ✅（書き出しは Pro） | — | 必要 | クラウド |
+| [Windows ステップ記録ツール](https://support.microsoft.com/en-us/windows/apps/steps-recorder-deprecation) | Windows | ✅ .zip 内の .mht（既定では最後の 25 枚のみ） | — | 不要 | なし。**非推奨化** |
+
+Scribe（Basic）と Tango の無料プランはブラウザ内の Web アプリのみ記録・書き出し不可で、有料プランは 1 ユーザーあたり月 $25 / $22（年払い）からです。
 
 ## コマンド
 
@@ -102,6 +122,12 @@ stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
 stepcap edit SESSION_DIR [--port 8765] [--host 127.0.0.1] [--no-browser]
+stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex]
+              [--install none|claude|codex] [--scope user|project] [--yes] [--force]
+              [--dry-run] [--json]
+stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
+               [--agent none|claude|codex] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
+stepcap check-skill SKILL_DIR [--json]
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap doctor [--json]
 ```
@@ -118,7 +144,22 @@ stepcap doctor [--json]
 
 詳細: [docs/permissions.md](docs/permissions.md)
 
-## Agent Skill: 手順の文章をコーディングエージェントに書かせる
+## エージェント用: `stepcap skill`
+
+```bash
+stepcap skill my-guide -o skills                     # 下書き（LLM 不要）: skills/<名前>/SKILL.md
+stepcap skill my-guide -o skills --agent claude      # 手元の Claude Code CLI に一般化させる
+stepcap skill my-guide -o skills --install claude --scope project   # .claude/skills/<名前>/ にも配置
+stepcap check-skill skills/<名前>                     # 手で直した後の検証
+```
+
+- **下書き（`--agent none`、既定）**: 決まった手順で作り、オフラインで動きます。frontmatter（`name`・`description`）、`## Goal`（F7 のメモ。なければ `TODO`）、`## Inputs`（入力した値はすべて `{{input_N}}`。名前の変更や「固定値」への切り替えは `stepcap edit` で）、番号付きの `## Steps`（アプリ・ウィンドウ名・`references/step-NN.png`。注釈付きでぼかし適用済み）、`## Notes for the agent`（クリックより CLI / API を優先、削除・送信・支払いの前は確認）
+- **清書（`--agent claude|codex`）**: スキルフォルダで `claude -p` または `codex exec` を実行し、[`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md) の指示で一般化させます。実行前に、エージェントが読めるファイルを一覧表示して `y/N` を確認します（`--yes` で省略、`--dry-run` は一覧表示のみ）。stepcap 自体は通信しません。エージェントがどこへ送るかはエージェント側の設定次第です
+- **配置（`--install claude|codex`）**: `~/.claude/skills/` または `./.claude/skills/`（Claude Code）、`~/.agents/skills/` または `./.agents/skills/`（Codex）にコピーします。同名のスキルがあれば `--force` なしでは上書きしません
+- **必ず検証**: Agent Skills の frontmatter 規則、名前 = フォルダ名、500 行未満、約 5000 トークン以内、`references/` のリンク切れなし、秘密情報のパターン（GitHub / AWS / OpenAI / Anthropic のキー、JWT、URL 内のパスワード、カード番号）なし。満たさなければ終了コード 1
+- **記録中に F7 で「なぜ」をメモ**してください。スキルの Goal になり、エージェントにとって最も役立つ情報です
+
+## 手順書の文章をコーディングエージェントに書かせる
 
 自動タイトルはテンプレートベースです（`「設定」でクリック`）。Claude Code / Codex / Cursor にセッションフォルダを渡すと、エージェントが注釈付きスクリーンショットを見て各ステップのタイトルと 1〜2 文の説明を `steps.json` に書き、`stepcap build` まで実行します。手順は [`skills/stepcap/SKILL.md`](skills/stepcap/SKILL.md) にあります。
 
@@ -132,9 +173,11 @@ mkdir -p ~/.claude/skills && cp -r skills/stepcap ~/.claude/skills/
 
 ## FAQ
 
-**どこかにアップロードされますか？** されません。stepcap は通信を一切行いません。編集 UI は 127.0.0.1 のみで待ち受け、Host / Origin も検査します。
+**どこかにアップロードされますか？** されません。stepcap は通信を一切行いません（`--agent claude|codex` は確認後に利用者自身のエージェント CLI を実行するだけです）。編集 UI は 127.0.0.1 のみで待ち受け、Host / Origin も検査します。
 
 **パスワードは記録されますか？** 既定では入力内容を保存せず、「12 文字入力」とだけ記録します。ただし画面に表示されている内容はスクリーンショットに写るので、`stepcap edit` でぼかすか、パスワードマネージャーを `--exclude-app` で除外してください。
+
+**秘密情報はマスクされますか？** テキストはされます。入力内容（`--record-typing` 時）、ウィンドウ名、メモ、スキルの全文から、GitHub / AWS / OpenAI / Anthropic のキー、JWT、URL 内のパスワード、カード番号を検出して `[REDACTED:種類]` として保存します。画像のピクセルは検査しないため、画面に写った秘密情報は `stepcap edit` でぼかしてください。
 
 **インストールせずにブラウザだけで使えますか？** 編集 UI と手順書はブラウザで動きますが、記録部分はできません。Web ページは自分のタブの中のクリックしか検知できないため、デスクトップ全体を記録するには小さなローカルプログラム（`pipx install stepcap` または Releases の単体実行ファイル）が必要です。Web アプリはほかのウィンドウと同じように記録できます。
 
@@ -145,6 +188,10 @@ mkdir -p ~/.claude/skills && cp -r skills/stepcap ~/.claude/skills/
 ## ロードマップ
 
 [ROADMAP.md](ROADMAP.md) を参照してください（OCR による命名、PDF 出力、portal 経由の Wayland 対応、マスキングプリセット、多言語化など）。予定の項目は `roadmap` ラベル付きの GitHub Issue で管理しています。
+
+## クレジット
+
+「1 回記録してエージェント用スキルを作る」という考え方は Microsoft の [skill-recorder](https://github.com/microsoft/skill-recorder) で広まったものです。stepcap はコードを共有していません（言語も設計も別です）。考え方の出典として記載しています。
 
 ## ライセンス
 

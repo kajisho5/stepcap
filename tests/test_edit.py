@@ -209,3 +209,25 @@ def test_arrows_and_options(server):
     call(base, "POST", "/api/build", {"formats": "md"})
     saved = json.loads((session / "steps.json").read_text("utf-8"))
     assert saved["marker"] == "ring" and saved["spotlight"] is True
+
+
+def test_skill_input_name_and_variable(server):
+    base, session = server
+    doc = call(base, "GET", "/api/steps")[1]["doc"]
+    typed = next(s for s in doc["steps"] if s["kind"] == "type")
+    assert typed["input"] == {"name": "input_1", "variable": True}
+    items = [{"id": s["id"]} for s in doc["steps"]]
+    idx = next(i for i, s in enumerate(doc["steps"]) if s["id"] == typed["id"])
+    for bad in ({"name": "Project", "variable": True}, {"name": "ok", "variable": "yes"}, "x"):
+        items[idx] = {"id": typed["id"], "input": bad}
+        assert call(base, "POST", "/api/steps", {"steps": items})[0] == 400
+    items[idx] = {"id": typed["id"], "input": {"name": "project_name", "variable": False}}
+    assert call(base, "POST", "/api/steps", {"steps": items})[0] == 200
+    saved = json.loads((session / "steps.json").read_text("utf-8"))
+    step = next(s for s in saved["steps"] if s["id"] == typed["id"])
+    assert step["input"] == {"name": "project_name", "variable": False}
+    # input on a non-type step is ignored
+    items[0] = {"id": doc["steps"][0]["id"], "input": {"name": "x", "variable": True}}
+    assert call(base, "POST", "/api/steps", {"steps": items})[0] == 200
+    saved = json.loads((session / "steps.json").read_text("utf-8"))
+    assert "input" not in saved["steps"][0]

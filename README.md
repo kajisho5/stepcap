@@ -1,8 +1,8 @@
 # stepcap
 
-**Record what you click. Get a step-by-step guide with annotated screenshots — in Markdown and a single HTML file.**
+**Record once. Get a how-to guide for humans and a SKILL.md for any agent. Local, no account, no Copilot.**
 
-`Fully local · Works offline · No account · Any app, browsers included · Guides open in any browser`
+`Fully local · Works offline · No account · Any app, browsers included · Windows, macOS, Linux`
 
 [![tests](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/kajisho5/stepcap/actions/workflows/codeql.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/codeql.yml)
@@ -13,9 +13,16 @@
 [![Python 3.11 | 3.13 tested](https://img.shields.io/badge/python-3.11%20%7C%203.13%20tested-blue)](.github/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-*Scribe / Tango, but open source, desktop-wide and offline.* stepcap is for anyone
-who writes "how to do X" manuals — IT support, help desks, back office, trainers:
-do the task once, press F9, and the guide is done.
+Do the task once and press F9. stepcap turns the recording into **two things**:
+
+- **a guide for people** — `guide.md`, a single-file `guide.html` and a printable checklist,
+  with numbered frames, arrows and blur;
+- **an Agent Skill for agents** — `SKILL.md` + annotated screenshots in the
+  [Agent Skills](https://agentskills.io/specification) format, so Claude Code, Codex or any
+  agent that reads skills can repeat the task, with typed values as `{{inputs}}`.
+
+It is for anyone who writes "how to do X" manuals — IT support, help desks, back office,
+trainers — and for anyone who wants their coding agent to do X next time.
 
 - **Fully local**: nothing leaves your machine — no cloud, no sign-up, works with the network
   unplugged.
@@ -24,6 +31,9 @@ do the task once, press F9, and the guide is done.
   browser-extension tools cover the browser only.
 - **Read in any browser**: `guide.html` is one self-contained file — no viewer, no login; the
   editor (`stepcap edit`) also runs in your browser, served from 127.0.0.1.
+- **Any agent, no lock-in**: the skill draft needs no LLM. If you want it generalised, stepcap
+  runs *your own* `claude` or `codex` CLI after showing what it will read — stepcap itself
+  sends nothing.
 
 [日本語 README](README.ja.md)
 
@@ -33,8 +43,14 @@ do the task once, press F9, and the guide is done.
 pipx install stepcap          # or: pip install stepcap  (Python 3.11+)
 stepcap doctor                # checks permissions / hooks, prints fixes
 stepcap record -o my-guide    # do the task... then press F9
-stepcap build my-guide        # -> my-guide/guide.md, guide.html, steps.json
+stepcap export my-guide --format both -o dist
+#   -> dist/guide/  guide.md, guide.html, checklist.html, images/
+#   -> dist/skill/<name>/  SKILL.md, references/step-NN.png
 ```
+
+`stepcap build my-guide` writes the guide inside the session folder instead;
+`stepcap skill my-guide -o skills --install claude` writes the skill and installs it for
+Claude Code (see [For agents](#for-agents-stepcap-skill)).
 
 Open `my-guide/guide.html` (one self-contained file — email it, or Ctrl+P → Save as PDF),
 or paste `guide.md` + `images/` into GitHub, Notion or Confluence. `my-guide/checklist.html`
@@ -106,24 +122,39 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
 ### What it doesn't do (v0.1)
 
 - **Wayland** (Linux) — X11 only; stepcap stops with an explanation on Wayland.
-- **OCR / AI naming** — titles come from window names; use the Agent Skill below for
-  human-quality text.
+- **OCR / AI naming** — titles come from window names; use the bundled agent skill for
+  human-quality text, or `stepcap skill --agent claude|codex`.
 - **Video**, narration, cloud sharing, team workspaces.
 - Direct PDF export — print `guide.html` to PDF from any browser.
 
+## Why
+
+- Windows' built-in **Steps Recorder** (psr.exe) is deprecated by Microsoft (banner since the
+  February 2024 update; still starts as of 2026-09, no removal date). Its replacements
+  (Snipping Tool, Game Bar, Clipchamp) record video, not steps.
+- Microsoft's **skill-recorder** proved that "record once → agent skill" is useful, but it needs
+  a GitHub account with Copilot access, sends the event timeline and screen images to GitHub's
+  cloud when you analyze, and targets Microsoft Scout / Copilot Cowork / Copilot Studio.
+
+stepcap fills both gaps: the guide *and* the skill from one local recording, on any OS, for
+any agent.
+
 ## How it compares
 
-Facts as published by each vendor (checked 2026-09-24; prices change — follow the links).
+Facts as published by each project (checked 2026-09-24; follow the links).
 
-| | Open source | Captures | Runs where | Account / cloud | Price |
+| | Runs on | Guide for people | SKILL.md for agents | Account | Sends data |
 |---|---|---|---|---|---|
-| **stepcap** | ✅ MIT | whole desktop | Windows, macOS, Linux (X11) | none, fully local | free |
-| [Scribe](https://scribe.com/pricing) | — | browser; desktop apps on Pro | browser extension + desktop app | account, cloud | free Basic (web apps only, no PDF/HTML/Markdown export); Pro Personal $25/user/mo yearly |
-| [Tango](https://www.tango.ai/pricing) | — | browser (extension) | browser | account, cloud | free (browser capture, 5 workflows, no export); Pro $22/user/mo yearly (1–2 users) |
-| [FlowShare](https://getflowshare.com/pricing/) | — | whole desktop | Windows | license | Professional $44/mo yearly, $49 monthly |
-| [Guidde](https://www.guidde.com/) | — | video guides (AI voice-over) | browser extension, desktop and mobile apps | account, cloud | see vendor |
-| [CliqRelay](https://github.com/CliqRelay/cliqrelay) | ✅ | browser pages (Chrome extension) | self-hosted platform (web app + backend) | self-hosted | free |
-| [Windows Steps Recorder](https://support.microsoft.com/en-us/windows/apps/steps-recorder-deprecation) | — | whole desktop | Windows | none | built-in, **deprecated** by Microsoft; saves a .zip with an .mht file, keeps the last 25 screenshots by default |
+| **stepcap** | Windows, macOS, Linux (X11) | ✅ MD, HTML, checklist | ✅ any agent (Claude Code, Codex, ...) | none | nothing (the optional agent step is your own CLI) |
+| [skill-recorder](https://github.com/microsoft/skill-recorder) | macOS, Windows 11, Ubuntu | — (skills and automations) | ✅ for Microsoft Scout / Copilot Cowork / Copilot Studio | GitHub account with Copilot | events and screen images to GitHub's cloud on Analyze |
+| [OpenSteps](https://github.com/ebanez8/openstep) | Windows 10+ | ✅ MD, HTML | — | none | none (local) |
+| [BetterStepsRecorder](https://github.com/Mentaleak/BetterStepsRecorder) | Windows | ✅ HTML, RTF, ODT | — | none | none documented |
+| [Scribe](https://scribe.com/pricing) | browser; desktop apps on Pro | ✅ (PDF/HTML/Markdown export on Pro) | — | required | cloud |
+| [Tango](https://www.tango.ai/pricing) | browser; desktop on Pro | ✅ (export on Pro) | — | required | cloud |
+| [Windows Steps Recorder](https://support.microsoft.com/en-us/windows/apps/steps-recorder-deprecation) | Windows | ✅ .zip with an .mht file (last 25 screenshots by default) | — | none | none; **deprecated** |
+
+Free plans of Scribe (Basic) and Tango capture web apps in the browser only and have no
+export; paid plans start at $25 / $22 per user per month (yearly).
 
 ## Commands
 
@@ -136,6 +167,12 @@ stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
 stepcap edit SESSION_DIR [--port 8765] [--host 127.0.0.1] [--no-browser]
+stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex]
+              [--install none|claude|codex] [--scope user|project] [--yes] [--force]
+              [--dry-run] [--json]
+stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
+               [--agent none|claude|codex] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
+stepcap check-skill SKILL_DIR [--json]
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap doctor [--json]
 ```
@@ -170,7 +207,36 @@ SESSION_DIR/
 
 Details: [docs/permissions.md](docs/permissions.md).
 
-## Agent Skill: let your coding agent write the text
+## For agents: `stepcap skill`
+
+```bash
+stepcap skill my-guide -o skills                     # draft, no LLM: skills/<name>/SKILL.md
+stepcap skill my-guide -o skills --agent claude      # let your Claude Code CLI generalise it
+stepcap skill my-guide -o skills --install claude --scope project   # + .claude/skills/<name>/
+stepcap check-skill skills/<name>                    # validate after editing by hand
+```
+
+- **Draft (`--agent none`, default)**: deterministic, offline. Frontmatter (`name`,
+  `description`), `## Goal` (from your F7 notes, else `TODO`), `## Inputs` (every typed value
+  becomes `{{input_N}}`; rename it or mark it as a fixed value in `stepcap edit`),
+  numbered `## Steps` with app, window and `references/step-NN.png` (annotated, blur applied),
+  and `## Notes for the agent` (prefer CLI/API over clicks; confirm before deleting, sending,
+  paying).
+- **Refine (`--agent claude|codex`)**: runs `claude -p` or `codex exec` in the skill folder
+  with [`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md). Before it runs,
+  stepcap lists every file the agent can read and asks `y/N` (`--yes` skips, `--dry-run` only
+  lists). stepcap makes no network request itself; where your agent sends data depends on
+  your agent's settings.
+- **Install (`--install claude|codex`)**: copies the folder to `~/.claude/skills/` or
+  `./.claude/skills/` (Claude Code), `~/.agents/skills/` or `./.agents/skills/` (Codex).
+  Never overwrites an existing skill without `--force`.
+- **Always validated**: Agent Skills frontmatter rules, name = folder name, < 500 lines,
+  ~5000 tokens, every `references/` link exists, and no secret patterns (GitHub / AWS /
+  OpenAI / Anthropic keys, JWTs, passwords in URLs, card numbers). Exit code 1 if not.
+- **Press F7 while recording** to add notes like "why": they become the skill's Goal and are
+  the most useful thing you can give an agent.
+
+## Let your coding agent write the guide text
 
 Automatic titles are template based (`Click in "Settings"`). For human-quality text,
 point Claude Code, Codex or Cursor at the session: the agent looks at each annotated
@@ -188,12 +254,18 @@ No OCR or API key is needed: the agent reads the images itself.
 
 ## FAQ
 
-**Is anything uploaded?** No. stepcap makes no network requests; the editor listens
+**Is anything uploaded?** No. stepcap makes no network requests (`--agent claude|codex` runs
+your own agent CLI, only after you confirm); the editor listens
 on 127.0.0.1 only (with Host/Origin checks). Your screenshots stay in the session folder.
 
 **Are my passwords recorded?** Typed text is not stored by default — only
 "typed 12 characters". Screenshots can still show what is on screen: blur it in
 `stepcap edit`, or use `--exclude-app` for password managers.
+
+**Are secrets masked?** In text, yes: typed text (with `--record-typing`), window titles,
+notes and everything in the skill are scanned for GitHub / AWS / OpenAI / Anthropic keys,
+JWTs, passwords in URLs and card numbers and saved as `[REDACTED:kind]`. Pixels are not
+scanned — blur screenshots that show secrets in `stepcap edit`.
 
 **Does it run in the browser, without installing?** The editor and the guides do; the
 recorder cannot. A web page can only see clicks inside its own tab, so desktop-wide
@@ -230,6 +302,12 @@ python demos/build.py          # regenerate README images (add --browser for UI 
 
 CI never uses real input hooks: `stepcap simulate` drives the same event pipeline with
 synthetic input. Decisions are logged in [docs/DECISIONS.md](docs/DECISIONS.md).
+
+## Credits
+
+The "record once, get an agent skill" idea was popularised by Microsoft's
+[skill-recorder](https://github.com/microsoft/skill-recorder). stepcap shares no code with
+it (different language and design); it only credits the idea.
 
 ## License
 

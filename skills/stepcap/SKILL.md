@@ -1,13 +1,18 @@
 ---
 name: stepcap
-description: Turn a stepcap recording folder (steps.json + annotated screenshots) into a readable step-by-step guide. Use when the user gives you a stepcap session directory, or asks you to title, describe, clean up or translate a recorded procedure, how-to, manual or SOP made with stepcap. Reads steps.json and the step images, writes a clear title and a 1-2 sentence description for every step, saves steps.json and runs `stepcap build`.
+description: Work with a stepcap recording folder (steps.json + annotated screenshots). Use when the user gives you a stepcap session directory and asks either (A) to title, describe, clean up or translate the recorded procedure, how-to, manual or SOP for people - you write the step texts in steps.json and run `stepcap build`; or (B) to turn the recording into an Agent Skill / SKILL.md so an agent can repeat the task - you run `stepcap skill` for a draft and generalise it.
 license: MIT
 compatibility: Needs the stepcap CLI (`pipx install stepcap`) on PATH and an agent that can view local image files (Claude Code, Codex, Cursor, ...). Works offline.
 metadata:
   project: https://github.com/kajisho5/stepcap
 ---
 
-# stepcap: write the guide text for a recording
+# stepcap: guide text for people, or a skill for agents
+
+Two workflows. Pick by what the user asked for:
+
+- **A. Guide for people** ("write the steps", "make the manual", "translate the guide") -> Procedure A.
+- **B. Skill for agents** ("make a skill", "SKILL.md", "so Claude/Codex can do this") -> Procedure B.
 
 A stepcap session folder looks like this:
 
@@ -21,7 +26,7 @@ SESSION_DIR/
   guide.md / guide.html / checklist.html   generated - never edit by hand
 ```
 
-## Procedure
+## Procedure A: guide for people
 
 1. **Make sure steps.json and images exist.** If `SESSION_DIR/steps.json` or
    `SESSION_DIR/images/` is missing, run:
@@ -56,6 +61,42 @@ SESSION_DIR/
    ```
    Open `SESSION_DIR/guide.md` and skim it. Tell the user where `guide.html` is
    (single file, can be printed to PDF from a browser).
+
+## Procedure B: Agent Skill from the recording
+
+1. Write the deterministic draft (no network, secrets already masked):
+   ```bash
+   stepcap skill SESSION_DIR -o OUT_DIR --agent none
+   ```
+   It prints the skill folder (`OUT_DIR/<name>/`: `SKILL.md` + `references/step-NN.png`).
+   Use `--name kebab-case-name` if the user gave a name.
+2. Read the draft `SKILL.md`, the step images in `references/`, and
+   `SESSION_DIR/steps.json` / `SESSION_DIR/events.jsonl` (app switches, URLs, clipboard and
+   terminal events are there when they were recorded).
+3. Rewrite `SKILL.md` into a reusable skill:
+   - **Generalise**: the recording is one example; describe the procedure for the whole family
+     of similar tasks. Keep example values only as examples.
+   - **Tools before clicks**: if a CLI, an API or a file edit can do a step, describe that
+     first and keep the UI steps as the fallback. Do not invent commands you are not sure of.
+   - **Inputs**: everything that changes next time is `{{snake_case_name}}` under `## Inputs`.
+   - **Confirmations**: deleting, sending, publishing, paying or changing permissions ->
+     "Ask the user to confirm before ...".
+   - Sections: `## Goal`, `## Inputs`, `## Steps`, `## Checks`, `## Notes for the agent`.
+   - Keep `name` unchanged (it must equal the folder name); `description` <= 1024 characters
+     saying what the skill does and when to use it; under 500 lines.
+4. Validate your edit and fix every reported problem:
+   ```bash
+   stepcap check-skill OUT_DIR/<name>
+   ```
+   It checks the frontmatter, the 500-line / ~5000-token limits, every `references/...` link
+   and secret patterns. Also make sure no e-mail address or customer name is in the text.
+5. Tell the user where the skill folder is. To install it: copy the folder to
+   `.claude/skills/` (Claude Code) or `.agents/skills/` (Codex), or regenerate with
+   `--install claude|codex --scope project|user`.
+
+The user can also let their own agent do step 3 in one go:
+`stepcap skill SESSION_DIR -o OUT_DIR --agent claude` (or `codex`). stepcap shows the files the
+agent will read and asks before running it.
 
 ## Rules
 

@@ -7,10 +7,17 @@ texts are regenerated (e.g. when ``--lang`` changes). ``--reset`` recreates it.
 
 Every step keeps ``auto.title`` / ``auto.description``: when the current text
 equals the auto text it is considered untouched.
+
+Format history (``format``, the schema version):
+  1  v0.1.0 - v0.1.3
+  2  ``type`` steps carry ``input`` = {"name": "input_1", "variable": true}: the
+     value is a parameter of the generated skill (``stepcap skill``). Older files
+     are migrated on load; nothing is removed or renamed.
 """
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -23,7 +30,11 @@ from stepcap.build.annotate import BOX_KINDS
 from stepcap.build.detect import detect_box
 from stepcap.session import RAW_DIR, STEPS_FILE, WORK_DIR, SessionError, read_json
 
-STEPS_FORMAT = 1
+STEPS_FORMAT = 2
+# Event kinds that become steps. Other kinds in events.jsonl (app_switch, url,
+# clipboard, terminal) are context for ``stepcap skill`` and never become steps.
+STEP_KINDS = ("click", "drag", "scroll", "type", "key", "manual")
+INPUT_NAME = re.compile(r"^[a-z][a-z0-9_]{0,39}$")
 POINT_KEYS = ("x", "y", "rel_x", "rel_y", "img_x", "img_y")
 
 
@@ -95,7 +106,8 @@ def create_steps(
     lang: str,
     dedupe_threshold: float = dedupe.DEFAULT_THRESHOLD,
 ) -> dict[str, Any]:
-    steps = [step_from_event(ev, lang) for ev in events if ev.get("kind")]
+    steps = [step_from_event(ev, lang) for ev in events if ev.get("kind") in STEP_KINDS]
+    assign_inputs(steps)
 
     cache: dict[str, Image.Image | None] = {}
 
@@ -122,6 +134,35 @@ def create_steps(
         "auto_title": title if not meta.get("title") else None,
         "steps": steps,
     }
+
+
+def assign_inputs(steps: list[dict[str, Any]]) -> int:
+    """Give every ``type`` step without one an ``input`` (``input_1``, ``input_2`` ...)."""
+    used = {
+        s["input"]["name"]
+        for s in steps
+        if isinstance(s.get("input"), dict) and isinstance(s["input"].get("name"), str)
+    }
+    n = changed = 0
+    for s in steps:
+        if s.get("kind") != "type" or isinstance(s.get("input"), dict):
+            continue
+        n += 1
+        while f"input_{n}" in used:
+            n += 1
+        s["input"] = {"name": f"input_{n}", "variable": True}
+        used.add(s["input"]["name"])
+        changed += 1
+    return changed
+
+
+def migrate_steps(doc: dict[str, Any]) -> dict[str, Any]:
+    """Bring an older steps.json up to ``STEPS_FORMAT`` (additive only)."""
+    fmt = doc.get("format", 1)
+    if not isinstance(fmt, int) or fmt < 2:
+        assign_inputs(doc["steps"])
+        doc["format"] = 2
+    return doc
 
 
 def detect_boxes(session: Path, steps: list[dict[str, Any]]) -> int:
@@ -191,6 +232,6 @@ def load_steps(session: Path) -> dict[str, Any] | None:
     if not p.exists():
         return None
     try:
-        return validate_steps_doc(read_json(p))
+        return migrate_steps(validate_steps_doc(read_json(p)))
     except ValueError as exc:
         raise SessionError(f"{p}: invalid JSON ({exc}); fix it or rebuild with --reset") from exc
