@@ -6,6 +6,7 @@ import contextlib
 import json
 import os
 import shutil
+import signal
 import sys
 import time
 from pathlib import Path
@@ -58,25 +59,49 @@ def _drive(session: Path, shell: str, lines: list[str]) -> str:
         )
     out = b""
 
-    def pump_until_prompts(n: int, timeout: float = 20.0) -> None:
+    def fail(why: str) -> None:
+        with contextlib.suppress(OSError):
+            os.kill(pid, signal.SIGKILL)
+        with contextlib.suppress(ChildProcessError):
+            os.waitpid(pid, 0)
+        pytest.fail(f"{why}; shell output:\n{out.decode('utf-8', 'replace')}")
+
+    def read_some() -> bool:
+        """Read what is available; False once the pty is closed."""
         nonlocal out
+        r, _, _ = select.select([fd], [], [], 0.1)
+        if not r:
+            return True
+        try:
+            chunk = os.read(fd, 4096)
+        except OSError:
+            return False
+        out += chunk
+        return bool(chunk)
+
+    def pump_until_prompts(n: int, timeout: float = 20.0) -> None:
         end = time.time() + timeout
-        while out.count(b"[stepcap]") < n and time.time() < end:
-            r, _, _ = select.select([fd], [], [], 0.1)
-            if r:
-                try:
-                    out += os.read(fd, 4096)
-                except OSError:
-                    return
+        while out.count(b"[stepcap]") < n:
+            if time.time() > end or not read_some():
+                fail(f"prompt {n} did not appear")
 
     pump_until_prompts(1)
     for k, line in enumerate(lines, 2):
         os.write(fd, (line + "\n").encode())
         pump_until_prompts(k)  # the next prompt = the hook has run for this command
     os.write(fd, b"exit\n")
-    os.waitpid(pid, 0)
-    with contextlib.suppress(OSError):
-        out += os.read(fd, 65536)
+    end = time.time() + 20
+    while True:  # keep draining the pty, or a full buffer blocks the child forever
+        alive = read_some()
+        done, _ = os.waitpid(pid, os.WNOHANG)
+        if done:
+            break
+        if time.time() > end:
+            fail("shell did not exit")
+        if not alive:
+            time.sleep(0.05)
+    while read_some():
+        pass
     return out.decode("utf-8", "replace")
 
 
