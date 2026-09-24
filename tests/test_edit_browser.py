@@ -21,9 +21,10 @@ def _launch(p):
         iter(sorted(glob.glob("/opt/pw-browsers/chromium-*/chrome-linux*/chrome"))), None
     )
     try:
-        return p.chromium.launch(executable_path=exe) if exe else p.chromium.launch()
+        browser = p.chromium.launch(executable_path=exe) if exe else p.chromium.launch()
     except Exception as exc:  # browser not installed
         pytest.skip(f"no Chromium available: {exc}")
+    return browser
 
 
 def _digest(d):

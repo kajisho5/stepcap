@@ -174,20 +174,18 @@ class Recorder:
     def _accepting(self) -> bool:
         return not (self.stopped.is_set() or self.paused.is_set() or self.prompting.is_set())
 
+    # Hook callbacks run on pynput's listener threads: an exception escaping from
+    # them stops the listener, so a malformed event is dropped instead.
     def on_click(self, x, y, button, pressed) -> None:
-        try:
+        with contextlib.suppress(Exception):
             name = getattr(button, "name", str(button))
             if name in _BUTTONS and self._accepting():
                 self.raw_q.put(("mouse", time.monotonic(), x, y, name, pressed))
-        except Exception:  # never let an exception kill the hook
-            pass
 
     def on_scroll(self, x, y, dx, dy) -> None:
-        try:
+        with contextlib.suppress(Exception):
             if self._accepting():
                 self.raw_q.put(("scroll", time.monotonic(), x, y, dx, dy))
-        except Exception:
-            pass
 
     def on_press(self, key) -> None:
         with contextlib.suppress(Exception):
@@ -259,12 +257,11 @@ class Recorder:
             return self.shot_writer.new_shot(img, mon, ts)
 
         pointer = None
-        try:
+        # Without a pointer controller, keys/notes fall back to the last click position.
+        with contextlib.suppress(Exception):
             from pynput import mouse
 
             pointer = mouse.Controller()
-        except Exception:
-            pass
 
         def pos():
             try:

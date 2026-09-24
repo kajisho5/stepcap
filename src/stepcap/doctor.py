@@ -107,37 +107,32 @@ def probe_hooks(timeout: float = 3.0) -> dict[str, Any]:
 
 def _mac_permissions() -> dict[str, Any]:
     import ctypes
-    import ctypes.util
 
     res: dict[str, Any] = {
         "accessibility": None,
         "screen_recording": None,
         "input_monitoring": None,
     }
-    try:
+    # Each probe is optional: an API missing on older macOS leaves the value None
+    # ("could not be determined"), which evaluate() reports as a warning.
+    with contextlib.suppress(Exception):
         app_services = ctypes.cdll.LoadLibrary(
             "/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices"
         )
         app_services.AXIsProcessTrusted.restype = ctypes.c_bool
         res["accessibility"] = bool(app_services.AXIsProcessTrusted())
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         cg = ctypes.cdll.LoadLibrary(
             "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics"
         )
         cg.CGPreflightScreenCaptureAccess.restype = ctypes.c_bool
         res["screen_recording"] = bool(cg.CGPreflightScreenCaptureAccess())
-    except Exception:
-        pass
-    try:
+    with contextlib.suppress(Exception):
         iokit = ctypes.cdll.LoadLibrary("/System/Library/Frameworks/IOKit.framework/IOKit")
         iokit.IOHIDCheckAccess.restype = ctypes.c_uint32
         iokit.IOHIDCheckAccess.argtypes = [ctypes.c_uint32]
         # kIOHIDRequestTypeListenEvent = 1 ; result 0 granted, 1 denied, 2 unknown
         res["input_monitoring"] = {0: True, 1: False}.get(iokit.IOHIDCheckAccess(1))
-    except Exception:
-        pass
     return res
 
 

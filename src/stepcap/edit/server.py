@@ -12,6 +12,7 @@ Hardening for a local, unauthenticated server:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import shutil
@@ -315,9 +316,9 @@ def serve(
     if open_browser:
         threading.Thread(target=webbrowser.open, args=(url,), daemon=True).start()
     try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        pass
+        # Ctrl+C is the normal way to stop the editor: exit quietly with status 0.
+        with contextlib.suppress(KeyboardInterrupt):
+            server.serve_forever()
     finally:
         server.server_close()
     return 0

@@ -31,7 +31,7 @@ def _safe(fn: Callable[[], WindowInfo]) -> WindowInfo:
 # --------------------------------------------------------------------- Windows
 def _windows() -> WindowInfo:
     import ctypes
-    from ctypes import wintypes
+    import ctypes.wintypes as wintypes
 
     user32 = ctypes.windll.user32
     kernel32 = ctypes.windll.kernel32
