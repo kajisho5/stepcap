@@ -8,6 +8,12 @@ on:
       tag:
         type: string
         required: true
+  pull_request:  # build + smoke test only (nothing is published) when packaging changes
+    paths:
+      - scripts/build_binary.py
+      - scripts/collect_licenses.py
+      - .github/workflows/binaries.yml
+      - pyproject.toml
   workflow_dispatch:
     inputs:
       tag:
@@ -64,13 +70,13 @@ jobs:
           python scripts/collect_licenses.py "out/${{ matrix.asset }}.THIRD_PARTY_LICENSES.txt"
           cd out && python -c "import hashlib,sys;n='${{ matrix.asset }}';print(hashlib.sha256(open(n,'rb').read()).hexdigest()+'  '+n)" > "${{ matrix.asset }}.sha256"
       - name: Attach to release
-        if: inputs.tag != ''
+        if: inputs.tag != '' && github.event_name != 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${{ inputs.tag }}" out/* --clobber --repo "${{ github.repository }}"
-      - name: Upload artifact (manual runs)
-        if: inputs.tag == ''
+      - name: Upload artifact (manual runs and PRs)
+        if: inputs.tag == '' || github.event_name == 'pull_request'
         uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.asset }}
