@@ -2,7 +2,8 @@
 
 Status: `done` · `in-progress` · `planned`. Every `planned` item has a GitHub issue
 labelled [`roadmap`](https://github.com/kajisho5/stepcap/issues?q=label%3Aroadmap).
-Numbers are stable; new ideas get the next free number.
+Numbers are stable; new ideas get the next free number. RM-013 … RM-054 are
+issues #2 … #43 (created 2026-09-24; `scripts/roadmap_to_issues.py` adds new rows).
 
 | ID | Status | Area | Item |
 |---|---|---|---|

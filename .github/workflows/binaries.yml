@@ -61,6 +61,7 @@ jobs:
         run: |
           mkdir -p out
           cp "${{ matrix.exe }}" "out/${{ matrix.asset }}"
+          python scripts/collect_licenses.py "out/${{ matrix.asset }}.THIRD_PARTY_LICENSES.txt"
           cd out && python -c "import hashlib,sys;n='${{ matrix.asset }}';print(hashlib.sha256(open(n,'rb').read()).hexdigest()+'  '+n)" > "${{ matrix.asset }}.sha256"
       - name: Attach to release
         if: inputs.tag != ''

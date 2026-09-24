@@ -151,13 +151,21 @@ def browser_shots(session: Path) -> list[Path]:
                 page.screenshot(path=str(DOCS / name))
                 written.append(DOCS / name)
                 page.close()
-            page = browser.new_page(viewport={"width": 1280, "height": 860}, color_scheme="light")
+            page = browser.new_page(
+                viewport={"width": 1280, "height": 860}, color_scheme="light", bypass_csp=True
+            )
             page.goto(base + "/")
             page.wait_for_selector(".step img")
+            page.wait_for_load_state("networkidle")
+            page.wait_for_function(
+                "() => [...document.images].every(i => i.complete && i.naturalWidth)"
+            )
             page.locator(".step").nth(0).locator(".title").fill("Open the New project dialog")
             page.locator(".step").nth(0).locator(".desc").fill("Top right of the Projects page.")
             page.locator(".step").nth(0).locator("button", has_text="Blur area").click()
-            page.screenshot(path=str(DOCS / "edit-ui.png"))
+            page.evaluate("() => document.activeElement && document.activeElement.blur()")
+            page.mouse.move(0, 0)
+            page.screenshot(path=str(DOCS / "edit-ui.png"), animations="disabled")
             written.append(DOCS / "edit-ui.png")
             browser.close()
     finally:
