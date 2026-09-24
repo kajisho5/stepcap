@@ -235,7 +235,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     b = sub.add_parser("build", help="generate guide.md / guide.html / steps.json")
     b.add_argument("session", metavar="SESSION_DIR")
-    b.add_argument("-f", "--formats", default="md,html", help="comma list of md,html")
+    b.add_argument(
+        "-f",
+        "--formats",
+        default="md,html,checklist",
+        help="comma list of md, html, checklist (printable A4 tick list); default: all three",
+    )
     b.add_argument(
         "--zoom",
         type=_positive_int,

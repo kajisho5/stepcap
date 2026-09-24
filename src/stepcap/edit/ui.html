@@ -79,6 +79,7 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
     <button id="save" type="button">Save</button>
     <button id="build" type="button" class="primary">Save &amp; Build</button>
     <a id="open" class="btn" href="/guide.html" target="_blank" rel="noopener">Open guide.html</a>
+    <a id="open-checklist" class="btn" href="/checklist.html" target="_blank" rel="noopener">Open checklist</a>
   </div>
 </header>
 <main>
@@ -539,7 +540,7 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
     btn.disabled = true;
     save().then(function () {
       setStatus("Building…");
-      return api("POST", "/api/build", { formats: "md,html" });
+      return api("POST", "/api/build", { formats: "md,html,checklist" });
     }).then(function (res) {
       setStatus("Built " + res.steps + " steps · " + res.written.length + " file(s) updated");
     }).catch(function (err) { setStatus(err.message, true); })

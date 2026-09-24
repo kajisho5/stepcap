@@ -49,8 +49,9 @@ jobs:
         run: |
           python tests/fixtures/make_events.py > ev.json
           stepcap simulate ev.json -o demo
-          stepcap build demo -f md,html
+          stepcap build demo
           test -f demo/guide.md && test -f demo/guide.html && test -f demo/steps.json
+          test -f demo/checklist.html
           stepcap build demo --json > build2.json
           python -c "import json;r=json.load(open('build2.json'));assert r['written']==[],r"
       - name: doctor runs (result depends on the runner's desktop session)

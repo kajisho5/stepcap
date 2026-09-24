@@ -10,14 +10,15 @@ from typing import Any
 from PIL import Image, features
 
 from stepcap import __version__
-from stepcap.build import annotate, html, markdown, naming
+from stepcap.build import annotate, checklist, html, markdown, naming
 from stepcap.build import steps as steps_mod
 from stepcap.session import STEPS_FILE, SessionError, load_session, write_json
 
 IMAGES_DIR = "images"
 GUIDE_MD = "guide.md"
 GUIDE_HTML = "guide.html"
-ALL_FORMATS = ("md", "html")
+CHECKLIST_HTML = "checklist.html"
+ALL_FORMATS = ("md", "html", "checklist")
 _STEP_IMAGE = re.compile(r"^step-\d{3,}(-full)?\.(webp|jpg|png)$")
 
 
@@ -58,7 +59,7 @@ def parse_formats(value: str) -> tuple[str, ...]:
     fmts = tuple(dict.fromkeys(f.strip().lower() for f in value.split(",") if f.strip()))
     bad = [f for f in fmts if f not in ALL_FORMATS]
     if bad or not fmts:
-        raise ValueError(f"unknown format(s) {', '.join(bad) or '(none)'}; use md,html")
+        raise ValueError(f"unknown format(s) {', '.join(bad) or '(none)'}; use md, html, checklist")
     return fmts
 
 
@@ -132,6 +133,7 @@ def run_build(session: Path, opt: BuildOptions) -> BuildResult:
 
     want_md = "md" in opt.formats
     want_html = "html" in opt.formats
+    want_checklist = "checklist" in opt.formats
     ext = annotate.extension(opt.image_format)
     mime = annotate.FORMATS[opt.image_format][1]
     res.outputs = [STEPS_FILE]
@@ -139,15 +141,19 @@ def run_build(session: Path, opt: BuildOptions) -> BuildResult:
         res.outputs += [GUIDE_MD, IMAGES_DIR + "/"]
     if want_html:
         res.outputs.append(GUIDE_HTML)
+    if want_checklist:
+        res.outputs.append(CHECKLIST_HTML)
     if opt.dry_run:
         return res
 
     images: list[dict[str, Any]] = []
+    thumbs: list[dict[str, Any]] = []
     expected: set[str] = set()
     loaded: dict[str, Image.Image] = {}
     for n, step in enumerate(doc["steps"], 1):
         sid = step.get("screenshot")
         entry: dict[str, Any] = {"mime": mime}
+        small: dict[str, Any] = {"mime": mime}
         step["rendered"] = None
         step.pop("rendered_full", None)
         if sid:
@@ -181,7 +187,21 @@ def run_build(session: Path, opt: BuildOptions) -> BuildResult:
                     _write_bytes(session / entry["thumb"], entry["thumb_bytes"], res, session)
                     expected.add(Path(entry["thumb"]).name)
                     step["rendered_full"] = entry["thumb"]
+            if want_checklist:
+                crop, _ = annotate.render(
+                    loaded[sid],
+                    step,
+                    n,
+                    checklist.THUMB_WIDTH,
+                    checklist.THUMB_ZOOM,
+                    doc["marker"],
+                    doc["spotlight"],
+                    doc["auto_arrows"],
+                )
+                small["bytes"] = annotate.encode(crop, opt.image_format, opt.quality)
+                small["size"] = crop.size
         images.append(entry)
+        thumbs.append(small)
 
     line = meta_line(doc, meta, lang)
     if want_md:
@@ -198,6 +218,14 @@ def run_build(session: Path, opt: BuildOptions) -> BuildResult:
         _write_bytes(
             session / GUIDE_HTML,
             html.render(doc, images, line, __version__).encode("utf-8"),
+            res,
+            session,
+        )
+
+    if want_checklist:
+        _write_bytes(
+            session / CHECKLIST_HTML,
+            checklist.render(doc, thumbs, line, __version__).encode("utf-8"),
             res,
             session,
         )

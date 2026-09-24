@@ -68,12 +68,14 @@ def test_reorder_delete_rename_and_save(server):
     assert saved["steps"][0]["title"] == "Name the project"
     assert ids[2] not in [s["id"] for s in saved["steps"]]
     # build keeps the edits
-    status, res = call(base, "POST", "/api/build", {"formats": "md,html"})
+    status, res = call(base, "POST", "/api/build", {"formats": "md,html,checklist"})
     assert status == 200 and res["steps"] == 11
     md = (session / "guide.md").read_text("utf-8")
     assert md.startswith("# Edited guide") and "## Step 1 — Name the project" in md
     status, page = call(base, "GET", "/guide.html")
     assert status == 200 and b"Edited guide" in page
+    status, page = call(base, "GET", "/checklist.html")
+    assert status == 200 and b"Edited guide" in page and page.count(b'class="box"') == 11
 
 
 def test_save_validation(server):

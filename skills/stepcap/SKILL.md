@@ -18,7 +18,7 @@ SESSION_DIR/
   work/           screenshots without markers (blurred copies live here)
   raw/            original screenshots - never modify, never copy elsewhere
   events.jsonl    raw event log - read only
-  guide.md / guide.html   generated - never edit by hand
+  guide.md / guide.html / checklist.html   generated - never edit by hand
 ```
 
 ## Procedure

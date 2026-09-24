@@ -27,7 +27,7 @@ stepcap record -o my-guide    # 操作する → 終わったら F9
 stepcap build my-guide --lang ja   # my-guide/guide.md, guide.html, steps.json
 ```
 
-`my-guide/guide.html` は画像込みの 1 ファイルなので、そのままメール添付できます。Ctrl+P →「PDF に保存」で PDF にもなります。`guide.md` と `images/` は GitHub / Notion / Confluence に貼り付けられます。
+`my-guide/checklist.html` は同じ手順を A4 に収めた印刷用チェックリストで、現場で紙に印を付けながら使えます。`my-guide/guide.html` は画像込みの 1 ファイルなので、そのままメール添付できます。Ctrl+P →「PDF に保存」で PDF にもなります。`guide.md` と `images/` は GitHub / Notion / Confluence に貼り付けられます。
 
 記録中のキー: **F9** 停止 · **F8** 一時停止 / 再開 · **F7** メモ付きの手動ステップ（`--hotkey-stop ctrl+alt+s` のように変更可能）
 
@@ -47,9 +47,9 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 |---|---|---|
 | ![クリック](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-click.png) | ![ドラッグ](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-drag.png) | ![ズーム](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-zoom.png) |
 
-| `--spotlight` + 小さいチェックボックスへの自動矢印 |
-|---|
-| ![スポットライト](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-spotlight.png) |
+| `--spotlight` + 小さいチェックボックスへの自動矢印 | 印刷用 `checklist.html` |
+|---|---|
+| ![スポットライト](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/step-spotlight.png) | ![チェックリスト](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/checklist.png) |
 
 上の画像はすべて [`demos/build.py`](demos/build.py) が合成セッション（`stepcap simulate`）から生成しています。実データは含まれず、いつでも再生成できます。
 
@@ -59,7 +59,7 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 - **ステップごとにスクリーンショット**: カーソルのあるモニタを撮影（`--monitor all` で全画面）。撮影は押下時なので、クリックで画面が変わる前の状態が残ります。保存は別スレッドで行い、クリック→保存の遅延を計測・記録します（目標 < 300 ms）
 - **自動タイトル**: ウィンドウ名から `「設定」でクリック`、`「請求書 - Excel」に入力` のように付けます（`--lang ja` / `en`）
 - **同じ画面は画像を再利用**: 連続するステップの画面が 98% 以上同じなら 1 枚を共有するので、ぼかしも 1 回で全ステップに反映されます
-- **出力**: `guide.md` + `images/`、単一ファイルの `guide.html`（目次・ライト / ダーク・印刷 CSS）、編集用の正本 `steps.json`
+- **出力**: `guide.md` + `images/`、単一ファイルの `guide.html`（目次・ライト / ダーク・印刷 CSS）、印刷用の A4 チェックリスト `checklist.html`（チェック欄・対象周辺の縮小画像・備考欄・実施日 / 実施者 / 確認者の記入欄）、編集用の正本 `steps.json`
 - **再ビルドしても編集を上書きしない**: 人・`stepcap edit`・AI エージェントが `steps.json` に加えた編集は保持されます（最初から作り直すときは `--reset`）
 - **クリックした部品を枠で囲む**: ボタン・入力欄・チェックボックス・カードをスクリーンショットから検出して囲みます。自信がないときは丸にします
 - **矢印とスポットライト**: 小さい部品には自動で矢印を付けます。`--spotlight` で対象以外を暗くでき、編集 UI では矢印を手描きで追加できます
@@ -93,7 +93,7 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 stepcap record [-o SESSION_DIR] [--monitor all|active] [--record-typing]
                [--exclude-app NAME ...] [--hotkey-stop F9] [--hotkey-pause F8]
                [--hotkey-manual F7] [--note-prompt auto|gui|terminal|none] [--dry-run] [--json]
-stepcap build SESSION_DIR [-f md,html] [--zoom 800] [--width 1600] [--lang en|ja]
+stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--lang en|ja]
               [--title "..."] [--marker box|ring] [--[no-]spotlight] [--[no-]auto-arrows]
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
