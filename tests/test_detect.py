@@ -18,7 +18,6 @@ def test_filled_button_with_label():
 
 
 def test_white_button_with_thin_antialiased_border_on_white():
-    img = page()
     big = Image.new("RGB", (W * 4, H * 4), "white")
     ImageDraw.Draw(big).rounded_rectangle((2400, 1600, 2700, 1740), 24, outline="#e1e4ea", width=4)
     img = big.resize((W, H), Image.Resampling.LANCZOS)  # 1 px anti-aliased border
