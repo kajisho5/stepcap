@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.4](https://github.com/kajisho5/stepcap/compare/v0.1.3...v0.1.4) (2026-09-24)
+
+
+### Features
+
+* guide for people + Agent Skill for agents from one recording ([#58](https://github.com/kajisho5/stepcap/issues/58)) ([4a0f7e8](https://github.com/kajisho5/stepcap/commit/4a0f7e86c764343647b567871bd9bcfcfde87c1a))
+
+
+### Documentation
+
+* lead README with fully local, any app incl. browsers, guides open in any browser ([#56](https://github.com/kajisho5/stepcap/issues/56)) ([6f86536](https://github.com/kajisho5/stepcap/commit/6f865368fc2289519cb29a43ce26d4287d799d70))
+
 ## [0.1.3](https://github.com/kajisho5/stepcap/compare/v0.1.2...v0.1.3) (2026-09-24)
 
 
