@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/kajisho5/stepcap/compare/v0.1.2...v0.1.3) (2026-09-24)
+
+
+### Features
+
+* printable A4 checklist (checklist.html) ([#54](https://github.com/kajisho5/stepcap/issues/54)) ([e4c8f21](https://github.com/kajisho5/stepcap/commit/e4c8f210303c72471fb4aea23e5a4526ca75f885))
+
 ## [0.1.2](https://github.com/kajisho5/stepcap/compare/v0.1.1...v0.1.2) (2026-09-24)
 
 
