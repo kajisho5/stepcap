@@ -218,3 +218,22 @@ def test_spotlight_and_auto_arrow_options_are_remembered(demo_session):
     run_build(demo_session, BuildOptions())
     doc = steps_doc(demo_session)
     assert doc["spotlight"] is True and doc["auto_arrows"] is False
+
+
+def test_checklist_is_a_printable_single_file(demo_session):
+    res = run_build(demo_session, BuildOptions())
+    assert "checklist.html" in res.outputs
+    page = (demo_session / "checklist.html").read_text("utf-8")
+    assert page.count('class="box"') == 12  # one tick box per step
+    assert page.count('src="data:image/webp;base64,') == 12
+    assert not re.search(r'(src|href)="(https?:)?//', page)
+    assert "@page{size:A4" in page and "Checked by" in page
+    run_build(demo_session, BuildOptions(lang="ja"))
+    page = (demo_session / "checklist.html").read_text("utf-8")
+    assert "実施日" in page and "確認者" in page and "チェックリスト" in page
+
+
+def test_checklist_can_be_left_out(demo_session):
+    res = run_build(demo_session, BuildOptions(formats=("md", "html")))
+    assert "checklist.html" not in res.outputs
+    assert not (demo_session / "checklist.html").exists()

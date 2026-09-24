@@ -74,6 +74,8 @@ def test_reorder_delete_rename_and_save(server):
     assert md.startswith("# Edited guide") and "## Step 1 — Name the project" in md
     status, page = call(base, "GET", "/guide.html")
     assert status == 200 and b"Edited guide" in page
+    status, page = call(base, "GET", "/checklist.html")
+    assert status == 200 and b"Edited guide" in page and page.count(b'class="box"') == 11
 
 
 def test_save_validation(server):

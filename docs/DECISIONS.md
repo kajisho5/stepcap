@@ -43,3 +43,5 @@ One line per decision, newest last. Format: `YYYY-MM-DD — decision — reason`
 - 2026-09-24 — Auto arrows come from the side facing the image centre (at least 30° off the axes) so they stay on screen and read as "pointing at".
 - 2026-09-24 — `--spotlight` is off by default (it changes the look of every image); like `marker` and `auto_arrows` it is saved in steps.json and can be toggled in `stepcap edit`.
 - 2026-09-24 — Hand-drawn arrows are stored per step as `arrows: [[x1, y1, x2, y2]]` (tail → head, image px, max 10) and drawn for every step kind.
+- 2026-09-24 — `checklist.html` is a third default output (`-f md,html,checklist`) — it is cheap (~40 KB for 12 steps) and on-site operators need a paper tick list more than a long guide; `-f md,html` leaves it out.
+- 2026-09-24 — Checklist thumbnails are 300 px crops of a 720 px area around the target (same markers as the guide) — about 5 cm printed, readable, and 8 steps fit on an A4 page.

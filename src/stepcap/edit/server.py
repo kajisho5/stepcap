@@ -30,6 +30,7 @@ from PIL import Image, ImageFilter
 from stepcap.build import steps as steps_mod
 from stepcap.build.annotate import BOX_KINDS, MARKERS
 from stepcap.build.pipeline import (
+    CHECKLIST_HTML,
     GUIDE_HTML,
     BuildOptions,
     BuildResult,
@@ -254,7 +255,7 @@ class EditApp:
     # --------------------------------------------------------------- build
     def build(self, body: dict[str, Any]) -> dict[str, Any]:
         try:
-            formats = parse_formats(str(body.get("formats") or "md,html"))
+            formats = parse_formats(str(body.get("formats") or "md,html,checklist"))
         except ValueError as exc:
             raise ApiError(400, str(exc)) from exc
         with self.lock:
@@ -342,11 +343,12 @@ def make_handler(app: EditApp, allowed_hosts: set[str] | None):
                 if path.startswith("/api/image/"):
                     sid = path.rsplit("/", 1)[-1]
                     return self._send(200, app.image_bytes(sid), "image/png")
-                if path == "/guide.html":
-                    guide = app.session / GUIDE_HTML
-                    if not guide.exists():
-                        raise ApiError(404, "guide.html not built yet - press Build")
-                    return self._send(200, guide.read_bytes(), "text/html; charset=utf-8")
+                if path in ("/guide.html", "/checklist.html"):
+                    name = GUIDE_HTML if path == "/guide.html" else CHECKLIST_HTML
+                    page = app.session / name
+                    if not page.exists():
+                        raise ApiError(404, f"{name} not built yet - press Build")
+                    return self._send(200, page.read_bytes(), "text/html; charset=utf-8")
                 raise ApiError(404, "not found")
             except ApiError as exc:
                 return self._json(exc.status, {"error": str(exc)})

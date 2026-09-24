@@ -151,6 +151,12 @@ def browser_shots(session: Path) -> list[Path]:
                 page.screenshot(path=str(DOCS / name))
                 written.append(DOCS / name)
                 page.close()
+            page = browser.new_page(viewport={"width": 900, "height": 1000}, color_scheme="light")
+            page.goto(f"{base}/checklist.html")
+            page.wait_for_load_state("networkidle")
+            page.screenshot(path=str(DOCS / "checklist.png"))
+            written.append(DOCS / "checklist.png")
+            page.close()
             page = browser.new_page(
                 viewport={"width": 1280, "height": 860}, color_scheme="light", bypass_csp=True
             )
