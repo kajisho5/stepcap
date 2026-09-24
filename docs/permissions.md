@@ -24,6 +24,13 @@ Notes
   fails stepcap falls back to `osascript`, which may trigger an
   "… wants to control System Events" prompt (Automation). Denying it only means
   steps are titled without the window name.
+- `record --record-urls` asks the browser for the front tab's URL with AppleScript
+  (Safari, Google Chrome, Microsoft Edge, Arc). macOS shows "… wants to control
+  <browser>" once per browser (Privacy & Security › Automation). Denying it only
+  means no URLs are recorded for that browser; stepcap stops asking it.
+- `record --record-clipboard` reads the clipboard with `pbpaste` (no prompt).
+
+On Linux, `--record-clipboard` needs `xclip` or `xsel` (`sudo apt install xclip`).
 
 ## Windows
 

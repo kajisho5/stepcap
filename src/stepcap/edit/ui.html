@@ -49,6 +49,10 @@ border-radius:8px;background:var(--bg);color:var(--fg);width:100%}
 .desc{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);
 color:var(--fg);width:100%;min-height:2.6em;resize:vertical}
 .meta{color:var(--muted);font-size:.8rem;overflow-wrap:anywhere}
+.input-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.85rem;color:var(--muted)}
+.input-row[hidden]{display:none}
+.input-row input[type=text]{font:inherit;padding:3px 8px;border:1px solid var(--line);border-radius:6px;
+background:var(--bg);color:var(--fg);width:14em}
 .shot{position:relative;display:inline-block;max-width:100%;border-radius:8px;overflow:hidden;
 border:1px solid var(--line);line-height:0;touch-action:none}
 .shot img{display:block;max-width:100%;max-height:70vh;width:auto;height:auto;user-select:none;-webkit-user-drag:none}
@@ -105,6 +109,11 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
       <input class="title" aria-label="Step title">
       <textarea class="desc" rows="2" aria-label="Step description" placeholder="Description (optional)"></textarea>
       <div class="meta"></div>
+      <div class="input-row" hidden>
+        <label><input type="checkbox" class="in-var"> Skill input (variable)</label>
+        <label>name <input type="text" class="in-name" maxlength="40" spellcheck="false"
+          pattern="[a-z][a-z0-9_]*" aria-label="Input name"></label>
+      </div>
       <div class="shot-wrap"></div>
       <div class="tools"></div>
     </div>
@@ -174,6 +183,15 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
     var meta = [step.kind + (step.click_type ? " (" + step.click_type + ")" : "")];
     if (step.window_title || step.app_name) { meta.push(step.window_title || step.app_name); }
     node.querySelector(".meta").textContent = meta.join(" · ");
+    if (step.kind === "type") {
+      var row = node.querySelector(".input-row");
+      var inp = step.input || { name: "input", variable: true };
+      row.hidden = false;
+      row.querySelector(".in-var").checked = inp.variable !== false;
+      row.querySelector(".in-name").value = inp.name || "";
+      row.querySelector(".in-var").addEventListener("change", markDirty);
+      row.querySelector(".in-name").addEventListener("input", markDirty);
+    }
 
     node.querySelector(".up").addEventListener("click", function () {
       if (node.previousElementSibling) { list.insertBefore(node, node.previousElementSibling); renumber(); markDirty(); }
@@ -478,11 +496,19 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
   function collect() {
     var steps = [];
     list.querySelectorAll(".step").forEach(function (c) {
-      steps.push({
+      var item = {
         id: c.dataset.id,
         title: c.querySelector(".title").value,
         description: c.querySelector(".desc").value
-      });
+      };
+      var row = c.querySelector(".input-row");
+      if (!row.hidden) {
+        item.input = {
+          name: row.querySelector(".in-name").value.trim(),
+          variable: row.querySelector(".in-var").checked
+        };
+      }
+      steps.push(item);
     });
     return { title: titleEl.value, steps: steps };
   }

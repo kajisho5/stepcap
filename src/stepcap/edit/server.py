@@ -46,6 +46,20 @@ _SID = re.compile(r"^[A-Za-z0-9]{1,32}$")
 EDITABLE = ("title", "description")
 
 
+def _check_input(value: Any) -> dict[str, Any]:
+    """``input`` of a type step: {"name": "project_name", "variable": true}."""
+    if not isinstance(value, dict):
+        raise ApiError(400, "input must be an object")
+    name, variable = value.get("name"), value.get("variable")
+    if not isinstance(name, str) or not steps_mod.INPUT_NAME.match(name):
+        raise ApiError(
+            400, "input name must start with a-z and use a-z, 0-9 or _ (max 40 characters)"
+        )
+    if not isinstance(variable, bool):
+        raise ApiError(400, "input variable must be true or false")
+    return {"name": name, "variable": variable}
+
+
 class ApiError(Exception):
     def __init__(self, status: int, message: str) -> None:
         super().__init__(message)
@@ -99,6 +113,8 @@ class EditApp:
                         if not isinstance(item[key], str) or len(item[key]) > 5000:
                             raise ApiError(400, f"{key} must be a string (max 5000 chars)")
                         step[key] = item[key].strip() if key == "title" else item[key]
+                if "input" in item and step.get("kind") == "type":
+                    step["input"] = _check_input(item["input"])
                 new_steps.append(step)
             doc["steps"] = new_steps
             if "title" in body:

@@ -174,6 +174,9 @@ def collect_probes(include_hooks: bool = True) -> dict[str, Any]:
         p["windows"] = {"admin": _windows_admin()}
     info = window.get_active_window()
     p["window"] = {"backend": window.backend_name(), "title": info.title, "app": info.app}
+    from stepcap.capture import clipboard
+
+    p["clipboard"] = clipboard.backend()
     return p
 
 
@@ -194,6 +197,10 @@ MAC_SCREEN_FIX = (
 WAYLAND_FIX = (
     "Wayland sessions are not supported in v0.1 (global input hooks and screen capture are "
     'blocked by design). Log out and pick an "X11" / "Xorg" session on the login screen.'
+)
+MAC_URL_NOTE = (
+    "Safari, Chrome, Edge and Arc are supported; macOS asks once per browser to allow "
+    "the app that runs stepcap to control it (Privacy & Security > Automation)"
 )
 X11_FIX = "Run stepcap inside a graphical X11 session (DISPLAY must be set, e.g. DISPLAY=:0)."
 SESSION_FIX = "Run stepcap in an interactive desktop session (not a service or SSH session)."
@@ -336,6 +343,22 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
                 "Foreground window name",
                 f"unavailable [{win.get('backend')}]; steps will be titled without the window name",
                 fix,
+            )
+        )
+
+    if plat == "darwin":
+        checks.append(Check("urls", INFO, "Browser URLs (--record-urls)", MAC_URL_NOTE, ""))
+    clip = p.get("clipboard")
+    if clip:
+        checks.append(Check("clipboard", OK, "Clipboard reader (--record-clipboard)", clip))
+    elif "clipboard" in p:
+        checks.append(
+            Check(
+                "clipboard",
+                INFO,
+                "Clipboard reader (--record-clipboard)",
+                "none found; only needed with --record-clipboard",
+                "sudo apt install xclip (or xsel)",
             )
         )
     return checks

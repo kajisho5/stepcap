@@ -20,13 +20,17 @@ from pathlib import Path
 from typing import Any
 
 from stepcap import __version__
+from stepcap.redact import redact_obj
 
 SESSION_FILE = "session.json"
 EVENTS_FILE = "events.jsonl"
+TERMINAL_FILE = "terminal.jsonl"  # written by `stepcap shell`, merged by load_session
 STEPS_FILE = "steps.json"
 RAW_DIR = "raw"
 WORK_DIR = "work"
-SESSION_FORMAT = 1
+# 1: v0.1.0 - v0.1.3. 2: events.jsonl may also hold context events without "id"
+# (app_switch, url, clipboard, terminal) that carry "seq"; nothing else changed.
+SESSION_FORMAT = 2
 
 
 class SessionError(Exception):
@@ -95,6 +99,8 @@ class EventWriter:
         self.count = 0
 
     def write(self, event: dict[str, Any]) -> None:
+        # secrets in typed text, titles, URLs, clipboard and notes never reach the disk
+        event = redact_obj(event)
         line = json.dumps(event, ensure_ascii=False, separators=(",", ":"))
         with self._lock:
             self._fh.write(line + "\n")
@@ -132,4 +138,38 @@ def load_session(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
                 print(
                     f"warning: {EVENTS_FILE}:{n}: skipped unreadable line ({exc})", file=sys.stderr
                 )
+    events += _terminal_events(path, meta, events)
     return meta, events
+
+
+def _terminal_events(
+    path: Path, meta: dict[str, Any], events: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """`stepcap shell` commands as context events, placed by wall-clock time.
+
+    ``meta["t0_epoch"]`` is the wall-clock time of ts 0; without it (older
+    sessions) the commands are placed after the last step.
+    """
+    p = path / TERMINAL_FILE
+    if not p.is_file():
+        return []
+    t0 = meta.get("t0_epoch")
+    steps = sorted((ev["ts"], ev["id"]) for ev in events if "id" in ev and "ts" in ev)
+    after_last = (max((i for _, i in steps), default=0)) + 1
+    out = []
+    with open(p, encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                ev = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(ev, dict) or ev.get("kind") != "terminal":
+                continue
+            rel = None
+            if isinstance(t0, (int, float)) and isinstance(ev.get("time"), (int, float)):
+                rel = round(ev["time"] - t0, 3)
+            seq = next((i for ts, i in steps if rel is not None and ts >= rel), after_last)
+            merged = {"seq": seq, "ts": rel, "kind": "terminal"}
+            merged.update({k: ev[k] for k in ("command", "exit", "cwd") if k in ev})
+            out.append(merged)
+    return out

@@ -3,7 +3,8 @@
 Status: `done` · `in-progress` · `planned`. Every `planned` item has a GitHub issue
 labelled [`roadmap`](https://github.com/kajisho5/stepcap/issues?q=label%3Aroadmap).
 Numbers are stable; new ideas get the next free number. RM-013 … RM-054 are
-issues #2 … #43 (created 2026-09-24; `scripts/roadmap_to_issues.py` adds new rows).
+issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-24;
+`scripts/roadmap_to_issues.py` adds new rows).
 
 | ID | Status | Area | Item |
 |---|---|---|---|
@@ -64,3 +65,14 @@ issues #2 … #43 (created 2026-09-24; `scripts/roadmap_to_issues.py` adds new r
 | RM-055 | done | build | Frame the clicked element (image-based detection, ring fallback, draw/remove in `edit`, `--marker box\|ring`) |
 | RM-056 | done | build | Arrows (automatic for small targets, hand-drawn in `edit`) and `--spotlight` |
 | RM-057 | done | build | Printable A4 checklist (`checklist.html`): tick boxes, target crops, notes, sign-off |
+| RM-058 | done | agents | `stepcap skill`: SKILL.md draft (Goal / Inputs / Steps / notes) + annotated references, always validated, `--install claude\|codex` |
+| RM-059 | done | agents | `--agent claude\|codex`: the user's own agent CLI generalises the draft after a y/N file listing |
+| RM-060 | done | build | `stepcap export --format guide\|skill\|both` and `stepcap check-skill` |
+| RM-061 | done | record | Context events: app switches, `--record-urls` (macOS Safari / Chrome / Edge / Arc), `--record-clipboard` |
+| RM-062 | done | privacy | Secret masking (GitHub / AWS / OpenAI / Anthropic keys, JWT, URL passwords, card numbers) before anything is written |
+| RM-063 | done | record | `stepcap shell`: bash / zsh commands with exit status as terminal events (macOS / Linux) |
+| RM-064 | planned | record | Browser URL on Windows (UI Automation address bar) and Linux for `--record-urls` |
+| RM-065 | planned | record | `stepcap shell` for Windows PowerShell |
+| RM-066 | planned | record | Voice notes while recording (local speech-to-text, off by default) |
+| RM-067 | planned | agents | Check a generated skill against its recording (step coverage / dry-run report) |
+| RM-068 | planned | agents | One skill from several recordings of the same task (merge variants, detect inputs) |

@@ -193,3 +193,36 @@ def get_active_window() -> WindowInfo:
     if sys.platform.startswith("linux"):
         return _linux()
     return WindowInfo()
+
+
+# --------------------------------------------------------------------- browser URL
+# macOS only (AppleScript). The first call per browser makes macOS ask for the
+# "Automation" permission; if it is refused we stop asking that browser.
+_MAC_URL_SCRIPTS = {
+    "Safari": 'tell application "Safari" to get URL of front document',
+    "Google Chrome": 'tell application "Google Chrome" to get URL of active tab of front window',
+    "Microsoft Edge": 'tell application "Microsoft Edge" to get URL of active tab of front window',
+    "Arc": 'tell application "Arc" to get URL of active tab of front window',
+}
+_url_denied: set[str] = set()
+
+
+def browser_url(win: WindowInfo) -> str | None:
+    """URL of the front browser tab, or None (other OS, other app, no permission)."""
+    if sys.platform != "darwin" or not win.app:
+        return None
+    script = _MAC_URL_SCRIPTS.get(win.app)
+    if script is None or win.app in _url_denied:
+        return None
+    try:
+        out = subprocess.run(
+            ["osascript", "-e", script], capture_output=True, text=True, timeout=_TIMEOUT
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        if "-1743" in out.stderr:  # not authorised to send Apple events
+            _url_denied.add(win.app)
+        return None
+    url = out.stdout.strip()
+    return url if url and url != "missing value" else None

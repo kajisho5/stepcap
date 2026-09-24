@@ -34,6 +34,7 @@ from stepcap.session import (
 )
 
 LATENCY_TARGET_MS = 300
+CONTEXT_POLL_S = 0.7  # front window / URL / clipboard poll interval
 _MOD_NAMES = {
     "ctrl": "ctrl",
     "ctrl_l": "ctrl",
@@ -67,6 +68,9 @@ class RecordOptions:
     hotkey_manual: Hotkey = field(default_factory=lambda: parse_hotkey("F7"))
     note_prompt: str = "auto"
     double_click_ms: int = 150
+    record_urls: bool = False
+    keep_query: bool = False
+    record_clipboard: bool = False
     dry_run: bool = False
     as_json: bool = False
 
@@ -163,6 +167,7 @@ class Recorder:
         self.mods: set[str] = set()
         self.down: set[str] = set()
         self.counts: dict[str, int] = {}
+        self.context_count = 0
         self.meta: dict[str, Any] = {}
         self.writer: EventWriter | None = None
         self.shot_writer = None
@@ -271,6 +276,9 @@ class Recorder:
 
         def emit(ev):
             self.writer.write(ev)
+            if "id" not in ev:  # context event (app switch, URL, clipboard): not a step
+                self.context_count += 1
+                return
             kind = ev["kind"] if ev["kind"] != "click" else f"{ev['click_type']}-click"
             self.counts[ev["kind"]] = self.counts.get(ev["kind"], 0) + 1
             where = ev.get("window_title") or ev.get("app_name") or ""
@@ -284,9 +292,13 @@ class Recorder:
                 record_typing=self.opts.record_typing,
                 exclude_apps=self.opts.exclude_apps,
                 double_click_s=self.opts.double_click_ms / 1000,
+                record_urls=self.opts.record_urls,
+                keep_query=self.opts.keep_query,
+                record_clipboard=self.opts.record_clipboard,
             ),
             t0=time.monotonic(),
         )
+        self.meta["t0_epoch"] = round(time.time(), 3)  # aligns `stepcap shell` commands
         self.processor = proc
         self.ready.set()
         try:
@@ -312,6 +324,10 @@ class Recorder:
                     self.ui_q.put(("manual", proc.manual_capture(item[1], pos())))
                 elif kind == "manual_commit":
                     proc.manual_commit(item[1], item[2])
+                elif kind == "observe":
+                    _, ts, win, url, clip = item
+                    proc.observe(ts, win, url)
+                    proc.observe_clipboard(ts, clip, win)
             proc.flush()
         except Exception as exc:  # pragma: no cover - surfaced to the user
             self.fatal.append(f"recording failed: {type(exc).__name__}: {exc}")
@@ -321,6 +337,20 @@ class Recorder:
 
     def _window(self) -> WindowInfo:
         return window_mod.get_active_window()
+
+    def _context_main(self) -> None:
+        """Poll the front window (+ browser URL, clipboard) for context events."""
+        from stepcap.capture import clipboard
+
+        o = self.opts
+        while not self.stopped.wait(CONTEXT_POLL_S):
+            if not self._accepting():
+                continue
+            with contextlib.suppress(Exception):
+                win = self._window()
+                url = window_mod.browser_url(win) if o.record_urls else None
+                clip = clipboard.read_text() if o.record_clipboard else None
+                self.raw_q.put(("observe", time.monotonic(), win, url, clip))
 
     # ------------------------------------------------------------ main
     def run(self) -> dict[str, Any]:
@@ -334,6 +364,9 @@ class Recorder:
                 "record_typing": o.record_typing,
                 "exclude_apps": list(o.exclude_apps),
                 "double_click_ms": o.double_click_ms,
+                "record_urls": o.record_urls,
+                "keep_query": o.keep_query,
+                "record_clipboard": o.record_clipboard,
             },
         )
         self.writer = EventWriter(self.out / EVENTS_FILE)
@@ -356,6 +389,7 @@ class Recorder:
             lst.start()
         for lst in self._listeners:
             lst.wait()
+        threading.Thread(target=self._context_main, name="stepcap-context", daemon=True).start()
         if not all(lst.is_alive() for lst in self._listeners) or any(
             getattr(lst, "IS_TRUSTED", True) is False for lst in self._listeners
         ):
@@ -372,6 +406,15 @@ class Recorder:
         )
         if not o.record_typing:
             _say("  typed text is NOT recorded (only the number of characters)")
+        if o.record_urls:
+            _say("  browser URLs are recorded" + ("" if o.keep_query else " (without ?query)"))
+        if o.record_clipboard:
+            from stepcap.capture import clipboard
+
+            if clipboard.backend() is None:
+                _say("  warning: no clipboard reader found (install xclip or xsel)")
+            else:
+                _say("  clipboard text is recorded (length + first 80 characters, masked)")
         t_start = time.monotonic()
         try:
             while not self.stopped.is_set():
@@ -408,12 +451,13 @@ class Recorder:
 
     def _finish(self, proc_thread: threading.Thread, duration: float) -> dict[str, Any]:
         self._shutdown(proc_thread)
-        n_events = self.writer.count if self.writer else 0
+        n_events = (self.writer.count if self.writer else 0) - self.context_count
         latency = self.stats.to_dict() if self.stats else {}
         excluded = self.processor.excluded_count if self.processor else 0
         self.meta["ended"] = now_iso()
         self.meta["stats"] = {
             "events": n_events,
+            "context_events": self.context_count,
             "screenshots": len(self.stats.grab_ms) if self.stats else 0,
             "excluded": excluded,
             "by_kind": self.counts,

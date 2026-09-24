@@ -159,3 +159,37 @@ def test_draw_arrow_and_toggle_options(demo_session):
     x1, y1, x2, y2 = doc["steps"][0]["arrows"][0]
     assert abs(x1 - 720) <= 4 and abs(y1 - 450) <= 4 and abs(x2 - 1152) <= 4 and abs(y2 - 90) <= 4
     assert doc["spotlight"] is True
+
+
+def test_skill_input_row_only_on_type_steps(demo_session):
+    srv = create_server(demo_session, "127.0.0.1", 0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}/"
+    try:
+        with sync_api.sync_playwright() as p:
+            browser = _launch(p)
+            page = browser.new_page(viewport={"width": 1280, "height": 1600}, bypass_csp=True)
+            page.goto(url)
+            page.wait_for_selector(".step img")
+            visible = page.evaluate(
+                "() => [...document.querySelectorAll('.step')].map("
+                "s => s.querySelector('.input-row').offsetParent !== null)"
+            )
+            doc = json.loads((demo_session / "steps.json").read_text("utf-8"))
+            assert visible == [s["kind"] == "type" for s in doc["steps"]]
+            idx = visible.index(True)
+            card = page.locator(".step").nth(idx)
+            assert card.locator(".in-name").input_value() == "input_1"
+            card.locator(".in-name").fill("project_name")
+            card.locator(".in-var").uncheck()
+            page.click("#save")
+            page.wait_for_function(
+                "() => document.getElementById('status').textContent.startsWith('Saved')"
+            )
+            browser.close()
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    doc = json.loads((demo_session / "steps.json").read_text("utf-8"))
+    typed = next(s for s in doc["steps"] if s["kind"] == "type")
+    assert typed["input"] == {"name": "project_name", "variable": False}

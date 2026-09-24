@@ -28,6 +28,7 @@ jobs:
   test:
     name: test (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -44,7 +45,7 @@ jobs:
         run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]"
       - name: Unit tests (no real input hooks are used in CI)
         run: python -m pytest -q
-      - name: End-to-end smoke test (simulate -> build)
+      - name: End-to-end smoke test (simulate -> build -> export)
         shell: bash
         run: |
           python tests/fixtures/make_events.py > ev.json
@@ -54,6 +55,9 @@ jobs:
           test -f demo/checklist.html
           stepcap build demo --json > build2.json
           python -c "import json;r=json.load(open('build2.json'));assert r['written']==[],r"
+          stepcap export demo --format both -o dist --name demo-skill
+          test -f dist/guide/guide.html && test -f dist/skill/demo-skill/SKILL.md
+          stepcap check-skill dist/skill/demo-skill
       - name: doctor runs (result depends on the runner's desktop session)
         shell: bash
         run: stepcap doctor --json > doctor.json || true; python -c "import json;json.load(open('doctor.json'))"

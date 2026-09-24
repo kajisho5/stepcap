@@ -4,7 +4,8 @@
     python demos/build.py --browser  # also guide/edit UI screenshots (needs playwright)
 
 Pipeline: tests/fixtures/make_events.py -> `stepcap simulate` -> `stepcap build`
--> frames from the annotated step images -> docs/demo/demo.gif.
+-> frames from the annotated step images -> docs/demo/demo.gif, plus
+`stepcap skill` -> docs/demo/guide-and-skill.png (guide left, SKILL.md right).
 """
 
 from __future__ import annotations
@@ -27,11 +28,17 @@ from make_events import make_events  # noqa: E402
 
 from stepcap.build.annotate import font  # noqa: E402
 from stepcap.build.pipeline import BuildOptions, run_build  # noqa: E402
-from stepcap.session import read_json  # noqa: E402
+from stepcap.session import SESSION_FILE, read_json, write_json  # noqa: E402
 from stepcap.simulate import simulate  # noqa: E402
+from stepcap.skill import frontmatter  # noqa: E402
+from stepcap.skill.run import SkillOptions, run_export, run_skill  # noqa: E402
 
 OUT = ROOT / "demos" / "out"
 DOCS = ROOT / "docs" / "demo"
+SAMPLE = DOCS / "sample"
+SKILL_NAME = "create-project-move-card"
+REFINED = SAMPLE / "SKILL.refined-by-claude.md"  # one real `--agent claude` run, kept as is
+FIXED_START = "2026-09-24T10:00:00+09:00"  # pinned so sample outputs do not change daily
 W = 960  # GIF width
 CAPTION_H = 92
 BG = (22, 24, 29)
@@ -94,12 +101,12 @@ def make_gif(session: Path, doc: dict) -> Path:
     frames.append(
         terminal_frame(
             [
-                ("$ stepcap build demo -f md,html", FG),
-                (f"Built {len(steps)} steps in demo", MUTED),
-                ("  demo/guide.md      (+ images/)", FG),
-                ("  demo/guide.html    single file, print to PDF", FG),
-                ("  demo/steps.json    edit it, or let an agent write the text", FG),
-                ("$ stepcap edit demo  # reorder, rename, blur", ACCENT),
+                ("$ stepcap export demo --format both -o dist", FG),
+                (f"Guide dist/guide: {len(steps)} steps", MUTED),
+                ("  guide.md, guide.html (single file), checklist.html", FG),
+                ("Skill 'create-a-project-...': SKILL.md + references/", MUTED),
+                ("  valid (Agent Skills spec + no secrets)", FG),
+                ("$ stepcap edit demo  # reorder, rename, blur, inputs", ACCENT),
             ],
             h,
         )
@@ -117,6 +124,72 @@ def make_gif(session: Path, doc: dict) -> Path:
         disposal=1,
     )
     return out
+
+
+def _wrap(text: str, width: int) -> list[str]:
+    out = []
+    while len(text) > width:
+        cut = text.rfind(" ", 0, width)
+        cut = cut if cut > width // 2 else width
+        out.append(text[:cut])
+        text = "  " + text[cut:].lstrip()
+    return [*out, text]
+
+
+def guide_and_skill(session: Path, doc: dict) -> Path:
+    """One recording -> guide for people (left) and SKILL.md for agents (right)."""
+    res = run_skill(session, SkillOptions(out_dir=OUT / "skill", name="create-project-move-card"))
+    _, body = frontmatter.parse((Path(res.skill_dir) / "SKILL.md").read_text("utf-8"))
+    w, h, pad = 1600, 900, 28
+    img = Image.new("RGB", (w, h), BG)
+    d = ImageDraw.Draw(img)
+    half = w // 2
+    d.text((pad, 20), "For people: guide.html / guide.md", font=font(26), fill=ACCENT)
+    d.text((half + pad, 20), "For agents: SKILL.md + references/", font=font(26), fill=ACCENT)
+    d.line((half, 16, half, h - 16), fill=(60, 64, 74), width=2)
+
+    step = doc["steps"][1]
+    shot = Image.open(session / step["rendered"]).convert("RGB")
+    sw = half - 2 * pad
+    shot = shot.resize((sw, round(shot.height * sw / shot.width)), Image.Resampling.LANCZOS)
+    img.paste(shot, (pad, 70))
+    y = 70 + shot.height + 18
+    d.text((pad, y), f"Step 2 - {step['title']}", font=font(24), fill=FG)
+    y += 40
+    for n, s in enumerate(doc["steps"][2:6], 3):
+        d.text((pad, y), f"Step {n} - {s['title']}"[:62], font=font(20), fill=MUTED)
+        y += 32
+
+    lines = []
+    for raw in body.strip().splitlines():
+        if raw.startswith("<!--"):
+            continue
+        lines += _wrap(raw, 60) if raw else [""]
+    y = 70
+    for line in lines:
+        if y > h - 40:
+            d.text((half + pad, y), "...", font=font(18), fill=MUTED)
+            break
+        color = ACCENT if line.startswith("#") else (FG if line.strip() else MUTED)
+        d.text((half + pad, y), line, font=font(18), fill=color)
+        y += 25
+    out = DOCS / "guide-and-skill.png"
+    img.save(out, optimize=True)
+    return out
+
+
+def export_sample(session: Path) -> list[Path]:
+    """docs/demo/sample/: the exported guide + draft skill, browsable on GitHub."""
+    keep = REFINED.read_bytes() if REFINED.exists() else None
+    if SAMPLE.exists():
+        shutil.rmtree(SAMPLE)
+    res = run_export(
+        session, "both", SAMPLE, SkillOptions(out_dir=SAMPLE / "skill", name=SKILL_NAME)
+    )
+    assert res.ok, res.skill
+    if keep is not None:
+        REFINED.write_bytes(keep)
+    return [SAMPLE / "guide" / "guide.md", SAMPLE / "skill" / SKILL_NAME / "SKILL.md"]
 
 
 def chromium_path() -> str | None:
@@ -196,10 +269,13 @@ def main() -> int:
     DOCS.mkdir(parents=True, exist_ok=True)
     session = OUT / "demo"
     simulate(make_events(), session)
+    meta = read_json(session / SESSION_FILE)
+    meta["started"] = FIXED_START
+    write_json(session / SESSION_FILE, meta)
     run_build(session, BuildOptions())
     doc = read_json(session / "steps.json")
 
-    written = [make_gif(session, doc)]
+    written = [make_gif(session, doc), guide_and_skill(session, doc)]
     for n, name in ((9, "step-drag.png"), (2, "step-click.png")):
         Image.open(session / doc["steps"][n - 1]["rendered"]).save(DOCS / name, optimize=True)
         written.append(DOCS / name)
@@ -218,6 +294,7 @@ def main() -> int:
     )
     written.append(DOCS / "step-spotlight.png")
 
+    written += export_sample(session)
     if args.browser:
         written += browser_shots(session)
     for p in written:
