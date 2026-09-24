@@ -178,6 +178,7 @@ stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
 stepcap check-skill SKILL_DIR [--json]
+stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap doctor [--json]
 ```
@@ -238,6 +239,11 @@ stepcap check-skill skills/<name>                    # validate after editing by
 - **Always validated**: Agent Skills frontmatter rules, name = folder name, < 500 lines,
   ~5000 tokens, every `references/` link exists, and no secret patterns (GitHub / AWS /
   OpenAI / Anthropic keys, JWTs, passwords in URLs, card numbers). Exit code 1 if not.
+- **Terminal steps**: run `stepcap shell my-guide` in a second terminal while recording.
+  Commands typed there (not their output) are added with their exit status, secrets
+  masked, and show up as "Ran in a terminal: `...`" in the skill. bash and zsh on macOS /
+  Linux; Windows PowerShell is not supported yet. Start a command with a space to keep it
+  out (when your shell ignores such commands in history).
 - **Press F7 while recording** to add notes like "why": they become the skill's Goal and are
   the most useful thing you can give an agent.
 

@@ -563,6 +563,16 @@ class EventProcessor:
             ev["preview"] = one_line[:CLIPBOARD_PREVIEW]
         self._emit(ev)
 
+    def observe_terminal(self, ts: float, command: str, exit_code: int | None = None) -> None:
+        """A command run in ``stepcap shell`` (simulate uses this directly)."""
+        if not command.strip():
+            return
+        ev = self._ctx("terminal", ts)
+        ev["command"] = command.strip()[:2000]
+        if exit_code is not None:
+            ev["exit"] = int(exit_code)
+        self._emit(ev)
+
     # ------------------------------------------------------------------ manual
     def manual_capture(self, ts: float, pos: tuple[float, float] | None = None):
         """First half of a manual step: grab the screen now, before any prompt."""

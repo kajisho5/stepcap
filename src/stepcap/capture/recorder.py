@@ -298,6 +298,7 @@ class Recorder:
             ),
             t0=time.monotonic(),
         )
+        self.meta["t0_epoch"] = round(time.time(), 3)  # aligns `stepcap shell` commands
         self.processor = proc
         self.ready.set()
         try:

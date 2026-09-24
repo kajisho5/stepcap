@@ -116,7 +116,9 @@ def _context_line(ev: dict[str, Any]) -> str | None:
         n = ev.get("chars", len(preview))
         return f"Copied {n} characters" + (f": `{preview}`" if preview else "")
     if kind == "terminal" and ev.get("command"):
-        return f"Ran in a terminal: `{_one_line(ev['command'])}`"
+        code = ev.get("exit")
+        status = f" (exit status {code})" if isinstance(code, int) and code != 0 else ""
+        return f"Ran in a terminal: `{_one_line(ev['command'])}`{status}"
     return None
 
 

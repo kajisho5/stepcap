@@ -38,7 +38,8 @@ EVENTS.json::
         {"kind": "scroll", "screen": "...", "target": "list", "dy": -3},
         {"kind": "key", "screen": "...", "keys": "ctrl+s"},
         {"kind": "manual", "screen": "...", "note": "Check the result"},
-        {"kind": "copy", "screen": "...", "text": "copied text"}
+        {"kind": "copy", "screen": "...", "text": "copied text"},
+        {"kind": "terminal", "command": "git pull", "exit": 0}
       ]
     }
 
@@ -502,6 +503,11 @@ def _replay(
         pos = r.resolve(screen, target) if target is not None else None
         token = proc.manual_capture(t, pos)
         proc.manual_commit(token, str(ev.get("note", "")))
+    elif kind == "terminal":
+        code = ev.get("exit")
+        proc.observe_terminal(
+            t, str(ev.get("command", "")), code if isinstance(code, int) else None
+        )
     elif kind == "copy":
         sc = r.screen(screen)
         win = WindowInfo(title=sc.get("window_title"), app=sc.get("app"))

@@ -249,6 +249,19 @@ def cmd_export(args: argparse.Namespace) -> int:
     return EXIT_OK if res.ok else EXIT_FAIL
 
 
+def cmd_shell(args: argparse.Namespace) -> int:
+    from stepcap.shell import run_shell
+
+    try:
+        res = run_shell(Path(args.session), args.shell)
+    except SessionError as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    if args.json:
+        _print_json(res)
+    return EXIT_OK
+
+
 def cmd_check_skill(args: argparse.Namespace) -> int:
     from stepcap.skill.validate import validate_skill
 
@@ -501,6 +514,15 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("--lang", choices=("en", "ja"), help="language of automatic guide texts")
     _skill_args(x)
     x.set_defaults(func=cmd_export)
+
+    h = sub.add_parser(
+        "shell",
+        help="open bash/zsh whose commands are added to a session (macOS/Linux)",
+    )
+    h.add_argument("session", metavar="SESSION_DIR", help="a session being (or already) recorded")
+    h.add_argument("--shell", help="bash or zsh (default: $SHELL, else bash, else zsh)")
+    h.add_argument("--json", action="store_true", help="print a JSON summary when the shell exits")
+    h.set_defaults(func=cmd_shell)
 
     c = sub.add_parser(
         "check-skill",

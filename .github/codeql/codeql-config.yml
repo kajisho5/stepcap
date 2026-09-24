@@ -1,0 +1,5 @@
+name: stepcap CodeQL config
+# tests/ deliberately contains fake secrets (tokens, passwords, card numbers) to test
+# redaction; analysing it only produces false "clear-text storage/logging" alerts.
+paths-ignore:
+  - tests/**
