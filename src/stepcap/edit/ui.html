@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>stepcap edit</title>
+<style>
+:root{--bg:#f4f5f8;--panel:#fff;--fg:#1b1d22;--muted:#5d6370;--line:#e1e4ea;--accent:#e8401a;
+--accent-fg:#fff;--primary:#2f54eb;--primary-fg:#fff;--danger:#c62828;--blur:rgba(47,84,235,.18);
+--shadow:0 1px 2px rgba(0,0,0,.05),0 6px 20px rgba(0,0,0,.05);color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#121418;--panel:#1b1e24;--fg:#e8eaee;--muted:#9aa1ad;
+--line:#2c3038;--accent:#ff6a3d;--accent-fg:#121418;--primary:#6f8cff;--primary-fg:#0d1020;
+--danger:#ff6b6b;--blur:rgba(111,140,255,.22);--shadow:0 1px 2px rgba(0,0,0,.5);color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",
+Roboto,"Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif}
+header.bar{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;
+padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{font-weight:700;white-space:nowrap}.brand span{color:var(--accent)}
+#doc-title{flex:1 1 280px;min-width:0;font:inherit;font-size:1.05rem;font-weight:600;padding:6px 10px;
+border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,.btn{font:inherit;font-size:.9rem;border:1px solid var(--line);background:var(--panel);color:var(--fg);
+border-radius:8px;padding:6px 12px;cursor:pointer;text-decoration:none;white-space:nowrap}
+button:hover,.btn:hover{border-color:var(--muted)}
+button:disabled{opacity:.5;cursor:default}
+button.primary{background:var(--primary);border-color:var(--primary);color:var(--primary-fg)}
+button.danger{color:var(--danger)}
+button.on{background:var(--blur);border-color:var(--primary);color:var(--primary)}
+#status{color:var(--muted);font-size:.85rem;min-height:1.2em}
+#status.err{color:var(--danger)}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.hint{color:var(--muted);font-size:.85rem;margin:0 0 12px}
+.step{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;background:var(--panel);
+border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 14px;box-shadow:var(--shadow)}
+.step.dragging{opacity:.45}
+.step.drop-before{box-shadow:0 -3px 0 var(--primary)}.step.drop-after{box-shadow:0 3px 0 var(--primary)}
+.side{display:flex;flex-direction:column;align-items:center;gap:6px}
+.num{display:grid;place-items:center;min-width:2.1em;height:2.1em;border-radius:1.05em;background:var(--accent);
+color:var(--accent-fg);font-weight:700}
+.handle{cursor:grab;user-select:none;touch-action:none;color:var(--muted);font-size:1.2rem;line-height:1;padding:4px}
+.side button{padding:2px 8px}
+.body{min-width:0;display:flex;flex-direction:column;gap:8px}
+.title{font:inherit;font-size:1.05rem;font-weight:600;padding:6px 10px;border:1px solid var(--line);
+border-radius:8px;background:var(--bg);color:var(--fg);width:100%}
+.desc{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);
+color:var(--fg);width:100%;min-height:2.6em;resize:vertical}
+.meta{color:var(--muted);font-size:.8rem;overflow-wrap:anywhere}
+.shot{position:relative;display:inline-block;max-width:100%;border-radius:8px;overflow:hidden;
+border:1px solid var(--line);line-height:0;touch-action:none}
+.shot img{display:block;max-width:100%;max-height:70vh;width:auto;height:auto;user-select:none;-webkit-user-drag:none}
+.shot.blurring{cursor:crosshair}
+.marker{position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border-radius:50%;
+border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer-events:none}
+.sel{position:absolute;border:2px dashed var(--primary);background:var(--blur);pointer-events:none}
+.tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.tools .note{color:var(--muted);font-size:.8rem}
+.empty{text-align:center;color:var(--muted);padding:48px 0}
+@media (max-width:600px){.step{grid-template-columns:minmax(0,1fr)}.side{flex-direction:row}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">stepcap <span>edit</span></div>
+  <input id="doc-title" aria-label="Guide title" placeholder="Guide title">
+  <div class="actions">
+    <span id="status" role="status" aria-live="polite"></span>
+    <button id="undo" type="button" hidden>Undo delete</button>
+    <button id="reload" type="button">Reload</button>
+    <button id="save" type="button">Save</button>
+    <button id="build" type="button" class="primary">Save &amp; Build</button>
+    <a id="open" class="btn" href="/guide.html" target="_blank" rel="noopener">Open guide.html</a>
+  </div>
+</header>
+<main>
+  <p class="hint">Drag ⋮⋮ (or use ↑ ↓) to reorder · edit titles and descriptions · “Blur area” then drag
+    over the screenshot to hide sensitive data (applies to the working copy; originals in raw/ are
+    never changed) · Save writes steps.json · Build regenerates guide.md / guide.html.</p>
+  <div id="list"></div>
+</main>
+<template id="tpl">
+  <section class="step">
+    <div class="side">
+      <span class="num"></span>
+      <span class="handle" title="Drag to reorder" aria-hidden="true">⋮⋮</span>
+      <button type="button" class="up" aria-label="Move up">↑</button>
+      <button type="button" class="down" aria-label="Move down">↓</button>
+      <button type="button" class="del danger" aria-label="Delete step">✕</button>
+    </div>
+    <div class="body">
+      <input class="title" aria-label="Step title">
+      <textarea class="desc" rows="2" aria-label="Step description" placeholder="Description (optional)"></textarea>
+      <div class="meta"></div>
+      <div class="shot-wrap"></div>
+      <div class="tools"></div>
+    </div>
+  </section>
+</template>
+<script>
+(function () {
+  "use strict";
+  var list = document.getElementById("list");
+  var tpl = document.getElementById("tpl");
+  var statusEl = document.getElementById("status");
+  var titleEl = document.getElementById("doc-title");
+  var undoBtn = document.getElementById("undo");
+  var state = { doc: null, usage: {}, dirty: false, version: {}, deleted: [] };
+
+  function setStatus(msg, isErr) {
+    statusEl.textContent = msg || "";
+    statusEl.className = isErr ? "err" : "";
+  }
+  function markDirty() { state.dirty = true; setStatus("Unsaved changes"); }
+  window.addEventListener("beforeunload", function (e) {
+    if (state.dirty) { e.preventDefault(); e.returnValue = ""; }
+  });
+
+  function api(method, path, body) {
+    var opts = { method: method, headers: {} };
+    if (body !== undefined) {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    return fetch(path, opts).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) { throw new Error(data.error || ("HTTP " + r.status)); }
+        return data;
+      });
+    });
+  }
+
+  function imgUrl(sid) { return "/api/image/" + encodeURIComponent(sid) + "?v=" + (state.version[sid] || 0); }
+
+  function renumber() {
+    var cards = list.querySelectorAll(".step");
+    cards.forEach(function (c, i) {
+      c.querySelector(".num").textContent = String(i + 1);
+      c.querySelector(".up").disabled = i === 0;
+      c.querySelector(".down").disabled = i === cards.length - 1;
+    });
+    if (!cards.length) {
+      list.innerHTML = "";
+      var p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = "No steps left.";
+      list.appendChild(p);
+    }
+  }
+
+  function card(step) {
+    var node = tpl.content.firstElementChild.cloneNode(true);
+    node.dataset.id = step.id;
+    node._step = step;
+    var t = node.querySelector(".title");
+    var d = node.querySelector(".desc");
+    t.value = step.title || "";
+    d.value = step.description || "";
+    t.addEventListener("input", markDirty);
+    d.addEventListener("input", markDirty);
+    var meta = [step.kind + (step.click_type ? " (" + step.click_type + ")" : "")];
+    if (step.window_title || step.app_name) { meta.push(step.window_title || step.app_name); }
+    node.querySelector(".meta").textContent = meta.join(" · ");
+
+    node.querySelector(".up").addEventListener("click", function () {
+      if (node.previousElementSibling) { list.insertBefore(node, node.previousElementSibling); renumber(); markDirty(); }
+    });
+    node.querySelector(".down").addEventListener("click", function () {
+      if (node.nextElementSibling) { list.insertBefore(node.nextElementSibling, node); renumber(); markDirty(); }
+    });
+    node.querySelector(".del").addEventListener("click", function () {
+      var idx = Array.prototype.indexOf.call(list.children, node);
+      state.deleted.push({ node: node, index: idx });
+      node.remove();
+      undoBtn.hidden = false;
+      renumber();
+      markDirty();
+    });
+
+    // drag to reorder with pointer events (mouse, pen and touch), only from the handle
+    var handle = node.querySelector(".handle");
+    var target = null, after = false;
+    function clearMarks() {
+      list.querySelectorAll(".drop-before,.drop-after").forEach(function (n) {
+        n.classList.remove("drop-before", "drop-after");
+      });
+    }
+    handle.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      node.classList.add("dragging");
+      target = null;
+    });
+    handle.addEventListener("pointermove", function (e) {
+      if (!node.classList.contains("dragging")) { return; }
+      var over = null;
+      list.querySelectorAll(".step").forEach(function (c) {
+        if (c === node) { return; }
+        var r = c.getBoundingClientRect();
+        if (e.clientY >= r.top && e.clientY <= r.bottom) { over = c; }
+      });
+      clearMarks();
+      target = over;
+      if (over) {
+        var r = over.getBoundingClientRect();
+        after = e.clientY > r.top + r.height / 2;
+        over.classList.add(after ? "drop-after" : "drop-before");
+      }
+      if (e.clientY < 60) { window.scrollBy(0, -20); }
+      if (e.clientY > window.innerHeight - 40) { window.scrollBy(0, 20); }
+    });
+    function endDrag() {
+      if (!node.classList.contains("dragging")) { return; }
+      node.classList.remove("dragging");
+      clearMarks();
+      if (target) {
+        list.insertBefore(node, after ? target.nextElementSibling : target);
+        target = null;
+        renumber();
+        markDirty();
+      }
+    }
+    handle.addEventListener("pointerup", endDrag);
+    handle.addEventListener("pointercancel", function () { target = null; endDrag(); });
+
+    if (step.screenshot) { addShot(node, step); }
+    return node;
+  }
+
+  function addShot(node, step) {
+    var sid = step.screenshot;
+    var wrap = node.querySelector(".shot-wrap");
+    var box = document.createElement("div");
+    box.className = "shot";
+    var img = document.createElement("img");
+    img.alt = "Screenshot for this step";
+    img.src = imgUrl(sid);
+    img.dataset.sid = sid;
+    img.draggable = false;
+    box.appendChild(img);
+    var pt = step.kind === "drag" ? step.from : step.point;
+    if (pt && pt.img_x !== undefined && step.kind !== "manual" && step.kind !== "key") {
+      var m = document.createElement("div");
+      m.className = "marker";
+      box.appendChild(m);
+      var place = function () {
+        if (!img.naturalWidth) { return; }
+        m.style.left = (100 * pt.img_x / img.naturalWidth) + "%";
+        m.style.top = (100 * pt.img_y / img.naturalHeight) + "%";
+      };
+      img.addEventListener("load", place);
+    }
+    wrap.appendChild(box);
+
+    var tools = node.querySelector(".tools");
+    var blurBtn = document.createElement("button");
+    blurBtn.type = "button";
+    blurBtn.textContent = "Blur area";
+    blurBtn.setAttribute("aria-pressed", "false");
+    var resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.textContent = "Reset image";
+    tools.appendChild(blurBtn);
+    tools.appendChild(resetBtn);
+    var shared = state.usage[sid] || 1;
+    if (shared > 1) {
+      var note = document.createElement("span");
+      note.className = "note";
+      note.textContent = "Screenshot shared by " + shared + " steps (blur applies to all of them)";
+      tools.appendChild(note);
+    }
+
+    var on = false;
+    blurBtn.addEventListener("click", function () {
+      on = !on;
+      blurBtn.classList.toggle("on", on);
+      blurBtn.setAttribute("aria-pressed", String(on));
+      box.classList.toggle("blurring", on);
+      setStatus(on ? "Drag over the screenshot to blur a rectangle" : "");
+    });
+    resetBtn.addEventListener("click", function () {
+      api("POST", "/api/reset-image", { screenshot: sid }).then(function () {
+        refreshImages(sid);
+        setStatus("Image restored from raw/");
+      }).catch(function (err) { setStatus(err.message, true); });
+    });
+
+    var start = null, sel = null;
+    function toImg(e) {
+      var r = img.getBoundingClientRect();
+      var x = Math.min(Math.max(e.clientX - r.left, 0), r.width);
+      var y = Math.min(Math.max(e.clientY - r.top, 0), r.height);
+      return { cx: x, cy: y, ix: x * img.naturalWidth / r.width, iy: y * img.naturalHeight / r.height };
+    }
+    box.addEventListener("pointerdown", function (e) {
+      if (!on) { return; }
+      e.preventDefault();
+      box.setPointerCapture(e.pointerId);
+      start = toImg(e);
+      sel = document.createElement("div");
+      sel.className = "sel";
+      box.appendChild(sel);
+    });
+    box.addEventListener("pointermove", function (e) {
+      if (!start) { return; }
+      var p = toImg(e);
+      sel.style.left = Math.min(start.cx, p.cx) + "px";
+      sel.style.top = Math.min(start.cy, p.cy) + "px";
+      sel.style.width = Math.abs(p.cx - start.cx) + "px";
+      sel.style.height = Math.abs(p.cy - start.cy) + "px";
+    });
+    box.addEventListener("pointerup", function (e) {
+      if (!start) { return; }
+      var p = toImg(e), s = start;
+      start = null;
+      sel.remove();
+      var rect = [Math.min(s.ix, p.ix), Math.min(s.iy, p.iy), Math.abs(p.ix - s.ix), Math.abs(p.iy - s.iy)];
+      if (rect[2] < 3 || rect[3] < 3) { return; }
+      setStatus("Blurring…");
+      api("POST", "/api/blur", { screenshot: sid, rect: rect }).then(function () {
+        refreshImages(sid);
+        setStatus("Blurred. Press Build to update the guide.");
+      }).catch(function (err) { setStatus(err.message, true); });
+    });
+  }
+
+  function refreshImages(sid) {
+    state.version[sid] = (state.version[sid] || 0) + 1;
+    list.querySelectorAll("img[data-sid]").forEach(function (im) {
+      if (im.dataset.sid === sid) { im.src = imgUrl(sid); }
+    });
+  }
+
+  function render() {
+    list.innerHTML = "";
+    titleEl.value = state.doc.title || "";
+    state.doc.steps.forEach(function (s) { list.appendChild(card(s)); });
+    renumber();
+  }
+
+  function load() {
+    setStatus("Loading…");
+    return api("GET", "/api/steps").then(function (data) {
+      state.doc = data.doc;
+      state.usage = data.usage || {};
+      state.dirty = false;
+      state.deleted = [];
+      undoBtn.hidden = true;
+      document.title = "stepcap edit — " + data.session;
+      render();
+      setStatus(state.doc.steps.length + " steps loaded");
+    }).catch(function (err) { setStatus(err.message, true); });
+  }
+
+  function collect() {
+    var steps = [];
+    list.querySelectorAll(".step").forEach(function (c) {
+      steps.push({
+        id: c.dataset.id,
+        title: c.querySelector(".title").value,
+        description: c.querySelector(".desc").value
+      });
+    });
+    return { title: titleEl.value, steps: steps };
+  }
+
+  function save() {
+    setStatus("Saving…");
+    return api("POST", "/api/steps", collect()).then(function (res) {
+      state.dirty = false;
+      state.deleted = [];
+      undoBtn.hidden = true;
+      setStatus("Saved (" + res.steps + " steps)");
+      return res;
+    });
+  }
+
+  titleEl.addEventListener("input", markDirty);
+  undoBtn.addEventListener("click", function () {
+    var last = state.deleted.pop();
+    if (!last) { return; }
+    var empty = list.querySelector(".empty");
+    if (empty) { empty.remove(); }
+    list.insertBefore(last.node, list.children[last.index] || null);
+    undoBtn.hidden = state.deleted.length === 0;
+    renumber();
+    markDirty();
+  });
+  document.getElementById("reload").addEventListener("click", function () {
+    if (state.dirty && !window.confirm("Discard unsaved changes?")) { return; }
+    load();
+  });
+  document.getElementById("save").addEventListener("click", function () {
+    save().catch(function (err) { setStatus(err.message, true); });
+  });
+  document.getElementById("build").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    save().then(function () {
+      setStatus("Building…");
+      return api("POST", "/api/build", { formats: "md,html" });
+    }).then(function (res) {
+      setStatus("Built " + res.steps + " steps · " + res.written.length + " file(s) updated");
+    }).catch(function (err) { setStatus(err.message, true); })
+      .then(function () { btn.disabled = false; });
+  });
+  load();
+})();
+</script>
+</body>
+</html>
