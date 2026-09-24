@@ -10,9 +10,13 @@ Timestamps are seconds (float) on any monotonic clock.
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
+
+from stepcap.redact import redact_text
 
 # Window titles that force typed content to be masked even with --record-typing.
 SENSITIVE_TITLE_PATTERNS = (
@@ -41,6 +45,24 @@ STEP_KEYS = frozenset({"enter", "esc"})
 DEFAULT_DOUBLE_CLICK_S = 0.150
 DEFAULT_DRAG_THRESHOLD_PX = 12.0
 DEFAULT_SCROLL_GAP_S = 0.8
+CLIPBOARD_PREVIEW = 80
+
+
+def normalise_url(url: str, keep_query: bool = False) -> str | None:
+    """Drop query and fragment (unless ``keep_query``) and any user:password@."""
+    url = (url or "").strip()
+    if not url or len(url) > 4096:
+        return None
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return None
+    if not parts.scheme:
+        return None
+    netloc = parts.netloc.rsplit("@", 1)[-1]
+    if keep_query:
+        return redact_text(urlunsplit((parts.scheme, netloc, parts.path, parts.query, "")))
+    return urlunsplit((parts.scheme, netloc, parts.path, "", ""))
 
 
 def is_sensitive_title(title: str | None) -> bool:
@@ -175,6 +197,9 @@ class ProcessorOptions:
     double_click_s: float = DEFAULT_DOUBLE_CLICK_S
     drag_threshold_px: float = DEFAULT_DRAG_THRESHOLD_PX
     scroll_gap_s: float = DEFAULT_SCROLL_GAP_S
+    record_urls: bool = False
+    keep_query: bool = False
+    record_clipboard: bool = False
 
 
 class EventProcessor:
@@ -204,6 +229,10 @@ class EventProcessor:
         self._mods: set[str] = set()
         self.last_pos: tuple[float, float] | None = None
         self.excluded_count = 0
+        self._last_win: tuple[str | None, str | None] | None = None
+        self._last_url: str | None = None
+        self._clip: str | None = None
+        self._clip_seen = False
 
     # ------------------------------------------------------------------ helpers
     def is_excluded(self, win: WindowInfo) -> bool:
@@ -479,6 +508,59 @@ class EventProcessor:
         ev = self._base("key", ts, win, shot)
         ev["keys"] = keys
         self._with_point(ev, shot, x, y)
+        self._emit(ev)
+
+    # ------------------------------------------------------------------ context
+    # Context events (app switches, URLs, clipboard) never become steps. They have
+    # no ``id`` so step ids stay stable; ``seq`` is the id the next step will get.
+    def _ctx(self, kind: str, ts: float) -> dict[str, Any]:
+        return {"seq": self._next_id, "ts": round(ts - self.t0, 3), "kind": kind}
+
+    def observe(self, ts: float, win: WindowInfo, url: str | None = None) -> None:
+        """Feed the front window (and browser URL) from a periodic poll."""
+        self.tick(ts)
+        if self.is_excluded(win):
+            self._last_win = None
+            self._last_url = None
+            return
+        key = (win.app, win.title)
+        if key != self._last_win and (win.app or win.title):
+            self._last_win = key
+            ev = self._ctx("app_switch", ts)
+            ev["app_name"], ev["window_title"] = win.app, win.title
+            self._emit(ev)
+        if not self.opt.record_urls or not url:
+            return
+        norm = normalise_url(url, self.opt.keep_query)
+        if norm and norm != self._last_url:
+            self._last_url = norm
+            ev = self._ctx("url", ts)
+            ev["url"] = norm
+            ev["app_name"] = win.app
+            self._emit(ev)
+
+    def observe_clipboard(self, ts: float, text: str | None, win: WindowInfo) -> None:
+        """Feed the clipboard text from a periodic poll; emits only on change."""
+        if not self._clip_seen:  # whatever was copied before recording started
+            # None = no text on the clipboard (or unreadable): an empty baseline
+            self._clip_seen, self._clip = True, text or ""
+            return
+        if text is None:
+            return
+        if text == self._clip:
+            return
+        self._clip = text
+        if not self.opt.record_clipboard or not text or self.is_excluded(win):
+            return
+        ev = self._ctx("clipboard", ts)
+        ev["chars"] = len(text)
+        ev["app_name"] = win.app
+        if is_sensitive_title(win.title):
+            ev["masked"] = True
+        else:
+            # redact before cutting, so a secret cut in half cannot survive
+            one_line = re.sub(r"\s+", " ", redact_text(text[:2000])).strip()
+            ev["preview"] = one_line[:CLIPBOARD_PREVIEW]
         self._emit(ev)
 
     # ------------------------------------------------------------------ manual

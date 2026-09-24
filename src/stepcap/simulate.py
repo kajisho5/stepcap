@@ -37,9 +37,15 @@ EVENTS.json::
         {"kind": "drag", "screen": "...", "from": "c1", "to": [x, y]},
         {"kind": "scroll", "screen": "...", "target": "list", "dy": -3},
         {"kind": "key", "screen": "...", "keys": "ctrl+s"},
-        {"kind": "manual", "screen": "...", "note": "Check the result"}
+        {"kind": "manual", "screen": "...", "note": "Check the result"},
+        {"kind": "copy", "screen": "...", "text": "copied text"}
       ]
     }
+
+A screen may set ``"url": "https://..."`` (recorded with ``record_urls``) and
+``"monitor": 1`` (index into an optional top-level ``"monitors"`` list of
+``{"left", "top", "scale"}``; every monitor has the ``screen`` size in logical
+points, and ``scale`` 2.0 gives Retina-like screenshots with twice the pixels).
 
 ``target`` / ``from`` / ``to`` accept a widget id or ``[x, y]``. Each event
 may set ``t`` (seconds); otherwise events are 1.5 s apart.
@@ -116,6 +122,28 @@ class ScreenRenderer:
         self.screens: dict[str, dict[str, Any]] = spec.get("screens") or {}
         if not self.screens:
             raise SimulationError("EVENTS.json: 'screens' must define at least one screen")
+        mons = spec.get("monitors") or [{}]
+        if not isinstance(mons, list) or not all(isinstance(m, dict) for m in mons):
+            raise SimulationError("EVENTS.json: 'monitors' must be a list of objects")
+        self.monitors = [
+            Monitor(i + 1, int(m.get("left", 0)), int(m.get("top", 0)), self.width, self.height)
+            for i, m in enumerate(mons)
+        ]
+        self.scales = [float(m.get("scale", 1.0)) for m in mons]
+        if any(not 0.5 <= sc <= 4 for sc in self.scales):
+            raise SimulationError("EVENTS.json: monitor scale must be between 0.5 and 4")
+
+    def monitor_index(self, name: str) -> int:
+        idx = self.screen(name).get("monitor", 0)
+        if not isinstance(idx, int) or not 0 <= idx < len(self.monitors):
+            raise SimulationError(f"EVENTS.json: screen {name!r} has an invalid monitor index")
+        return idx
+
+    def url(self, name: str) -> str | None:
+        sc = self.screen(name)
+        if sc.get("url"):
+            return str(sc["url"])
+        return self.url(sc["base"]) if sc.get("base") else None
 
     def screen(self, name: str) -> dict[str, Any]:
         if name not in self.screens:
@@ -134,11 +162,15 @@ class ScreenRenderer:
         raise SimulationError(f"EVENTS.json: no widget {wid!r} on screen {screen!r}")
 
     def resolve(self, screen: str, target: Any) -> tuple[float, float]:
+        """Global (virtual desktop) coordinates of a target on ``screen``."""
+        m = self.monitors[self.monitor_index(screen)]
         if isinstance(target, (list, tuple)) and len(target) == 2:
-            return float(target[0]), float(target[1])
-        if isinstance(target, str):
-            return _center(self.widget(screen, target))
-        return self.width / 2, self.height / 2
+            x, y = float(target[0]), float(target[1])
+        elif isinstance(target, str):
+            x, y = _center(self.widget(screen, target))
+        else:
+            x, y = self.width / 2, self.height / 2
+        return x + m.left, y + m.top
 
     # ------------------------------------------------------------------ drawing
     def render(self, name: str, state: _State) -> Image.Image:
@@ -311,17 +343,22 @@ def simulate(
     out_dir: Path,
     record_typing: bool = False,
     exclude_apps: tuple[str, ...] = (),
+    record_urls: bool = False,
+    keep_query: bool = False,
+    record_clipboard: bool = False,
 ) -> dict[str, Any]:
     renderer = ScreenRenderer(spec)
     out = prepare_new_session(out_dir)
-    monitor = Monitor(1, 0, 0, renderer.width, renderer.height)
     options = {
         "monitor": "active",
         "record_typing": record_typing,
         "exclude_apps": list(exclude_apps),
+        "record_urls": record_urls,
+        "keep_query": keep_query,
+        "record_clipboard": record_clipboard,
     }
     meta = base_meta("simulate", options)
-    meta["monitors"] = [monitor.to_dict()]
+    meta["monitors"] = [m.to_dict() for m in renderer.monitors]
     if spec.get("title"):
         meta["title"] = spec["title"]
 
@@ -333,10 +370,19 @@ def simulate(
         nonlocal n_shots
         n_shots += 1
         sid = f"{n_shots:04d}"
+        idx = renderer.monitor_index(current["screen"])
         img = renderer.render(current["screen"], state)
+        scale = renderer.scales[idx]
+        if scale != 1.0:
+            size = (round(img.width * scale), round(img.height * scale))
+            img = img.resize(size, Image.Resampling.BICUBIC)
         img.save(out / RAW_DIR / f"{sid}.png", format="PNG", compress_level=1)
         return Shot(
-            id=sid, path=f"{RAW_DIR}/{sid}.png", monitor=monitor, width=img.width, height=img.height
+            id=sid,
+            path=f"{RAW_DIR}/{sid}.png",
+            monitor=renderer.monitors[idx],
+            width=img.width,
+            height=img.height,
         )
 
     def window() -> WindowInfo:
@@ -344,12 +390,26 @@ def simulate(
         return WindowInfo(title=sc.get("window_title"), app=sc.get("app"))
 
     writer = EventWriter(out / EVENTS_FILE)
+    n_context = 0
+
+    def emit(ev: dict[str, Any]) -> None:
+        nonlocal n_context
+        n_context += "id" not in ev  # context events (app switch, URL, clipboard)
+        writer.write(ev)
+
     proc = EventProcessor(
         capture,
         window,
-        writer.write,
-        ProcessorOptions(record_typing=record_typing, exclude_apps=tuple(exclude_apps)),
+        emit,
+        ProcessorOptions(
+            record_typing=record_typing,
+            exclude_apps=tuple(exclude_apps),
+            record_urls=record_urls,
+            keep_query=keep_query,
+            record_clipboard=record_clipboard,
+        ),
     )
+    proc.observe_clipboard(0.0, "", window())  # clipboard is empty when recording starts
     t = 0.0
     try:
         for i, ev in enumerate(spec["events"], 1):
@@ -359,6 +419,7 @@ def simulate(
             screen = ev.get("screen", current["screen"])
             renderer.screen(screen)
             current["screen"] = screen
+            proc.observe(t - 0.05, window(), renderer.url(screen))
             _replay(proc, renderer, state, screen, ev, t, i)
         proc.tick(t + 10)
         proc.flush()
@@ -366,12 +427,18 @@ def simulate(
         writer.close()
     meta["ended"] = now_iso()
     meta["stats"] = {
-        "events": writer.count,
+        "events": writer.count - n_context,
+        "context_events": n_context,
         "screenshots": n_shots,
         "excluded": proc.excluded_count,
     }
     write_json(out / SESSION_FILE, meta)
-    return {"session": str(out), "events": writer.count, "screenshots": n_shots}
+    return {
+        "session": str(out),
+        "events": writer.count - n_context,
+        "context_events": n_context,
+        "screenshots": n_shots,
+    }
 
 
 def _replay(
@@ -435,5 +502,9 @@ def _replay(
         pos = r.resolve(screen, target) if target is not None else None
         token = proc.manual_capture(t, pos)
         proc.manual_commit(token, str(ev.get("note", "")))
+    elif kind == "copy":
+        sc = r.screen(screen)
+        win = WindowInfo(title=sc.get("window_title"), app=sc.get("app"))
+        proc.observe_clipboard(t, str(ev.get("text", "")), win)
     else:
         raise SimulationError(f"EVENTS.json: event {i} has unknown kind {kind!r}")

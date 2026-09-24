@@ -72,24 +72,39 @@ def _apps(doc: dict[str, Any], events: list[dict[str, Any]]) -> list[str]:
     return [a for a in seen if a]
 
 
+# Clipboard changes are the result of the step before them (e.g. Ctrl+C); URLs and
+# terminal commands are where / how the next step happens.
+_AFTER_KINDS = ("clipboard",)
+Attached = dict[str, list[dict[str, Any]]]
+
+
 def _context_by_step(
     doc: dict[str, Any], events: list[dict[str, Any]]
-) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
-    """Attach each context event to the first step recorded after it."""
+) -> tuple[Attached, Attached, list[dict[str, Any]]]:
+    """Return (before step, after step, after the last step) context events.
+
+    Context events carry ``seq`` = the event id the next step received.
+    """
     step_ids = sorted(
         (s["event_id"], s["id"]) for s in doc["steps"] if isinstance(s.get("event_id"), int)
     )
-    before: dict[str, list[dict[str, Any]]] = {}
+    before: Attached = {}
+    after: Attached = {}
     trailing: list[dict[str, Any]] = []
     for ev in events:
-        if ev.get("kind") not in CONTEXT_KINDS or not isinstance(ev.get("id"), int):
+        if ev.get("kind") not in CONTEXT_KINDS or not isinstance(ev.get("seq"), int):
             continue
-        nxt = next((sid for eid, sid in step_ids if eid > ev["id"]), None)
+        if ev["kind"] in _AFTER_KINDS:
+            prev = [sid for eid, sid in step_ids if eid < ev["seq"]]
+            if prev:
+                after.setdefault(prev[-1], []).append(ev)
+                continue
+        nxt = next((sid for eid, sid in step_ids if eid >= ev["seq"]), None)
         if nxt is None:
             trailing.append(ev)
         else:
             before.setdefault(nxt, []).append(ev)
-    return before, trailing
+    return before, after, trailing
 
 
 def _context_line(ev: dict[str, Any]) -> str | None:
@@ -194,7 +209,7 @@ def render(
     out += inputs or ["None recorded."]
     out += ["", "## Steps", ""]
 
-    ctx_before, trailing = _context_by_step(doc, events)
+    ctx_before, ctx_after, trailing = _context_by_step(doc, events)
     lang = doc.get("lang") or "en"
     for n, s in enumerate(steps, 1):
         line = f"{n}. **{_one_line(s.get('title')) or 'Step'}**"
@@ -224,6 +239,9 @@ def render(
             sub.append(f"Scroll {s['direction']} until the target is visible")
         elif kind == "drag":
             sub.append("Drag from the marked element to the drop target shown")
+        for c in (_context_line(e) for e in ctx_after.get(s["id"], [])):
+            if c:
+                sub.append(f"Then: {c[0].lower()}{c[1:]}")
         if s["id"] in refs:
             sub.append(f"Screenshot: [{refs[s['id']]}]({refs[s['id']]})")
         out += [f"   - {c}" for c in sub]

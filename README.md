@@ -115,6 +115,10 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
 - **Local editor** (`stepcap edit`): drag to reorder, delete, rename, describe, draw or
   remove highlight frames, draw arrows, toggle frames / auto arrows / spotlight, blur
   rectangles (applied to `work/` copies — `raw/` originals stay untouched), rebuild.
+- **Context for agents**: app / window switches are always logged; with `--record-urls` the
+  front browser tab's URL (macOS: Safari, Chrome, Edge, Arc; query strings dropped unless
+  `--keep-query`), with `--record-clipboard` copied text (length + first 80 characters).
+  These never become steps; `stepcap skill` uses them ("Browser at ...", "Then: copied ...").
 - **Private by default**: typed text is *not* stored unless `--record-typing`;
   always masked in password/login windows; `--exclude-app` skips apps entirely
   (no screenshot). No network access at all.
@@ -161,7 +165,8 @@ export; paid plans start at $25 / $22 per user per month (yearly).
 ```text
 stepcap record [-o SESSION_DIR] [--monitor all|active] [--record-typing]
                [--exclude-app NAME ...] [--hotkey-stop F9] [--hotkey-pause F8]
-               [--hotkey-manual F7] [--note-prompt auto|gui|terminal|none] [--dry-run] [--json]
+               [--hotkey-manual F7] [--note-prompt auto|gui|terminal|none]
+               [--record-urls] [--keep-query] [--record-clipboard] [--dry-run] [--json]
 stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--lang en|ja]
               [--title "..."] [--marker box|ring] [--[no-]spotlight] [--[no-]auto-arrows]
               [--image-format webp|jpeg|png] [--quality 85] [--reset]

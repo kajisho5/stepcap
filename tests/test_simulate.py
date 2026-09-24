@@ -7,9 +7,14 @@ from stepcap.simulate import SimulationError, simulate
 
 
 def test_session_layout(demo_session):
-    meta, events = load_session(demo_session)
-    assert meta["source"] == "simulate" and meta["format"] == 1
+    meta, all_events = load_session(demo_session)
+    assert meta["source"] == "simulate" and meta["format"] == 2
+    # format 2: context events (app switches, ...) have no "id" and are not steps
+    events = [e for e in all_events if "id" in e]
+    context = [e for e in all_events if "id" not in e]
     assert meta["stats"]["events"] == len(events) == 12
+    assert meta["stats"]["context_events"] == len(context) >= 1
+    assert {e["kind"] for e in context} == {"app_switch"}
     assert (demo_session / "raw" / "0001.png").is_file()
     kinds = [e["kind"] for e in events]
     assert kinds == [

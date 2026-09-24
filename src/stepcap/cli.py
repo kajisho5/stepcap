@@ -54,6 +54,9 @@ def cmd_record(args: argparse.Namespace) -> int:
         hotkey_manual=hk[2],
         note_prompt=args.note_prompt,
         double_click_ms=args.double_click_ms,
+        record_urls=args.record_urls,
+        keep_query=args.keep_query,
+        record_clipboard=args.record_clipboard,
         dry_run=args.dry_run,
         as_json=args.json,
     )
@@ -139,6 +142,9 @@ def cmd_simulate(args: argparse.Namespace) -> int:
                 Path(args.output),
                 record_typing=args.record_typing,
                 exclude_apps=tuple(args.exclude_app or ()),
+                record_urls=args.record_urls,
+                keep_query=args.keep_query,
+                record_clipboard=args.record_clipboard,
             )
     except SessionError as exc:
         _err(str(exc))
@@ -352,6 +358,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="max gap between the two clicks of a double-click (default: 150)",
     )
     r.add_argument(
+        "--record-urls",
+        action="store_true",
+        help="record the front browser tab's URL when it changes (macOS: Safari, Chrome, Edge, "
+        "Arc; asks for the Automation permission). Query strings are dropped.",
+    )
+    r.add_argument(
+        "--keep-query",
+        action="store_true",
+        help="with --record-urls: keep ?query (token/password parameters are still masked)",
+    )
+    r.add_argument(
+        "--record-clipboard",
+        action="store_true",
+        help="record copied text: length and the first 80 characters, secrets masked; "
+        "nothing while a password/login window or an --exclude-app is in front",
+    )
+    r.add_argument(
         "--dry-run", action="store_true", help="check permissions/hooks and exit without recording"
     )
     r.add_argument("--json", action="store_true", help="print a JSON summary when done")
@@ -431,6 +454,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("-o", "--output", required=True, metavar="SESSION_DIR")
     s.add_argument("--record-typing", action="store_true")
     s.add_argument("--exclude-app", nargs="+", metavar="NAME", action="extend")
+    s.add_argument("--record-urls", action="store_true", help="use each screen's 'url'")
+    s.add_argument("--keep-query", action="store_true")
+    s.add_argument("--record-clipboard", action="store_true", help="replay 'copy' events")
     s.add_argument("--dry-run", action="store_true")
     s.add_argument("--json", action="store_true")
     s.set_defaults(func=cmd_simulate)

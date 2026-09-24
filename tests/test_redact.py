@@ -1,6 +1,6 @@
 import pytest
 
-from stepcap.redact import find_secrets, luhn_ok, redact_obj, redact_text
+from stepcap.redact import PATTERNS, leak_kinds, luhn_ok, redact_obj, redact_text
 
 GH = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8"
 GH_PAT = "github_pat_" + "11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz"
@@ -30,7 +30,7 @@ def test_secret_is_replaced(secret, kind):
     assert secret not in out
     assert f"[REDACTED:{kind}]" in out
     assert out.startswith("before ") and out.endswith(" after")
-    assert find_secrets(text) and not find_secrets(out)
+    assert leak_kinds(text) and not leak_kinds(out)
 
 
 def test_url_password_and_token_params():
@@ -38,7 +38,7 @@ def test_url_password_and_token_params():
     out = redact_text(url)
     assert "hunter2" not in out and "abc123" not in out
     assert "user=bob" in out and "example.com/login" in out
-    assert find_secrets(url) and not find_secrets(out)
+    assert leak_kinds(url) and not leak_kinds(out)
 
 
 def test_ordinary_text_is_untouched():
@@ -52,7 +52,12 @@ def test_ordinary_text_is_untouched():
         "Click the Keys tab",
     ):
         assert redact_text(text) == text, text
-        assert find_secrets(text) == [], text
+        assert leak_kinds(text) == [], text
+
+
+def test_prefixed_tokens_glued_to_text():
+    assert redact_text("xx" + GH) == "xx[REDACTED:github-token]"
+    assert redact_text("key:" + ANTHROPIC) == "key:[REDACTED:anthropic-key]"
 
 
 def test_luhn():
@@ -72,3 +77,11 @@ def test_redact_obj_keeps_structure_and_ids():
     assert out["id"] == 3 and out["kind"] == "type" and out["screenshot"] == "raw/0003.png"
     assert GH not in out["text"] and out["nested"][0]["note"] == "[REDACTED:card]"
     assert ev["text"].endswith(GH)  # input not mutated
+
+
+def test_leak_kinds_returns_labels_only():
+    labels = {k for k, _ in PATTERNS}
+    labels |= {"url-password", "url-param", "card"}
+    found = leak_kinds(f"{GH} {AWS} https://a:b@x.io/?token=zz {CARD}")
+    assert found and set(found) <= labels
+    assert not any(s in " ".join(found) for s in (GH, AWS, "zz", CARD))

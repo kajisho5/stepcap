@@ -18,8 +18,9 @@ _SENSITIVE_PARAMS = (
 
 # (kind, pattern). Order matters: specific prefixes before generic ones.
 PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("github-token", re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})")),
-    ("anthropic-key", re.compile(r"\bsk-ant-[A-Za-z0-9_\-]{20,}")),
+    # distinctive prefixes: no word boundary needed (a token glued to text is still caught)
+    ("github-token", re.compile(r"(?:gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})")),
+    ("anthropic-key", re.compile(r"sk-ant-[A-Za-z0-9_\-]{20,}")),
     ("openai-key", re.compile(r"\bsk-(?:proj-|svcacct-|admin-)?[A-Za-z0-9_\-]{20,}")),
     ("aws-access-key", re.compile(r"\b(?:AKIA|ASIA)[A-Z0-9]{16}\b")),
     ("jwt", re.compile(r"\beyJ[A-Za-z0-9_\-]{8,}\.eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}")),
@@ -61,8 +62,12 @@ def redact_text(text: str) -> str:
     return _CARD.sub(_card, out)
 
 
-def find_secrets(text: str) -> list[str]:
-    """Kinds of secrets still present in ``text`` (empty list = clean)."""
+def leak_kinds(text: str) -> list[str]:
+    """Category labels (e.g. ``"github-token"``) of secrets still present in ``text``.
+
+    Only the fixed labels from ``PATTERNS`` are returned, never the matched text,
+    so the result is safe to print. Empty list = clean.
+    """
     if not text:
         return []
     found = [kind for kind, pat in PATTERNS if pat.search(text)]

@@ -12,7 +12,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from stepcap.redact import find_secrets
+from stepcap.redact import leak_kinds
 from stepcap.skill import frontmatter
 
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -107,7 +107,7 @@ def validate_skill(skill_dir: Path) -> tuple[list[str], dict[str, Any]]:
                 content = f.read_text(encoding="utf-8")
             except (UnicodeDecodeError, OSError):
                 continue
-            kinds = find_secrets(content)
+            kinds = leak_kinds(content)
             if kinds:
                 rel = f.relative_to(skill_dir).as_posix()
                 problems.append(f"{rel} contains a secret ({', '.join(sorted(set(kinds)))})")

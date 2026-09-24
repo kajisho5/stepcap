@@ -27,7 +27,9 @@ EVENTS_FILE = "events.jsonl"
 STEPS_FILE = "steps.json"
 RAW_DIR = "raw"
 WORK_DIR = "work"
-SESSION_FORMAT = 1
+# 1: v0.1.0 - v0.1.3. 2: events.jsonl may also hold context events without "id"
+# (app_switch, url, clipboard, terminal) that carry "seq"; nothing else changed.
+SESSION_FORMAT = 2
 
 
 class SessionError(Exception):
