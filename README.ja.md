@@ -2,7 +2,7 @@
 
 **画面操作を記録するだけで、クリック位置に番号付きマーカーを描いたスクリーンショット付きの手順書（Markdown / 単一 HTML）を自動生成します。**
 
-`ローカル完結 · クラウド不要 · アカウント不要 · デスクトップ全体`
+`完全ローカル · オフライン動作 · アカウント不要 · ブラウザもデスクトップアプリも記録 · 手順書はブラウザで開くだけ`
 
 [![tests](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/kajisho5/stepcap/actions/workflows/codeql.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/codeql.yml)
@@ -15,6 +15,10 @@
 
 *Scribe / Tango のようなツールを、オープンソース・デスクトップ全体対応・オフラインで。*
 情シス、ヘルプデスク、総務、講師など「操作マニュアル」を作る人向けです。作業を 1 回やって F9 を押せば、手順書ができあがります。
+
+- **完全ローカル**: データは PC の外に出ません。クラウド・会員登録は不要で、ネットワークを抜いた状態でも動きます
+- **ブラウザもデスクトップアプリも 1 本で記録**: Chrome / Edge / Firefox の Web アプリと、Excel・Zoom・OBS・機器の制御ソフトなどのデスクトップアプリを区別なく記録します（ブラウザ拡張型ツールの無料プランはブラウザ内のみ）
+- **手順書はブラウザで開くだけ**: `guide.html` は画像込みの 1 ファイルで、専用ビューアもログインも不要です。編集 UI（`stepcap edit`）もブラウザで動きます（127.0.0.1 で待ち受け）
 
 [English README](README.md)
 
@@ -80,12 +84,12 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 | | OSS | 記録対象 | 動作環境 | アカウント / クラウド | 価格 |
 |---|---|---|---|---|---|
 | **stepcap** | ✅ MIT | デスクトップ全体 | Windows / macOS / Linux(X11) | 不要・完全ローカル | 無料 |
-| [Scribe](https://scribe.com/pricing) | — | ブラウザ（Pro はデスクトップアプリも） | 拡張機能 + デスクトップアプリ | 必要・クラウド | Basic 無料、Pro Personal $25/ユーザー/月（年払い） |
-| [Tango](https://www.tango.ai/pricing) | — | ブラウザ（拡張機能） | ブラウザ | 必要・クラウド | 無料、Pro $22/ユーザー/月（年払い・1〜2 名） |
+| [Scribe](https://scribe.com/pricing) | — | ブラウザ（Pro はデスクトップアプリも） | 拡張機能 + デスクトップアプリ | 必要・クラウド | Basic 無料（Web アプリのみ・PDF / HTML / Markdown 書き出し不可）、Pro Personal $25/ユーザー/月（年払い） |
+| [Tango](https://www.tango.ai/pricing) | — | ブラウザ（拡張機能） | ブラウザ | 必要・クラウド | 無料（ブラウザ記録・5 件まで・書き出し不可）、Pro $22/ユーザー/月（年払い・1〜2 名） |
 | [FlowShare](https://getflowshare.com/pricing/) | — | デスクトップ全体 | Windows | ライセンス | Professional $44/月（年払い）、$49（月払い） |
 | [Guidde](https://www.guidde.com/) | — | 動画ガイド（AI ナレーション） | 拡張機能 / デスクトップ / モバイルアプリ | 必要・クラウド | 公式サイト参照 |
 | [CliqRelay](https://github.com/CliqRelay/cliqrelay) | ✅ | ブラウザ（Chrome 拡張） | セルフホスト型プラットフォーム（Web アプリ + バックエンド） | セルフホスト | 無料 |
-| [Windows ステップ記録ツール](https://support.microsoft.com/en-us/windows/apps/steps-recorder-deprecation) | — | デスクトップ全体 | Windows | 不要 | OS 標準機能だが Microsoft が**非推奨化** |
+| [Windows ステップ記録ツール](https://support.microsoft.com/en-us/windows/apps/steps-recorder-deprecation) | — | デスクトップ全体 | Windows | 不要 | OS 標準機能だが Microsoft が**非推奨化**。保存形式は .zip 内の .mht、既定では最後の 25 枚のみ保持 |
 
 ## コマンド
 
@@ -131,6 +135,8 @@ mkdir -p ~/.claude/skills && cp -r skills/stepcap ~/.claude/skills/
 **どこかにアップロードされますか？** されません。stepcap は通信を一切行いません。編集 UI は 127.0.0.1 のみで待ち受け、Host / Origin も検査します。
 
 **パスワードは記録されますか？** 既定では入力内容を保存せず、「12 文字入力」とだけ記録します。ただし画面に表示されている内容はスクリーンショットに写るので、`stepcap edit` でぼかすか、パスワードマネージャーを `--exclude-app` で除外してください。
+
+**インストールせずにブラウザだけで使えますか？** 編集 UI と手順書はブラウザで動きますが、記録部分はできません。Web ページは自分のタブの中のクリックしか検知できないため、デスクトップ全体を記録するには小さなローカルプログラム（`pipx install stepcap` または Releases の単体実行ファイル）が必要です。Web アプリはほかのウィンドウと同じように記録できます。
 
 **録画せずに試せますか？** 試せます: `python tests/fixtures/make_events.py > ev.json && stepcap simulate ev.json -o demo && stepcap build demo --lang ja`
 
