@@ -26,3 +26,7 @@ One line per decision, newest last. Format: `YYYY-MM-DD — decision — reason`
 - 2026-09-24 — simulate draws with Pillow's bundled font (Pillow ≥ 10.1) — deterministic across OSes; it has no CJK glyphs, so demo screens are English.
 - 2026-09-24 — New modules beyond the spec layout: `session.py` (dir I/O), `build/pipeline.py` (orchestration), `__main__.py` (python -m / PyInstaller entry).
 - 2026-09-24 — GitHub Actions: checkout@v5, setup-python@v6, codeql-action@v4, release-please-action@v4 (Node 24 generation) + Dependabot for actions.
+- 2026-09-24 — README comparison uses prices re-checked on vendor pages (Tango Pro $22/user/mo yearly for 1–2 users; FlowShare Professional $44 yearly / $49 monthly; Scribe Pro Personal $25 yearly) instead of the spec's $24 / $45 — the spec's figures were outdated; table carries the check date and links.
+- 2026-09-24 — Edit UI reorders with Pointer Events instead of HTML5 drag-and-drop — works with touch, and HTML5 DnD never fired in headless Chromium, so it could not be tested.
+- 2026-09-24 — Edit server: Host-header allowlist + JSON-only POST + Origin check + CSP — local unauthenticated server must resist DNS rebinding and CSRF.
+- 2026-09-24 — Blur = pixelate then Gaussian — a plain Gaussian blur of text can be partially reversed.
