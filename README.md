@@ -2,7 +2,7 @@
 
 **Record what you click. Get a step-by-step guide with annotated screenshots — in Markdown and a single HTML file.**
 
-`Local · No cloud · No account · Desktop-wide`
+`Fully local · Works offline · No account · Any app, browsers included · Guides open in any browser`
 
 [![tests](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/kajisho5/stepcap/actions/workflows/codeql.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/codeql.yml)
@@ -16,6 +16,14 @@
 *Scribe / Tango, but open source, desktop-wide and offline.* stepcap is for anyone
 who writes "how to do X" manuals — IT support, help desks, back office, trainers:
 do the task once, press F9, and the guide is done.
+
+- **Fully local**: nothing leaves your machine — no cloud, no sign-up, works with the network
+  unplugged.
+- **Any app, browsers included**: web apps in Chrome / Edge / Firefox and desktop apps
+  (Excel, Zoom, OBS, device control software ...) in one recording — the free plans of
+  browser-extension tools cover the browser only.
+- **Read in any browser**: `guide.html` is one self-contained file — no viewer, no login; the
+  editor (`stepcap edit`) also runs in your browser, served from 127.0.0.1.
 
 [日本語 README](README.ja.md)
 
@@ -110,12 +118,12 @@ Facts as published by each vendor (checked 2026-09-24; prices change — follow 
 | | Open source | Captures | Runs where | Account / cloud | Price |
 |---|---|---|---|---|---|
 | **stepcap** | ✅ MIT | whole desktop | Windows, macOS, Linux (X11) | none, fully local | free |
-| [Scribe](https://scribe.com/pricing) | — | browser; desktop apps on Pro | browser extension + desktop app | account, cloud | free Basic; Pro Personal $25/user/mo yearly |
-| [Tango](https://www.tango.ai/pricing) | — | browser (extension) | browser | account, cloud | free; Pro $22/user/mo yearly (1–2 users) |
+| [Scribe](https://scribe.com/pricing) | — | browser; desktop apps on Pro | browser extension + desktop app | account, cloud | free Basic (web apps only, no PDF/HTML/Markdown export); Pro Personal $25/user/mo yearly |
+| [Tango](https://www.tango.ai/pricing) | — | browser (extension) | browser | account, cloud | free (browser capture, 5 workflows, no export); Pro $22/user/mo yearly (1–2 users) |
 | [FlowShare](https://getflowshare.com/pricing/) | — | whole desktop | Windows | license | Professional $44/mo yearly, $49 monthly |
 | [Guidde](https://www.guidde.com/) | — | video guides (AI voice-over) | browser extension, desktop and mobile apps | account, cloud | see vendor |
 | [CliqRelay](https://github.com/CliqRelay/cliqrelay) | ✅ | browser pages (Chrome extension) | self-hosted platform (web app + backend) | self-hosted | free |
-| [Windows Steps Recorder](https://support.microsoft.com/en-us/windows/apps/steps-recorder-deprecation) | — | whole desktop | Windows | none | built-in, **deprecated** by Microsoft |
+| [Windows Steps Recorder](https://support.microsoft.com/en-us/windows/apps/steps-recorder-deprecation) | — | whole desktop | Windows | none | built-in, **deprecated** by Microsoft; saves a .zip with an .mht file, keeps the last 25 screenshots by default |
 
 ## Commands
 
@@ -186,6 +194,11 @@ on 127.0.0.1 only (with Host/Origin checks). Your screenshots stay in the sessio
 **Are my passwords recorded?** Typed text is not stored by default — only
 "typed 12 characters". Screenshots can still show what is on screen: blur it in
 `stepcap edit`, or use `--exclude-app` for password managers.
+
+**Does it run in the browser, without installing?** The editor and the guides do; the
+recorder cannot. A web page can only see clicks inside its own tab, so desktop-wide
+recording needs a small local program (`pipx install stepcap` or the release binary).
+Web apps are recorded like any other window.
 
 **Can I get a PDF?** Open `guide.html` and print to PDF; the print stylesheet keeps
 each step on one page where possible.

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "stepcap"
 version = "0.1.3"
-description = "Record desktop clicks and turn them into step-by-step guides with annotated screenshots (Markdown / single-file HTML). Local, no cloud, no account."
+description = "Record desktop clicks and turn them into step-by-step guides with annotated screenshots (Markdown / single-file HTML). Fully local, works offline, no account; records any app, browsers included."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
