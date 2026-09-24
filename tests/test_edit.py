@@ -140,3 +140,33 @@ def test_csrf_and_dns_rebinding_protection(server):
     with pytest.raises(HTTPError) as exc:
         urllib.request.urlopen(req)
     assert exc.value.code == 415
+
+
+def test_set_and_remove_frame(server):
+    base, session = server
+    doc = call(base, "GET", "/api/steps")[1]["doc"]
+    click = next(s for s in doc["steps"] if s["kind"] == "click")
+    status, res = call(base, "POST", "/api/box", {"id": click["id"], "rect": [10, 20, 100, 40]})
+    assert status == 200 and res["box"] == [10, 20, 100, 40]
+    saved = {s["id"]: s for s in json.loads((session / "steps.json").read_text("utf-8"))["steps"]}
+    assert saved[click["id"]]["box"] == [10, 20, 100, 40]
+    assert saved[click["id"]]["box_source"] == "manual"
+    status, res = call(base, "POST", "/api/box", {"id": click["id"], "rect": None})
+    assert status == 200 and res["box"] is None
+    # a later build keeps the manual decision (no auto box comes back)
+    assert call(base, "POST", "/api/build", {"formats": "md"})[0] == 200
+    saved = {s["id"]: s for s in json.loads((session / "steps.json").read_text("utf-8"))["steps"]}
+    assert saved[click["id"]]["box"] is None
+
+
+def test_frame_validation(server):
+    base, _ = server
+    doc = call(base, "GET", "/api/steps")[1]["doc"]
+    key = next(s for s in doc["steps"] if s["kind"] == "key")
+    click = next(s for s in doc["steps"] if s["kind"] == "click")
+    assert call(base, "POST", "/api/box", {"id": key["id"], "rect": [1, 1, 50, 50]})[0] == 400
+    assert call(base, "POST", "/api/box", {"id": "nope", "rect": None})[0] == 400
+    assert call(base, "POST", "/api/box", {"id": click["id"], "rect": [1, 2]})[0] == 400
+    assert (
+        call(base, "POST", "/api/box", {"id": click["id"], "rect": [5000, 5000, 10, 10]})[0] == 400
+    )

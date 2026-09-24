@@ -78,3 +78,36 @@ def test_render_zoom_returns_thumbnail_and_width_limit():
 )
 def test_encode(fmt, magic):
     assert annotate.encode(blank(64, 64), fmt, 80).startswith(magic)
+
+
+def test_box_marker_frames_the_element_and_ring_mode_ignores_it():
+    step = {"kind": "click", "point": {"img_x": 700, "img_y": 420}, "box": [600, 400, 200, 44]}
+    boxed = annotate.annotate(blank(), step, 3)
+    st = annotate.MarkerStyle.for_image(1440, 900)
+    # frame on the left edge of the box, no ring around the click point
+    assert accent_pixels(boxed, (590, 405, 600, 440)) > 10
+    assert accent_pixels(boxed, (700 - st.radius - 4, 416, 700 - st.radius + 4, 424)) == 0
+    ringed = annotate.annotate(blank(), step, 3, marker="ring")
+    assert accent_pixels(ringed, (590, 405, 600, 440)) == 0
+    assert accent_pixels(ringed, (700 - st.radius - 6, 414, 700 - st.radius + 6, 426)) > 5
+
+
+def test_box_only_for_click_and_type_steps():
+    assert annotate.step_box({"kind": "click", "box": [1, 2, 3, 4]}) == [1, 2, 3, 4]
+    assert annotate.step_box({"kind": "type", "box": [1, 2, 3, 4]}) == [1, 2, 3, 4]
+    assert annotate.step_box({"kind": "scroll", "box": [1, 2, 3, 4]}) is None
+    assert annotate.step_box({"kind": "click", "box": None}) is None
+    assert annotate.step_box({"kind": "click", "box": [1, 2, 3, 4]}, "ring") is None
+
+
+def test_small_box_badge_sits_outside():
+    step = {"kind": "click", "point": {"img_x": 512, "img_y": 512}, "box": [502, 502, 21, 21]}
+    out = annotate.annotate(blank(), step, 4)
+    # the checkbox itself stays visible (not covered by the badge)
+    assert accent_pixels(out, (506, 506, 519, 519)) == 0
+
+
+def test_zoom_centres_on_box():
+    step = {"kind": "click", "point": {"img_x": 10, "img_y": 10}, "box": [900, 600, 100, 40]}
+    left, top, right, bottom = annotate.zoom_box(step, (1440, 900), 400)
+    assert left <= 900 and right >= 1000 and top <= 600 and bottom >= 640

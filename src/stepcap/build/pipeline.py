@@ -32,6 +32,7 @@ class BuildOptions:
     quality: int = 85
     reset: bool = False
     dry_run: bool = False
+    marker: str | None = None  # box | ring; None = keep the value saved in steps.json
 
 
 @dataclass
@@ -91,6 +92,11 @@ def load_or_create_steps(session: Path, opt: BuildOptions, res: BuildResult):
         lang = naming.check_lang(opt.lang or "en")
         doc = steps_mod.create_steps(session, meta, events, lang)
         res.steps_json = "reset" if opt.reset else "created"
+    steps_mod.detect_boxes(session, doc["steps"])  # older steps.json files have no boxes yet
+    marker = opt.marker or doc.get("marker") or "box"
+    if marker not in annotate.MARKERS:
+        raise ValueError(f"unknown marker {marker!r}; use box or ring")
+    doc["marker"] = marker
     if opt.title:
         doc["title"] = opt.title
         doc["auto_title"] = None
@@ -142,7 +148,7 @@ def run_build(session: Path, opt: BuildOptions) -> BuildResult:
                 loaded.clear()
                 src_path = steps_mod.ensure_work_copy(session, sid)
                 loaded[sid] = Image.open(src_path).convert("RGB")
-            main, thumb = annotate.render(loaded[sid], step, n, opt.width, opt.zoom)
+            main, thumb = annotate.render(loaded[sid], step, n, opt.width, opt.zoom, doc["marker"])
             entry["main_bytes"] = annotate.encode(main, opt.image_format, opt.quality)
             entry["main_size"] = main.size
             name = f"{IMAGES_DIR}/step-{n:03d}.{ext}"

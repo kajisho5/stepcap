@@ -164,6 +164,7 @@ def browser_shots(session: Path) -> list[Path]:
             page.locator(".step").nth(0).locator(".desc").fill("Top right of the Projects page.")
             page.locator(".step").nth(0).locator("button", has_text="Blur area").click()
             page.evaluate("() => document.activeElement && document.activeElement.blur()")
+            page.evaluate("() => window.scrollTo(0, 0)")
             page.mouse.move(0, 0)
             page.screenshot(path=str(DOCS / "edit-ui.png"), animations="disabled")
             written.append(DOCS / "edit-ui.png")
@@ -193,7 +194,7 @@ def main() -> int:
     doc = read_json(session / "steps.json")
 
     written = [make_gif(session, doc)]
-    for n, name in ((9, "step-drag.png"), (4, "step-click.png")):
+    for n, name in ((9, "step-drag.png"), (2, "step-click.png")):
         Image.open(session / doc["steps"][n - 1]["rendered"]).save(DOCS / name, optimize=True)
         written.append(DOCS / name)
     zoom_dir = OUT / "zoom"

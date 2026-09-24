@@ -21,6 +21,8 @@ DARK = (20, 20, 24)
 SS = 4  # supersampling factor
 THUMB_WIDTH = 480
 ZOOM_ASPECT = 10 / 16  # height / width of the zoom crop
+MARKERS = ("box", "ring")
+BOX_KINDS = ("click", "type")  # steps whose target element can be framed
 
 _font_cache: dict[int, Any] = {}
 
@@ -119,6 +121,39 @@ def draw_ring(img: Image.Image, x: int, y: int, st: MarkerStyle, scale: float = 
     _paste(img, patch, (x - r, y - r))
 
 
+def box_rect(box: list[int], st: MarkerStyle, w: int, h: int) -> tuple[int, int, int, int]:
+    """Outer rectangle of the highlight frame: the element box plus a small gap."""
+    pad = st.line + 3
+    x, y, bw, bh = box
+    return max(0, x - pad), max(0, y - pad), min(w - 1, x + bw + pad), min(h - 1, y + bh + pad)
+
+
+def draw_box(img: Image.Image, box: list[int], st: MarkerStyle) -> None:
+    """Double frame around an element: dark halo, accent line, thin white inner line."""
+    x0, y0, x1, y1 = box_rect(box, st, img.width, img.height)
+    m = st.line * 2
+    patch, d = _patch((x1 - x0 + 2 * m, y1 - y0 + 2 * m))
+    lw = st.line * SS
+    radius = min(st.radius * 0.35, (y1 - y0) / 2) * SS
+    r = (m * SS, m * SS, (x1 - x0 + m) * SS, (y1 - y0 + m) * SS)
+    halo = round(lw * 0.5)
+    d.rounded_rectangle(
+        (r[0] - halo, r[1] - halo, r[2] + halo, r[3] + halo),
+        radius + halo,
+        outline=(*DARK, 90),
+        width=round(lw + 2 * halo),
+    )
+    d.rounded_rectangle(r, radius, outline=(*ACCENT, 255), width=round(lw))
+    inset = round(lw * 1.1)
+    d.rounded_rectangle(
+        (r[0] + inset, r[1] + inset, r[2] - inset, r[3] - inset),
+        max(0, radius - inset),
+        outline=(*WHITE, 220),
+        width=max(1, round(lw * 0.4)),
+    )
+    _paste(img, patch, (x0 - m, y0 - m))
+
+
 def draw_arrow(
     img: Image.Image,
     p1: tuple[int, int],
@@ -183,12 +218,26 @@ def _pt(p: dict[str, Any] | None) -> tuple[int, int] | None:
     return int(p["img_x"]), int(p["img_y"])
 
 
-def annotate(src: Image.Image, step: dict[str, Any], n: int) -> Image.Image:
-    """Return a new RGB image with the marker(s) and badge ``n`` for ``step``."""
+def step_box(step: dict[str, Any], marker: str = "box") -> list[int] | None:
+    """The element box to frame for this step, or None (ring / no marker)."""
+    box = step.get("box")
+    if marker != "box" or step.get("kind") not in BOX_KINDS or not box or len(box) != 4:
+        return None
+    return [int(v) for v in box]
+
+
+def annotate(src: Image.Image, step: dict[str, Any], n: int, marker: str = "box") -> Image.Image:
+    """Return a new RGB image with the marker(s) and badge ``n`` for ``step``.
+
+    ``marker="box"`` frames the clicked element when ``step["box"]`` is known
+    (auto-detected or drawn in ``stepcap edit``) and falls back to the ring;
+    ``marker="ring"`` always draws the ring.
+    """
     img = src.convert("RGBA")
     st = MarkerStyle.for_image(img.width, img.height)
     kind = step.get("kind")
     point = _pt(step.get("point"))
+    box = step_box(step, marker)
     # keys and notes are not tied to a pointer position: no ring, badge in the corner
     has_point = point is not None and kind not in ("manual", "key")
     if kind == "drag" and _pt(step.get("from")) and _pt(step.get("to")):
@@ -197,6 +246,8 @@ def annotate(src: Image.Image, step: dict[str, Any], n: int) -> Image.Image:
         draw_ring(img, *p1, st)
         draw_ring(img, *p2, st, scale=0.55)
         point = p1
+    elif has_point and box is not None:
+        draw_box(img, box, st)
     elif has_point:
         draw_ring(img, *point, st)
         if kind == "scroll":
@@ -208,7 +259,16 @@ def annotate(src: Image.Image, step: dict[str, Any], n: int) -> Image.Image:
             draw_arrow(img, start, end, st)
     if kind == "key" and step.get("keys"):
         draw_pill(img, format_keys(step["keys"]), img.width // 2, img.height - st.badge * 3, st)
-    bx, by = _badge_center(*(point or (0, 0)), st, img.width, img.height, has_point)
+    if has_point and box is not None and kind != "drag":
+        x0, y0, x1, y1 = box_rect(box, st, img.width, img.height)
+        b = st.badge
+        # on the top-right corner; small targets (checkboxes) get it outside so it
+        # does not cover them
+        out = b * 0.9 if min(x1 - x0, y1 - y0) < 3 * b else 0
+        bx = round(min(max(x1 + out, b + 2), img.width - b - 2))
+        by = round(min(max(y0 - out, b + 2), img.height - b - 2))
+    else:
+        bx, by = _badge_center(*(point or (0, 0)), st, img.width, img.height, has_point)
     draw_badge(img, bx, by, n, st)
     return img.convert("RGB")
 
@@ -219,6 +279,9 @@ def zoom_box(step: dict[str, Any], size: tuple[int, int], zoom: int) -> tuple[in
     cw = min(zoom, w)
     ch = min(round(zoom * ZOOM_ASPECT), h)
     pts = [p for p in (_pt(step.get("point")), _pt(step.get("from")), _pt(step.get("to"))) if p]
+    box = step_box(step)
+    if box:
+        pts = [(box[0], box[1]), (box[0] + box[2], box[1] + box[3])]
     if pts:
         cx = (min(p[0] for p in pts) + max(p[0] for p in pts)) / 2
         cy = (min(p[1] for p in pts) + max(p[1] for p in pts)) / 2
@@ -242,9 +305,10 @@ def render(
     n: int,
     width: int | None = None,
     zoom: int | None = None,
+    marker: str = "box",
 ) -> tuple[Image.Image, Image.Image | None]:
     """Return (main image, optional full-screen thumbnail)."""
-    full = annotate(src, step, n)
+    full = annotate(src, step, n, marker)
     if zoom and zoom < full.width:
         crop = full.crop(zoom_box(step, full.size, zoom))
         return fit_width(crop, width), fit_width(full, THUMB_WIDTH)

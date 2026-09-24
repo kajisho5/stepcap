@@ -14,7 +14,7 @@ A stepcap session folder looks like this:
 ```
 SESSION_DIR/
   steps.json      <- the only file you edit
-  images/         step-001.webp ... (annotated: numbered ring on the click)
+  images/         step-001.webp ... (annotated: numbered frame or ring on the click)
   work/           screenshots without markers (blurred copies live here)
   raw/            original screenshots - never modify, never copy elsewhere
   events.jsonl    raw event log - read only
@@ -33,8 +33,9 @@ SESSION_DIR/
    `title`, `description`, `rendered` (annotated image, e.g. `images/step-003.webp`),
    `window_title`, `app_name`, `keys`, `direction`. Top level: `title`, `lang`.
 3. **Look at every step image** (`rendered`; if it is null, use `image` and the
-   pixel position `point.img_x` / `point.img_y`). The numbered ring marks where the
-   user clicked; an arrow marks a drag or scroll; a key-cap label marks a shortcut.
+   pixel position `point.img_x` / `point.img_y`). A numbered frame surrounds the clicked
+   element (`box` in steps.json); a numbered ring marks the click when no element was
+   detected; an arrow marks a drag or scroll; a key-cap label marks a shortcut.
    Identify the UI element (button label, menu item, field name) and what happens.
 4. **Write the text** for each step:
    - `title`: imperative, one line, at most ~70 characters, names the element:
@@ -59,7 +60,8 @@ SESSION_DIR/
 ## Rules
 
 - Only change `title`, `description` and the top-level `title`. Never change `id`,
-  `kind`, `screenshot`, `point`, `from`, `to`, `auto`, `image` or `rendered`.
+  `kind`, `screenshot`, `point`, `from`, `to`, `auto`, `image`, `rendered`, `box` or
+  `box_source` (frames are fixed by the user in `stepcap edit`).
 - You may delete a step that is clearly accidental (e.g. a stray click on the desktop)
   or merge its meaning into a neighbour's description, and you may reorder steps only
   when the recording order is obviously wrong. Mention every deletion/reorder to the user.

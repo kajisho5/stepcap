@@ -19,6 +19,8 @@ from PIL import Image
 
 from stepcap import __version__
 from stepcap.build import dedupe, naming
+from stepcap.build.annotate import BOX_KINDS
+from stepcap.build.detect import detect_box
 from stepcap.session import RAW_DIR, STEPS_FILE, WORK_DIR, SessionError, read_json
 
 STEPS_FORMAT = 1
@@ -110,6 +112,7 @@ def create_steps(
         if sid:
             s["screenshot"] = mapping.get(sid, sid)
             s["image"] = f"{WORK_DIR}/{s['screenshot']}.png"
+    detect_boxes(session, steps)
     title = meta.get("title") or naming.text(lang, "default_title")
     return {
         "format": STEPS_FORMAT,
@@ -119,6 +122,34 @@ def create_steps(
         "auto_title": title if not meta.get("title") else None,
         "steps": steps,
     }
+
+
+def detect_boxes(session: Path, steps: list[dict[str, Any]]) -> int:
+    """Auto-detect the clicked element's box for steps that have no box decision yet.
+
+    ``box_source`` records who decided: ``auto`` (this function) or ``manual``
+    (``stepcap edit``). Steps that already have one are left alone, so manual
+    boxes and manual removals survive rebuilds. Detection reads ``raw/``, never
+    the (possibly blurred) ``work/`` copy. Returns the number of steps updated.
+    """
+    cache: dict[str, Image.Image | None] = {}
+    changed = 0
+    for s in steps:
+        if s.get("kind") not in BOX_KINDS or "box_source" in s:
+            continue
+        box = None
+        sid, pt = s.get("screenshot"), s.get("point") or {}
+        if sid and "img_x" in pt:
+            if sid not in cache:
+                cache.clear()
+                p = raw_path(session, sid)
+                cache[sid] = Image.open(p).convert("RGB") if p.exists() else None
+            if cache[sid] is not None:
+                box = detect_box(cache[sid], int(pt["img_x"]), int(pt["img_y"]))
+        s["box"] = box
+        s["box_source"] = "auto"
+        changed += 1
+    return changed
 
 
 def refresh_auto_texts(

@@ -170,3 +170,41 @@ def test_markdown_escapes_window_titles(tmp_path, spec):
     assert r"\*bold\* \[link\](x) \<script\>" in md
     html = (tmp_path / "s" / "guide.html").read_text(encoding="utf-8")
     assert '<script>"' not in html and "&lt;script&gt;" in html
+
+
+def test_boxes_are_detected_and_saved(demo_session):
+    run_build(demo_session, BuildOptions())
+    doc = steps_doc(demo_session)
+    assert doc["marker"] == "box"
+    by_id = {s["id"]: s for s in doc["steps"]}
+    assert by_id["s0001"]["box"] == [1220, 60, 189, 45]  # "+ New project" button
+    assert by_id["s0002"]["box"][2] > 500  # the wide "Project name" field
+    assert all(s["box_source"] == "auto" for s in doc["steps"] if s["kind"] in ("click", "type"))
+    assert all("box" not in s for s in doc["steps"] if s["kind"] in ("key", "manual", "drag"))
+
+
+def test_marker_option_is_remembered_and_manual_boxes_survive(demo_session):
+    run_build(demo_session, BuildOptions(marker="ring"))
+    assert steps_doc(demo_session)["marker"] == "ring"
+    doc = steps_doc(demo_session)
+    doc["steps"][1]["box"] = None
+    doc["steps"][1]["box_source"] = "manual"
+    (demo_session / "steps.json").write_text(json.dumps(doc), encoding="utf-8")
+    run_build(demo_session, BuildOptions())
+    doc = steps_doc(demo_session)
+    assert doc["marker"] == "ring"
+    assert doc["steps"][1]["box"] is None and doc["steps"][1]["box_source"] == "manual"
+    with pytest.raises(ValueError):
+        run_build(demo_session, BuildOptions(marker="star"))
+
+
+def test_old_steps_json_without_boxes_gets_them(demo_session):
+    run_build(demo_session, BuildOptions())
+    doc = steps_doc(demo_session)
+    for s in doc["steps"]:
+        s.pop("box", None)
+        s.pop("box_source", None)
+    doc.pop("marker")
+    (demo_session / "steps.json").write_text(json.dumps(doc), encoding="utf-8")
+    run_build(demo_session, BuildOptions())
+    assert steps_doc(demo_session)["steps"][0]["box"] == [1220, 60, 189, 45]
