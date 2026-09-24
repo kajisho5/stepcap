@@ -25,12 +25,12 @@ One line per decision, newest last. Format: `YYYY-MM-DD — decision — reason`
 - 2026-09-24 — Key steps draw a key-cap pill and no ring; manual notes draw only the badge — a ring at the cursor would point at the wrong thing.
 - 2026-09-24 — simulate draws with Pillow's bundled font (Pillow ≥ 10.1) — deterministic across OSes; it has no CJK glyphs, so demo screens are English.
 - 2026-09-24 — New modules beyond the spec layout: `session.py` (dir I/O), `build/pipeline.py` (orchestration), `__main__.py` (python -m / PyInstaller entry).
-- 2026-09-24 — GitHub Actions: checkout@v5, setup-python@v6, codeql-action@v4, upload-artifact@v6, release-please-action@v4 (Node 24 generation; upload-artifact v5 still defaulted to Node 20) + Dependabot for actions.
+- 2026-09-24 — GitHub Actions: checkout@v7, setup-python@v7, codeql-action@v4, upload-artifact@v7, release-please-action v5.0.0 (third-party actions SHA-pinned) — Dependabot bumps #44–#47 folded into one PR because they edit adjacent lines; each was green on its own.
 - 2026-09-24 — README comparison uses prices re-checked on vendor pages (Tango Pro $22/user/mo yearly for 1–2 users; FlowShare Professional $44 yearly / $49 monthly; Scribe Pro Personal $25 yearly) instead of the spec's $24 / $45 — the spec's figures were outdated; table carries the check date and links.
 - 2026-09-24 — Edit UI reorders with Pointer Events instead of HTML5 drag-and-drop — works with touch, and HTML5 DnD never fired in headless Chromium, so it could not be tested.
 - 2026-09-24 — Edit server: Host-header allowlist + JSON-only POST + Origin check + CSP — local unauthenticated server must resist DNS rebinding and CSRF.
 - 2026-09-24 — Blur = pixelate then Gaussian — a plain Gaussian blur of text can be partially reversed.
-- 2026-09-24 — release-please bootstraps with `release-as: 0.1.0` (manifest 0.0.0) — with bump-patch-for-minor-pre-major a `feat` would otherwise produce 0.0.1. Remove `release-as` after v0.1.0 is released.
+- 2026-09-24 — release-please bootstrapped with `release-as: 0.1.0` (manifest 0.0.0) — with bump-patch-for-minor-pre-major a `feat` would otherwise produce 0.0.1. Removed right after v0.1.0 was released.
 - 2026-09-24 — Binaries are built by a reusable workflow called from release.yml — releases created with GITHUB_TOKEN do not trigger `on: release` workflows.
 - 2026-09-24 — PyInstaller gets pynput backends as explicit hidden imports (`scripts/build_binary.py`) — `--collect-submodules pynput` silently drops them when no display is available at build time; doctor falls back to `__version__` when dist-info is missing in frozen apps.
 - 2026-09-24 — README images use absolute raw.githubusercontent.com URLs — relative paths do not render on PyPI.
