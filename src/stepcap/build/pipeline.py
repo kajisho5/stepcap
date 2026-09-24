@@ -33,6 +33,8 @@ class BuildOptions:
     reset: bool = False
     dry_run: bool = False
     marker: str | None = None  # box | ring; None = keep the value saved in steps.json
+    spotlight: bool | None = None  # dim around the target; None = keep saved value
+    auto_arrows: bool | None = None  # arrow to small targets; None = keep saved value
 
 
 @dataclass
@@ -97,6 +99,11 @@ def load_or_create_steps(session: Path, opt: BuildOptions, res: BuildResult):
     if marker not in annotate.MARKERS:
         raise ValueError(f"unknown marker {marker!r}; use box or ring")
     doc["marker"] = marker
+    for key, value, default in (
+        ("spotlight", opt.spotlight, False),
+        ("auto_arrows", opt.auto_arrows, True),
+    ):
+        doc[key] = bool(value if value is not None else doc.get(key, default))
     if opt.title:
         doc["title"] = opt.title
         doc["auto_title"] = None
@@ -148,7 +155,16 @@ def run_build(session: Path, opt: BuildOptions) -> BuildResult:
                 loaded.clear()
                 src_path = steps_mod.ensure_work_copy(session, sid)
                 loaded[sid] = Image.open(src_path).convert("RGB")
-            main, thumb = annotate.render(loaded[sid], step, n, opt.width, opt.zoom, doc["marker"])
+            main, thumb = annotate.render(
+                loaded[sid],
+                step,
+                n,
+                opt.width,
+                opt.zoom,
+                doc["marker"],
+                doc["spotlight"],
+                doc["auto_arrows"],
+            )
             entry["main_bytes"] = annotate.encode(main, opt.image_format, opt.quality)
             entry["main_size"] = main.size
             name = f"{IMAGES_DIR}/step-{n:03d}.{ext}"

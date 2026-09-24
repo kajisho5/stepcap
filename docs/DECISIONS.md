@@ -39,3 +39,7 @@ One line per decision, newest last. Format: `YYYY-MM-DD — decision — reason`
 - 2026-09-24 — Detection is conservative and falls back to the ring: reject fills that leak out of the search window, are too small/large, or are not rectangle-like (solidity < 0.88 rejects letter holes like "o"); seeds of the same colour that fall outside the first region are filled too, and any leak means "text on a page", not a control.
 - 2026-09-24 — Low colour tolerance (18) — 1 px anti-aliased borders of white buttons on white bars leaked at 40.
 - 2026-09-24 — `box` + `box_source` (auto/manual) live in steps.json; auto detection runs once per step, manual frames/removals from `edit` are never overwritten; `marker` (box/ring) is saved like `lang`.
+- 2026-09-24 — Automatic arrow only when the frame's *longest* side is under 2.6 ring radii (checkboxes, icons) — arrows on normal buttons added noise; the badge moves to the arrow tail.
+- 2026-09-24 — Auto arrows come from the side facing the image centre (at least 30° off the axes) so they stay on screen and read as "pointing at".
+- 2026-09-24 — `--spotlight` is off by default (it changes the look of every image); like `marker` and `auto_arrows` it is saved in steps.json and can be toggled in `stepcap edit`.
+- 2026-09-24 — Hand-drawn arrows are stored per step as `arrows: [[x1, y1, x2, y2]]` (tail → head, image px, max 10) and drawn for every step kind.

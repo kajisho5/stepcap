@@ -60,8 +60,9 @@ SESSION_DIR/
 ## Rules
 
 - Only change `title`, `description` and the top-level `title`. Never change `id`,
-  `kind`, `screenshot`, `point`, `from`, `to`, `auto`, `image`, `rendered`, `box` or
-  `box_source` (frames are fixed by the user in `stepcap edit`).
+  `kind`, `screenshot`, `point`, `from`, `to`, `auto`, `image`, `rendered`, `box`,
+  `box_source` or `arrows`, nor the guide-wide `marker`, `spotlight` and `auto_arrows`
+  (the user sets those in `stepcap edit`).
 - You may delete a step that is clearly accidental (e.g. a stray click on the desktop)
   or merge its meaning into a neighbour's description, and you may reorder steps only
   when the recording order is obviously wrong. Mention every deletion/reorder to the user.

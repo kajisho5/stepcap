@@ -208,3 +208,13 @@ def test_old_steps_json_without_boxes_gets_them(demo_session):
     (demo_session / "steps.json").write_text(json.dumps(doc), encoding="utf-8")
     run_build(demo_session, BuildOptions())
     assert steps_doc(demo_session)["steps"][0]["box"] == [1220, 60, 189, 45]
+
+
+def test_spotlight_and_auto_arrow_options_are_remembered(demo_session):
+    run_build(demo_session, BuildOptions())
+    doc = steps_doc(demo_session)
+    assert doc["spotlight"] is False and doc["auto_arrows"] is True
+    run_build(demo_session, BuildOptions(spotlight=True, auto_arrows=False))
+    run_build(demo_session, BuildOptions())
+    doc = steps_doc(demo_session)
+    assert doc["spotlight"] is True and doc["auto_arrows"] is False

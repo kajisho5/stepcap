@@ -28,7 +28,7 @@ from urllib.parse import urlsplit
 from PIL import Image, ImageFilter
 
 from stepcap.build import steps as steps_mod
-from stepcap.build.annotate import BOX_KINDS
+from stepcap.build.annotate import BOX_KINDS, MARKERS
 from stepcap.build.pipeline import (
     GUIDE_HTML,
     BuildOptions,
@@ -40,6 +40,7 @@ from stepcap.build.pipeline import (
 from stepcap.session import STEPS_FILE, SessionError, is_session, write_json
 
 MAX_BODY = 1_000_000
+MAX_ARROWS = 10
 _SID = re.compile(r"^[A-Za-z0-9]{1,32}$")
 EDITABLE = ("title", "description")
 
@@ -183,6 +184,65 @@ class EditApp:
             write_json(self.session / STEPS_FILE, doc)
         return {"ok": True, "id": step["id"], "box": box}
 
+    def set_arrows(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Replace the hand-drawn arrows of one step: ``[[x1, y1, x2, y2], ...]`` (tail, head)."""
+        arrows = body.get("arrows")
+        if not isinstance(arrows, list) or len(arrows) > MAX_ARROWS:
+            raise ApiError(400, f"arrows must be a list of at most {MAX_ARROWS} items")
+        with self.lock:
+            doc = steps_mod.load_steps(self.session)
+            if doc is None:
+                raise ApiError(409, "steps.json does not exist yet; reload the page")
+            step = next((s for s in doc["steps"] if s.get("id") == body.get("id")), None)
+            if step is None:
+                raise ApiError(400, f"unknown step id {body.get('id')!r}")
+            if not step.get("screenshot"):
+                raise ApiError(400, "this step has no screenshot")
+            w, h = step.get("image_size") or (10**6, 10**6)
+            clean = []
+            for a in arrows:
+                if (
+                    not isinstance(a, list)
+                    or len(a) != 4
+                    or not all(isinstance(v, (int, float)) for v in a)
+                ):
+                    raise ApiError(400, "each arrow must be [x1, y1, x2, y2] in image pixels")
+                x1, y1, x2, y2 = (round(v) for v in a)
+                x1, x2 = (min(max(v, 0), w - 1) for v in (x1, x2))
+                y1, y2 = (min(max(v, 0), h - 1) for v in (y1, y2))
+                if abs(x2 - x1) + abs(y2 - y1) < 8:
+                    raise ApiError(400, "arrow is too short")
+                clean.append([x1, y1, x2, y2])
+            if clean:
+                step["arrows"] = clean
+            else:
+                step.pop("arrows", None)
+            write_json(self.session / STEPS_FILE, doc)
+        return {"ok": True, "id": step["id"], "arrows": clean}
+
+    def set_options(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Guide-wide drawing options saved in steps.json (used by every build)."""
+        with self.lock:
+            doc = steps_mod.load_steps(self.session)
+            if doc is None:
+                raise ApiError(409, "steps.json does not exist yet; reload the page")
+            if "marker" in body:
+                if body["marker"] not in MARKERS:
+                    raise ApiError(400, "marker must be 'box' or 'ring'")
+                doc["marker"] = body["marker"]
+            for key in ("spotlight", "auto_arrows"):
+                if key in body:
+                    if not isinstance(body[key], bool):
+                        raise ApiError(400, f"{key} must be true or false")
+                    doc[key] = body[key]
+            write_json(self.session / STEPS_FILE, doc)
+            return {
+                "ok": True,
+                "marker": doc.get("marker", "box"),
+                "spotlight": bool(doc.get("spotlight", False)),
+                "auto_arrows": bool(doc.get("auto_arrows", True)),
+            }
+
     def reset_image(self, body: dict[str, Any]) -> dict[str, Any]:
         sid = self._sid(body.get("screenshot"))
         with self.lock:
@@ -302,6 +362,8 @@ def make_handler(app: EditApp, allowed_hosts: set[str] | None):
                 "/api/steps": app.save_steps,
                 "/api/blur": app.blur,
                 "/api/box": app.set_box,
+                "/api/arrows": app.set_arrows,
+                "/api/options": app.set_options,
                 "/api/reset-image": app.reset_image,
                 "/api/build": app.build,
             }

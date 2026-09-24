@@ -28,6 +28,9 @@ button.primary{background:var(--primary);border-color:var(--primary);color:var(-
 button.danger{color:var(--danger)}
 button.on{background:var(--blur);border-color:var(--primary);color:var(--primary)}
 #status{color:var(--muted);font-size:.85rem;min-height:1.2em}
+.opt{display:inline-flex;gap:4px;align-items:center;font-size:.85rem;color:var(--muted);white-space:nowrap;cursor:pointer}
+svg.arrows{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+svg.arrows line{stroke:var(--accent);stroke-linecap:round}
 #status.err{color:var(--danger)}
 main{max-width:1100px;margin:0 auto;padding:16px}
 .hint{color:var(--muted);font-size:.85rem;margin:0 0 12px}
@@ -68,6 +71,9 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
   <input id="doc-title" aria-label="Guide title" placeholder="Guide title">
   <div class="actions">
     <span id="status" role="status" aria-live="polite"></span>
+    <label class="opt" title="Frame the clicked button/field (off = always a ring)"><input type="checkbox" id="opt-box"> Frames</label>
+    <label class="opt" title="Arrow pointing at small targets such as checkboxes"><input type="checkbox" id="opt-arrows"> Auto arrows</label>
+    <label class="opt" title="Dim everything except the clicked element"><input type="checkbox" id="opt-spot"> Spotlight</label>
     <button id="undo" type="button" hidden>Undo delete</button>
     <button id="reload" type="button">Reload</button>
     <button id="save" type="button">Save</button>
@@ -78,6 +84,8 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
 <main>
   <p class="hint">Drag ⋮⋮ (or use ↑ ↓) to reorder · edit titles and descriptions · “Draw frame” then drag
     around the clicked button to fix or add its highlight (“Use ring” goes back to the circle) ·
+    “Draw arrow” then drag from the arrow's start to its target · the Frames / Auto arrows /
+    Spotlight switches apply to the whole guide ·
     “Blur area” then drag over the screenshot to hide sensitive data (applies to the working copy;
     originals in raw/ are never changed) · Save writes steps.json · Build regenerates guide.md /
     guide.html.</p>
@@ -255,6 +263,38 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
       frame.className = "frame";
       box.appendChild(frame);
     }
+    var NS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(NS, "svg");
+    svg.setAttribute("class", "arrows");
+    svg.setAttribute("preserveAspectRatio", "none");
+    box.appendChild(svg);
+    function arrowEl(a, preview) {
+      var g = document.createElementNS(NS, "g");
+      var W = img.naturalWidth || 1;
+      var sw = Math.max(3, W / 300);
+      var dx = a[2] - a[0], dy = a[3] - a[1], len = Math.hypot(dx, dy) || 1;
+      var ux = dx / len, uy = dy / len, hl = sw * 4;
+      var bx = a[2] - ux * hl, by = a[3] - uy * hl;
+      var line = document.createElementNS(NS, "line");
+      line.setAttribute("x1", a[0]); line.setAttribute("y1", a[1]);
+      line.setAttribute("x2", bx); line.setAttribute("y2", by);
+      line.setAttribute("stroke-width", sw);
+      var head = document.createElementNS(NS, "polygon");
+      head.setAttribute("points", [a[2], a[3], bx - uy * hl * 0.6, by + ux * hl * 0.6,
+        bx + uy * hl * 0.6, by - ux * hl * 0.6].join(" "));
+      head.setAttribute("fill", "currentColor");
+      g.appendChild(line); g.appendChild(head);
+      g.setAttribute("style", "color:var(--accent)" + (preview ? ";opacity:.6" : ""));
+      return g;
+    }
+    function drawArrows(preview) {
+      while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+      if (!img.naturalWidth) { return; }
+      svg.setAttribute("viewBox", "0 0 " + img.naturalWidth + " " + img.naturalHeight);
+      (step.arrows || []).forEach(function (a) { svg.appendChild(arrowEl(a, false)); });
+      if (preview) { svg.appendChild(arrowEl(preview, true)); }
+    }
+    img.addEventListener("load", function () { drawArrows(null); });
     function placeMarkers() {
       if (!img.naturalWidth) { return; }
       var W = img.naturalWidth, H = img.naturalHeight;
@@ -287,6 +327,9 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
     }
     var blurBtn = button("Blur area");
     var resetBtn = button("Reset image");
+    var arrowBtn = button("Draw arrow");
+    var clearArrowsBtn = button("Clear arrows");
+    arrowBtn.title = "Drag from where the arrow starts to what it points at";
     var frameBtn = null, unframeBtn = null;
     if (canFrame) {
       frameBtn = button("Draw frame");
@@ -302,7 +345,7 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
       tools.appendChild(note);
     }
 
-    var mode = null;  // "blur" | "frame" | null
+    var mode = null;  // "blur" | "frame" | "arrow" | null
     function setMode(m) {
       mode = mode === m ? null : m;
       blurBtn.classList.toggle("on", mode === "blur");
@@ -311,11 +354,23 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
         frameBtn.classList.toggle("on", mode === "frame");
         frameBtn.setAttribute("aria-pressed", String(mode === "frame"));
       }
+      arrowBtn.classList.toggle("on", mode === "arrow");
+      arrowBtn.setAttribute("aria-pressed", String(mode === "arrow"));
       box.classList.toggle("blurring", mode !== null);
       setStatus(mode === "blur" ? "Drag over the screenshot to blur a rectangle"
-        : mode === "frame" ? "Drag a rectangle around the clicked button or field" : "");
+        : mode === "frame" ? "Drag a rectangle around the clicked button or field"
+        : mode === "arrow" ? "Drag from the arrow's start to what it should point at" : "");
     }
     blurBtn.addEventListener("click", function () { setMode("blur"); });
+    arrowBtn.addEventListener("click", function () { setMode("arrow"); });
+    clearArrowsBtn.addEventListener("click", function () { saveArrows([]); });
+    function saveArrows(list) {
+      api("POST", "/api/arrows", { id: step.id, arrows: list }).then(function (res) {
+        step.arrows = res.arrows;
+        drawArrows(null);
+        setStatus((list.length ? "Arrow saved" : "Arrows cleared") + ". Press Build to update the guide.");
+      }).catch(function (err) { setStatus(err.message, true); });
+    }
     if (frameBtn) {
       frameBtn.addEventListener("click", function () { setMode("frame"); });
       unframeBtn.addEventListener("click", function () { saveFrame(null); });
@@ -347,6 +402,7 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
       e.preventDefault();
       box.setPointerCapture(e.pointerId);
       start = toImg(e);
+      if (mode === "arrow") { return; }
       sel = document.createElement("div");
       sel.className = mode === "frame" ? "sel sel-frame" : "sel";
       box.appendChild(sel);
@@ -354,6 +410,10 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
     box.addEventListener("pointermove", function (e) {
       if (!start) { return; }
       var p = toImg(e);
+      if (mode === "arrow") {
+        drawArrows([start.ix, start.iy, p.ix, p.iy]);
+        return;
+      }
       sel.style.left = Math.min(start.cx, p.cx) + "px";
       sel.style.top = Math.min(start.cy, p.cy) + "px";
       sel.style.width = Math.abs(p.cx - start.cx) + "px";
@@ -363,6 +423,12 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
       if (!start) { return; }
       var p = toImg(e), s = start;
       start = null;
+      if (mode === "arrow") {
+        setMode("arrow");
+        if (Math.hypot(p.ix - s.ix, p.iy - s.iy) < 8) { drawArrows(null); return; }
+        saveArrows((step.arrows || []).concat([[s.ix, s.iy, p.ix, p.iy].map(Math.round)]));
+        return;
+      }
       sel.remove();
       var rect = [Math.min(s.ix, p.ix), Math.min(s.iy, p.iy), Math.abs(p.ix - s.ix), Math.abs(p.iy - s.iy)];
       if (rect[2] < 3 || rect[3] < 3) { return; }
@@ -403,6 +469,7 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
       undoBtn.hidden = true;
       document.title = "stepcap edit — " + data.session;
       render();
+      showOptions();
       setStatus(state.doc.steps.length + " steps loaded");
     }).catch(function (err) { setStatus(err.message, true); });
   }
@@ -430,6 +497,25 @@ border:3px solid var(--accent);box-shadow:0 0 0 2px rgba(255,255,255,.9);pointer
     });
   }
 
+  var optBox = document.getElementById("opt-box");
+  var optArrows = document.getElementById("opt-arrows");
+  var optSpot = document.getElementById("opt-spot");
+  function showOptions() {
+    optBox.checked = (state.doc.marker || "box") === "box";
+    optArrows.checked = state.doc.auto_arrows !== false;
+    optSpot.checked = !!state.doc.spotlight;
+  }
+  function saveOptions() {
+    var body = { marker: optBox.checked ? "box" : "ring", auto_arrows: optArrows.checked,
+      spotlight: optSpot.checked };
+    api("POST", "/api/options", body).then(function (res) {
+      state.doc.marker = res.marker;
+      state.doc.auto_arrows = res.auto_arrows;
+      state.doc.spotlight = res.spotlight;
+      setStatus("Options saved. Press Build to update the guide.");
+    }).catch(function (err) { setStatus(err.message, true); });
+  }
+  [optBox, optArrows, optSpot].forEach(function (el) { el.addEventListener("change", saveOptions); });
   titleEl.addEventListener("input", markDirty);
   undoBtn.addEventListener("click", function () {
     var last = state.deleted.pop();

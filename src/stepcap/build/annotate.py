@@ -23,6 +23,8 @@ THUMB_WIDTH = 480
 ZOOM_ASPECT = 10 / 16  # height / width of the zoom crop
 MARKERS = ("box", "ring")
 BOX_KINDS = ("click", "type")  # steps whose target element can be framed
+SPOTLIGHT_ALPHA = 110  # 0-255 darkness outside the target with --spotlight
+SMALL_TARGET = 2.6  # frames whose longest side is below this many ring radii get an arrow
 
 _font_cache: dict[int, Any] = {}
 
@@ -226,12 +228,79 @@ def step_box(step: dict[str, Any], marker: str = "box") -> list[int] | None:
     return [int(v) for v in box]
 
 
-def annotate(src: Image.Image, step: dict[str, Any], n: int, marker: str = "box") -> Image.Image:
+def spotlight(img: Image.Image, rect: tuple[int, int, int, int], round_: bool = False) -> None:
+    """Dim everything outside ``rect`` so the target stands out."""
+    x0, y0, x1, y1 = rect
+    hole = Image.new("L", (img.width * 2, img.height * 2), SPOTLIGHT_ALPHA)
+    d = ImageDraw.Draw(hole)
+    r = (x0 * 2, y0 * 2, x1 * 2, y1 * 2)
+    if round_:
+        d.ellipse(r, fill=0)
+    else:
+        d.rounded_rectangle(r, radius=12, fill=0)
+    alpha = hole.resize(img.size, Image.Resampling.LANCZOS)
+    shade = Image.new("RGBA", img.size, (*DARK, 0))
+    shade.putalpha(alpha)
+    img.alpha_composite(shade)
+
+
+def _exit_point(rect, cx: float, cy: float, dx: float, dy: float) -> tuple[float, float]:
+    """Where the ray from (cx, cy) along (dx, dy) leaves ``rect``."""
+    x0, y0, x1, y1 = rect
+    ts = []
+    if dx:
+        ts.append(((x1 if dx > 0 else x0) - cx) / dx)
+    if dy:
+        ts.append(((y1 if dy > 0 else y0) - cy) / dy)
+    t = min(t for t in ts if t >= 0) if ts else 0
+    return cx + dx * t, cy + dy * t
+
+
+def auto_arrow(rect, st: MarkerStyle, w: int, h: int) -> tuple[tuple[int, int], tuple[int, int]]:
+    """Arrow (tail, head) pointing at a small frame from the side facing the image centre."""
+    x0, y0, x1, y1 = rect
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    dx, dy = w / 2 - cx, h / 2 - cy
+    norm = math.hypot(dx, dy)
+    dx, dy = (dx / norm, dy / norm) if norm > 1 else (-0.7071, 0.7071)
+    # prefer a diagonal: it reads as "pointing at" and avoids covering labels on the row
+    dx, dy = math.copysign(max(abs(dx), 0.5), dx), math.copysign(max(abs(dy), 0.5), dy)
+    norm = math.hypot(dx, dy)
+    dx, dy = dx / norm, dy / norm
+    hx, hy = _exit_point(rect, cx, cy, dx, dy)
+    gap = st.line * 2
+    head = (hx + dx * gap, hy + dy * gap)
+    length = st.radius * 3.2
+    tail = (head[0] + dx * length, head[1] + dy * length)
+    m = st.badge + 4
+    tail = (min(max(tail[0], m), w - m), min(max(tail[1], m), h - m))
+    return (round(tail[0]), round(tail[1])), (round(head[0]), round(head[1]))
+
+
+def _manual_arrows(step: dict[str, Any]) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+    out = []
+    for a in step.get("arrows") or []:
+        if isinstance(a, (list, tuple)) and len(a) == 4:
+            x1, y1, x2, y2 = (int(v) for v in a)
+            out.append(((x1, y1), (x2, y2)))
+    return out
+
+
+def annotate(
+    src: Image.Image,
+    step: dict[str, Any],
+    n: int,
+    marker: str = "box",
+    spot: bool = False,
+    auto_arrows: bool = True,
+) -> Image.Image:
     """Return a new RGB image with the marker(s) and badge ``n`` for ``step``.
 
     ``marker="box"`` frames the clicked element when ``step["box"]`` is known
     (auto-detected or drawn in ``stepcap edit``) and falls back to the ring;
-    ``marker="ring"`` always draws the ring.
+    ``marker="ring"`` always draws the ring. ``spot`` dims everything but the
+    target. ``auto_arrows`` adds an arrow pointing at small frames (checkboxes,
+    icons); arrows drawn in ``stepcap edit`` (``step["arrows"]``) are always drawn.
     """
     img = src.convert("RGBA")
     st = MarkerStyle.for_image(img.width, img.height)
@@ -240,14 +309,37 @@ def annotate(src: Image.Image, step: dict[str, Any], n: int, marker: str = "box"
     box = step_box(step, marker)
     # keys and notes are not tied to a pointer position: no ring, badge in the corner
     has_point = point is not None and kind not in ("manual", "key")
+    rect = box_rect(box, st, img.width, img.height) if (has_point and box) else None
+
+    if spot and has_point and kind != "drag":
+        if rect is not None:
+            spotlight(img, rect)
+        else:
+            r = st.radius * 2.2
+            spotlight(
+                img,
+                (
+                    round(point[0] - r),
+                    round(point[1] - r),
+                    round(point[0] + r),
+                    round(point[1] + r),
+                ),
+                round_=True,
+            )
+
+    arrow_tail = None
     if kind == "drag" and _pt(step.get("from")) and _pt(step.get("to")):
         p1, p2 = _pt(step["from"]), _pt(step["to"])
         draw_arrow(img, p1, p2, st, start_gap=st.radius, end_gap=st.radius * 0.55)
         draw_ring(img, *p1, st)
         draw_ring(img, *p2, st, scale=0.55)
         point = p1
-    elif has_point and box is not None:
+    elif rect is not None:
         draw_box(img, box, st)
+        small = max(rect[2] - rect[0], rect[3] - rect[1]) < SMALL_TARGET * st.radius
+        if auto_arrows and small:
+            arrow_tail, head = auto_arrow(rect, st, img.width, img.height)
+            draw_arrow(img, arrow_tail, head, st)
     elif has_point:
         draw_ring(img, *point, st)
         if kind == "scroll":
@@ -257,13 +349,19 @@ def annotate(src: Image.Image, step: dict[str, Any], n: int, marker: str = "box"
             start = (point[0] + vec[0] * gap, point[1] + vec[1] * gap)
             end = (point[0] + vec[0] * gap * 3, point[1] + vec[1] * gap * 3)
             draw_arrow(img, start, end, st)
+    for tail, head in _manual_arrows(step):
+        draw_arrow(img, tail, head, st)
     if kind == "key" and step.get("keys"):
         draw_pill(img, format_keys(step["keys"]), img.width // 2, img.height - st.badge * 3, st)
-    if has_point and box is not None and kind != "drag":
-        x0, y0, x1, y1 = box_rect(box, st, img.width, img.height)
-        b = st.badge
-        # on the top-right corner; small targets (checkboxes) get it outside so it
-        # does not cover them
+
+    b = st.badge
+    if arrow_tail is not None:
+        # the number sits where the arrow starts, pointing at the target
+        bx = round(min(max(arrow_tail[0], b + 2), img.width - b - 2))
+        by = round(min(max(arrow_tail[1], b + 2), img.height - b - 2))
+    elif rect is not None and kind != "drag":
+        x0, y0, x1, y1 = rect
+        # on the top-right corner; small targets get it outside so it does not cover them
         out = b * 0.9 if min(x1 - x0, y1 - y0) < 3 * b else 0
         bx = round(min(max(x1 + out, b + 2), img.width - b - 2))
         by = round(min(max(y0 - out, b + 2), img.height - b - 2))
@@ -306,9 +404,11 @@ def render(
     width: int | None = None,
     zoom: int | None = None,
     marker: str = "box",
+    spot: bool = False,
+    auto_arrows: bool = True,
 ) -> tuple[Image.Image, Image.Image | None]:
     """Return (main image, optional full-screen thumbnail)."""
-    full = annotate(src, step, n, marker)
+    full = annotate(src, step, n, marker, spot, auto_arrows)
     if zoom and zoom < full.width:
         crop = full.crop(zoom_box(step, full.size, zoom))
         return fit_width(crop, width), fit_width(full, THUMB_WIDTH)

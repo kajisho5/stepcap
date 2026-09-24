@@ -124,3 +124,38 @@ def test_draw_frame_and_use_ring(demo_session):
     assert step["box_source"] == "manual"
     x, y, w, h = step["box"]
     assert abs(x - 144) <= 3 and abs(y - 90) <= 3 and abs(w - 288) <= 4 and abs(h - 90) <= 4
+
+
+def test_draw_arrow_and_toggle_options(demo_session):
+    srv = create_server(demo_session, "127.0.0.1", 0)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{srv.server_address[1]}/"
+    try:
+        with sync_api.sync_playwright() as p:
+            browser = _launch(p)
+            page = browser.new_page(viewport={"width": 1280, "height": 1600}, bypass_csp=True)
+            page.goto(url)
+            page.wait_for_selector(".step img")
+            card = page.locator(".step").nth(0)
+            card.locator("button", has_text="Draw arrow").click()
+            bb = card.locator(".shot img").bounding_box()
+            page.mouse.move(bb["x"] + bb["width"] * 0.5, bb["y"] + bb["height"] * 0.5)
+            page.mouse.down()
+            page.mouse.move(bb["x"] + bb["width"] * 0.8, bb["y"] + bb["height"] * 0.1, steps=5)
+            page.mouse.up()
+            page.wait_for_function(
+                "() => document.getElementById('status').textContent.startsWith('Arrow saved')"
+            )
+            assert card.locator("svg.arrows line").count() == 1
+            page.check("#opt-spot")
+            page.wait_for_function(
+                "() => document.getElementById('status').textContent.startsWith('Options saved')"
+            )
+            browser.close()
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    doc = json.loads((demo_session / "steps.json").read_text("utf-8"))
+    x1, y1, x2, y2 = doc["steps"][0]["arrows"][0]
+    assert abs(x1 - 720) <= 4 and abs(y1 - 450) <= 4 and abs(x2 - 1152) <= 4 and abs(y2 - 90) <= 4
+    assert doc["spotlight"] is True
