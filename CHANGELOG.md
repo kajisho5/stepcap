@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/kajisho5/stepcap/compare/v0.1.1...v0.1.2) (2026-09-24)
+
+
+### Features
+
+* arrows for small targets, hand-drawn arrows and an optional spotlight ([#52](https://github.com/kajisho5/stepcap/issues/52)) ([47228a3](https://github.com/kajisho5/stepcap/commit/47228a3be8a9fe07dd8c88ea1bc7ee2421a1379d))
+
 ## [0.1.1](https://github.com/kajisho5/stepcap/compare/v0.1.0...v0.1.1) (2026-09-24)
 
 
