@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/kajisho5/stepcap/compare/v0.1.0...v0.1.1) (2026-09-24)
+
+
+### Features
+
+* frame the clicked button or field instead of only a ring ([#50](https://github.com/kajisho5/stepcap/issues/50)) ([2763c3d](https://github.com/kajisho5/stepcap/commit/2763c3d320e1d6a41134e6b0e69d17fa699e2d88))
+
 ## 0.1.0 (2026-09-24)
 
 
