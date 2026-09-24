@@ -30,7 +30,7 @@ One line per decision, newest last. Format: `YYYY-MM-DD — decision — reason`
 - 2026-09-24 — Edit UI reorders with Pointer Events instead of HTML5 drag-and-drop — works with touch, and HTML5 DnD never fired in headless Chromium, so it could not be tested.
 - 2026-09-24 — Edit server: Host-header allowlist + JSON-only POST + Origin check + CSP — local unauthenticated server must resist DNS rebinding and CSRF.
 - 2026-09-24 — Blur = pixelate then Gaussian — a plain Gaussian blur of text can be partially reversed.
-- 2026-09-24 — release-please bootstraps with `release-as: 0.1.0` (manifest 0.0.0) — with bump-patch-for-minor-pre-major a `feat` would otherwise produce 0.0.1. Remove `release-as` after v0.1.0 is released.
+- 2026-09-24 — release-please bootstrapped with `release-as: 0.1.0` (manifest 0.0.0) — with bump-patch-for-minor-pre-major a `feat` would otherwise produce 0.0.1. Removed right after v0.1.0 was released.
 - 2026-09-24 — Binaries are built by a reusable workflow called from release.yml — releases created with GITHUB_TOKEN do not trigger `on: release` workflows.
 - 2026-09-24 — PyInstaller gets pynput backends as explicit hidden imports (`scripts/build_binary.py`) — `--collect-submodules pynput` silently drops them when no display is available at build time; doctor falls back to `__version__` when dist-info is missing in frozen apps.
 - 2026-09-24 — README images use absolute raw.githubusercontent.com URLs — relative paths do not render on PyPI.

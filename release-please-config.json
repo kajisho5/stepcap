@@ -17,7 +17,6 @@
   "packages": {
     ".": {
       "package-name": "stepcap",
-      "release-as": "0.1.0",
       "changelog-path": "CHANGELOG.md",
       "extra-files": ["src/stepcap/__init__.py"]
     }
