@@ -50,6 +50,10 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 
 ## デモ
 
+**1 回の記録 → 人向けの手順書（左）とエージェント用の SKILL.md（右）:**
+
+![1 回の記録から、左に guide.html、右に入力変数と参照画像付きの SKILL.md](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/guide-and-skill.png)
+
 ![stepcap: 記録して、生成された手順書をページ送り](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/demo.gif)
 
 | 生成された `guide.html`（ライト / ダーク、目次、印刷用 CSS） | `stepcap edit`（並べ替え・改名・ぼかし） |

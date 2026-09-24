@@ -64,6 +64,10 @@ ships `stepcap` executables for Windows, macOS and Linux (PyInstaller, no Python
 
 ## Demo
 
+**One recording → a guide for people (left) and a SKILL.md for agents (right):**
+
+![One recording: guide.html on the left, SKILL.md with inputs and references on the right](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/guide-and-skill.png)
+
 ![stepcap: record, then page through the generated guide](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/demo.gif)
 
 | Generated `guide.html` (light / dark, TOC, print CSS) | `stepcap edit` (reorder, rename, blur) |
