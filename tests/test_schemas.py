@@ -52,6 +52,7 @@ def test_simulated_session_matches(tmp_path, spec):
     spec["screens"]["home"]["url"] = "https://tasks.example.com/projects?token=abc"
     spec["events"].insert(3, {"kind": "copy", "screen": "dialog", "text": "Q3 launch plan"})
     spec["events"].append({"kind": "terminal", "command": "git status", "exit": 1})
+    spec["events"].insert(0, {"kind": "say", "text": "Set up the launch project."})
     session = tmp_path / "s"
     simulate(spec, session, record_urls=True, record_clipboard=True)
     run_build(session, BuildOptions(formats=("md",)))
@@ -66,10 +67,13 @@ def test_simulated_session_matches(tmp_path, spec):
     # a `stepcap shell` line in terminal.jsonl becomes a context event on load
     rec = parse_record(b"1727200000.5\t0\t/home/me\tgit pull\n")
     (session / "terminal.jsonl").write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    for line in (session / "voice.jsonl").read_text("utf-8").splitlines():
+        _check("voice", json.loads(line))
     _, merged = load_session(session)
     for ev in merged:
         _check("event", ev)
     assert sum(ev["kind"] == "terminal" for ev in merged) == 2
+    assert any(ev["kind"] == "voice" for ev in merged)
     doc = read_json(session / "steps.json")
     _check("steps", doc)
     assert any(s.get("element") for s in doc["steps"]) and any(s.get("input") for s in doc["steps"])

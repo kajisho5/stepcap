@@ -180,6 +180,9 @@ def collect_probes(include_hooks: bool = True) -> dict[str, Any]:
     from stepcap.capture import element
 
     p["element"] = element.backend()
+    from stepcap import voice
+
+    p["voice"] = voice.probe()
     return p
 
 
@@ -376,6 +379,25 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
                 "sudo apt install xclip (or xsel)",
             )
         )
+    v = p.get("voice")
+    if isinstance(v, dict):
+        label = "Voice notes (--voice)"
+        if v.get("missing"):
+            from stepcap.voice import install_hint
+
+            detail = f"not installed ({', '.join(v['missing'])}); only needed with --voice"
+            fix = install_hint()
+            if "sounddevice" in v["missing"] and plat.startswith("linux"):
+                fix += "; on Linux also: sudo apt install libportaudio2"
+            checks.append(Check("voice", INFO, label, detail, fix))
+        elif v.get("microphone"):
+            checks.append(Check("voice", OK, label, f"microphone: {v['microphone']}"))
+        else:
+            err = v.get("microphone_error", "no input device")
+            fix = "Connect or enable a microphone"
+            if plat == "darwin":
+                fix += " and allow it in System Settings > Privacy & Security > Microphone"
+            checks.append(Check("voice", WARN, label, err, fix))
     return checks
 
 

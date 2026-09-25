@@ -85,6 +85,10 @@ class RecordOptions:
     as_json: bool = False
     control: bool = False
     element_names: bool = True  # name + frame of the clicked element (UIA / AX)
+    voice: bool = False  # record the microphone and transcribe it locally (stepcap.voice)
+    voice_model: str = "base"
+    voice_language: str | None = None
+    keep_audio: bool = False
 
 
 _status_lock = threading.Lock()
@@ -234,6 +238,8 @@ class Recorder:
         self.shot_writer = None
         self.processor: EventProcessor | None = None
         self.stats = None
+        self.t0 = time.monotonic()
+        self.audio = None  # stepcap.voice.AudioRecorder with --voice
         self._listeners: list[Any] = []
 
     # ------------------------------------------------------------ hook callbacks
@@ -297,11 +303,15 @@ class Recorder:
     def toggle_pause(self) -> None:
         if self.paused.is_set():
             self.paused.clear()
+            if self.audio is not None:
+                self.audio.paused.clear()
             _say("stepcap: resumed")
             if self.opts.control:
                 emit_status("resumed")
         else:
             self.paused.set()
+            if self.audio is not None:
+                self.audio.paused.set()
             self.raw_q.put(("flush",))
             _say(f"stepcap: paused ({self.opts.hotkey_pause} to resume)")
             if self.opts.control:
@@ -391,6 +401,7 @@ class Recorder:
                 steps = sum(self.counts.values())
                 emit_status("step", n=steps, kind=kind, where=where[:80])
 
+        self.t0 = time.monotonic()
         proc = EventProcessor(
             capture,
             self._window,
@@ -403,7 +414,7 @@ class Recorder:
                 keep_query=self.opts.keep_query,
                 record_clipboard=self.opts.record_clipboard,
             ),
-            t0=time.monotonic(),
+            t0=self.t0,
             element=self._element_lookup(),
         )
         self.meta["t0_epoch"] = round(time.time(), 3)  # aligns `stepcap shell` commands
@@ -486,6 +497,7 @@ class Recorder:
                 "keep_query": o.keep_query,
                 "record_clipboard": o.record_clipboard,
                 "element_names": o.element_names,
+                "voice": o.voice,
             },
         )
         self.writer = EventWriter(self.out / EVENTS_FILE)
@@ -499,6 +511,18 @@ class Recorder:
         if self.fatal:
             self.writer.close()
             raise RecorderError(self.fatal[0])
+
+        if o.voice:
+            from stepcap.voice import AUDIO_FILE, AudioRecorder, VoiceError
+
+            self.audio = AudioRecorder(self.out / AUDIO_FILE, self.t0)
+            try:
+                self.audio.start()
+            except VoiceError as exc:
+                self.audio = None
+                self.stop()
+                self._shutdown(proc_thread)
+                raise RecorderError(f"{exc} (record without --voice to skip voice notes)") from exc
 
         self._listeners = [
             mouse.Listener(on_click=self.on_click, on_scroll=self.on_scroll),
@@ -528,6 +552,8 @@ class Recorder:
         )
         if not o.record_typing:
             _say("  typed text is NOT recorded (only the number of characters)")
+        if self.audio is not None:
+            _say("  the microphone is recorded for voice notes (transcribed on this computer)")
         if o.record_urls:
             _say("  browser URLs are recorded" + ("" if o.keep_query else " (without ?query)"))
         if o.record_clipboard:
@@ -573,6 +599,8 @@ class Recorder:
 
     def _finish(self, proc_thread: threading.Thread, duration: float) -> dict[str, Any]:
         self._shutdown(proc_thread)
+        if self.audio is not None:
+            self.meta["audio"] = self.audio.stop()
         n_events = (self.writer.count if self.writer else 0) - self.context_count
         latency = self.stats.to_dict() if self.stats else {}
         excluded = self.processor.excluded_count if self.processor else 0
@@ -597,6 +625,8 @@ class Recorder:
             "latency": latency,
             "errors": self.fatal,
         }
+        if self.audio is not None:
+            result["voice"] = self._transcribe(n_events)
         for e in self.fatal:
             _say(f"stepcap: error: {e}")
         if saved:
@@ -619,6 +649,27 @@ class Recorder:
         if self.opts.control:
             emit_status("done", **result)
         return result
+
+    def _transcribe(self, n_events: int) -> dict[str, Any]:
+        """Speech -> voice.jsonl right after the recording; the audio is kept on failure."""
+        from stepcap.voice import VoiceError, transcribe_session
+
+        o = self.opts
+        if n_events == 0:
+            return {"ok": False, "error": "no steps recorded; audio kept"}
+        _say(f"stepcap: transcribing voice notes on this computer (model {o.voice_model})...")
+        if o.control:
+            emit_status("transcribing")
+        try:
+            res = transcribe_session(self.out, o.voice_model, o.voice_language, o.keep_audio)
+        except (VoiceError, OSError, RuntimeError, ValueError) as exc:
+            _say(
+                f"stepcap: voice notes were not transcribed ({exc}). The audio is kept; run "
+                f"`stepcap transcribe {self.out}` later."
+            )
+            return {"ok": False, "error": str(exc)}
+        _say(f"stepcap: {res['segments']} voice notes ({res['language'] or '?'})")
+        return {"ok": True, "segments": res["segments"], "language": res["language"]}
 
 
 def record(opts: RecordOptions) -> dict[str, Any]:

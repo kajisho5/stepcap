@@ -32,6 +32,9 @@ TEXTS = {
         "opt_typing": "Also record typed text (passwords are always masked)",
         "opt_urls": "Record browser URLs (macOS)",
         "opt_clip": "Record copied text",
+        "opt_voice": "Voice notes: record the microphone and transcribe on this PC",
+        "voice_missing": "(not installed: {hint})",
+        "transcribing": "Transcribing voice notes on this PC…",
         "guide_lang": "Guide language",
         "start": "●  Start recording",
         "check": "Check setup",
@@ -98,6 +101,9 @@ TEXTS = {
         "opt_typing": "入力した文字も記録する（パスワードは常に伏せ字）",
         "opt_urls": "ブラウザの URL を記録する（macOS）",
         "opt_clip": "コピーした文字を記録する",
+        "opt_voice": "声でメモする（マイクを録音し、この PC で文字起こし）",
+        "voice_missing": "（未インストール: {hint}）",
+        "transcribing": "音声メモをこの PC で文字起こし中…",
         "guide_lang": "手順書の言語",
         "start": "●  記録開始",
         "check": "環境チェック",
@@ -211,7 +217,16 @@ def recent_sessions(root: Path, limit: int = 20) -> list[Path]:
     return found[:limit]
 
 
-def record_argv(out: Path, typing: bool, urls: bool, clipboard: bool) -> list[str]:
+def voice_hint() -> str | None:
+    """None when voice notes can be recorded here, else how to enable them."""
+    from stepcap import voice
+
+    return voice.install_hint() if voice.missing() else None
+
+
+def record_argv(
+    out: Path, typing: bool, urls: bool, clipboard: bool, voice: bool = False
+) -> list[str]:
     argv = [*self_command(), "record", "-o", str(out), "--control"]
     if typing:
         argv.append("--record-typing")
@@ -219,6 +234,8 @@ def record_argv(out: Path, typing: bool, urls: bool, clipboard: bool) -> list[st
         argv.append("--record-urls")
     if clipboard:
         argv.append("--record-clipboard")
+    if voice:
+        argv.append("--voice")
     return argv
 
 

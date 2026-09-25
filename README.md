@@ -61,6 +61,8 @@ While recording: **F9** stop · **F8** pause/resume · **F7** add a manual step 
 
 Prefer a single binary? Each [release](https://github.com/kajisho5/stepcap/releases)
 ships `stepcap` executables for Windows, macOS and Linux (PyInstaller, no Python needed).
+The `stepcap-voice-*` editions add voice notes (about 100 MB larger and slower to start);
+on Linux they also need `sudo apt install libportaudio2` for the microphone.
 
 ### No terminal? Use the window
 
@@ -230,9 +232,18 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   front browser tab's URL (macOS: Safari, Chrome, Edge, Arc; query strings dropped unless
   `--keep-query`), with `--record-clipboard` copied text (length + first 80 characters).
   These never become steps; `stepcap skill` uses them ("Browser at ...", "Then: copied ...").
+- **Voice notes** (`--voice`, off by default): say what you are doing and why while you
+  record. The microphone is transcribed **on this computer** (faster-whisper, CPU) when
+  you stop; the text lands in each step's description and in the skill ("Narration: ...",
+  and the Goal when you explained it before the first click). `audio.wav` is deleted after
+  transcription unless `--keep-audio`; nothing said while paused is kept. Needs
+  `pip install "stepcap[voice]"` or the voice edition of the binary; the speech model
+  (`--voice-model base`, ~150 MB; `small` is better for Japanese) is downloaded once from
+  Hugging Face and then works offline.
 - **Private by default**: typed text is *not* stored unless `--record-typing`;
   always masked in password/login windows; `--exclude-app` skips apps entirely
-  (no screenshot). No network access at all.
+  (no screenshot). No network access at all (except the one-time speech model download
+  with `--voice`).
 
 ### What it doesn't do (v0.1)
 
@@ -240,7 +251,7 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
 - **OCR / AI naming** — names come from the OS accessibility APIs (Windows / macOS), not
   from reading pixels; for full sentences use the bundled agent skill or
   `stepcap skill --agent claude|codex`. Linux (AT-SPI) is not supported yet.
-- **Video**, narration, cloud sharing, team workspaces.
+- **Video**, cloud sharing, team workspaces.
 - Direct PDF export — print `guide.html` to PDF from any browser.
 
 ## Why
@@ -279,7 +290,9 @@ export; paid plans start at $25 / $22 per user per month (yearly).
 stepcap record [-o SESSION_DIR] [--monitor all|active] [--record-typing]
                [--exclude-app NAME ...] [--hotkey-stop F9] [--hotkey-pause F8]
                [--hotkey-manual F7] [--note-prompt auto|gui|terminal|none]
-               [--record-urls] [--keep-query] [--record-clipboard] [--dry-run] [--json]
+               [--record-urls] [--keep-query] [--record-clipboard]
+               [--voice [--voice-model base] [--voice-language ja] [--keep-audio]]
+               [--dry-run] [--json]
 stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--lang en|ja]
               [--title "..."] [--marker box|ring] [--[no-]spotlight] [--[no-]auto-arrows]
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
@@ -291,7 +304,8 @@ stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|ge
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
 stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--json]
-stepcap schema [session|event|steps|terminal] [--path]
+stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
+stepcap schema [session|event|steps|terminal|voice] [--path]
 stepcap agents [--json]                                    # agents you can --install / --agent
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]

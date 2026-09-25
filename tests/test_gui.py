@@ -282,6 +282,10 @@ def test_window_views(tmp_path, monkeypatch):
         app.handle({"event": "paused"})
         app.toggle_pause()
         assert sent[-1] == "resume"
+        app.handle({"event": "transcribing"})
+        root.update()
+        assert app.bar_label.cget("text") == app.t["transcribing"]
+        assert app.stop_btn.instate(["disabled"])
         app.handle({"event": "done", "ok": True, "events": 3, "session": str(app.session)})
         root.update()
         assert app.rec is None

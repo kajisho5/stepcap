@@ -25,6 +25,7 @@ from stepcap.redact import redact_obj
 SESSION_FILE = "session.json"
 EVENTS_FILE = "events.jsonl"
 TERMINAL_FILE = "terminal.jsonl"  # written by `stepcap shell`, merged by load_session
+VOICE_FILE = "voice.jsonl"  # written by `record --voice` (stepcap.voice), merged too
 STEPS_FILE = "steps.json"
 RAW_DIR = "raw"
 WORK_DIR = "work"
@@ -138,8 +139,32 @@ def load_session(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
                 print(
                     f"warning: {EVENTS_FILE}:{n}: skipped unreadable line ({exc})", file=sys.stderr
                 )
-    events += _terminal_events(path, meta, events)
+    events += _terminal_events(path, meta, events) + _voice_events(path, events)
     return meta, events
+
+
+def _voice_events(path: Path, events: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Spoken notes (voice.jsonl, same timeline as events) placed before the next step."""
+    p = path / VOICE_FILE
+    if not p.is_file():
+        return []
+    steps = sorted((ev["ts"], ev["id"]) for ev in events if "id" in ev and "ts" in ev)
+    after_last = (max((i for _, i in steps), default=0)) + 1
+    out = []
+    with open(p, encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                ev = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(ev, dict) or ev.get("kind") != "voice" or not ev.get("text"):
+                continue
+            ts = ev.get("ts") if isinstance(ev.get("ts"), (int, float)) else None
+            seq = next((i for t, i in steps if ts is not None and t >= ts), after_last)
+            merged = {"seq": seq, "ts": ts, "kind": "voice", "text": ev["text"]}
+            merged.update({k: ev[k] for k in ("end", "lang") if k in ev})
+            out.append(merged)
+    return out
 
 
 def _terminal_events(

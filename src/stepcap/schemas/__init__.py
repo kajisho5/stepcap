@@ -4,6 +4,7 @@
 - ``event``:    one line of events.jsonl
 - ``steps``:    steps.json (the editable guide)
 - ``terminal``: one line of terminal.jsonl (`stepcap shell`)
+- ``voice``:    one line of voice.jsonl (`record --voice`)
 
 They document the format for other tools; stepcap itself does not need a
 validator at run time. Unknown keys are allowed so newer versions can add fields.
@@ -15,7 +16,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-NAMES = ("session", "event", "steps", "terminal")
+NAMES = ("session", "event", "steps", "terminal", "voice")
 DIR = Path(__file__).parent
 
 

@@ -46,7 +46,7 @@ stepcap export my-guide --format both -o dist --lang ja
 
 記録中のキー: **F9** 停止 · **F8** 一時停止 / 再開 · **F7** メモ付きの手動ステップ（`--hotkey-stop ctrl+alt+s` のように変更可能）
 
-Python を入れたくない場合は、[Releases](https://github.com/kajisho5/stepcap/releases) から Windows / macOS / Linux 用の単体実行ファイル（PyInstaller 製）を使えます。
+Python を入れたくない場合は、[Releases](https://github.com/kajisho5/stepcap/releases) から Windows / macOS / Linux 用の単体実行ファイル（PyInstaller 製）を使えます。音声メモを使う場合は `stepcap-voice-*`（音声版。約 100 MB 大きく、起動も少し遅くなります。Linux ではマイク用に `sudo apt install libportaudio2` も必要）を選んでください。
 
 ### ターミナルを使わない場合: ウィンドウで操作
 
@@ -174,13 +174,14 @@ $ cat demo/terminal.jsonl
 - **矢印とスポットライト**: 小さい部品には自動で矢印を付けます。`--spotlight` で対象以外を暗くでき、編集 UI では矢印を手描きで追加できます
 - **ローカル編集 UI**（`stepcap edit`）: ドラッグで並べ替え、削除、タイトル / 説明の編集、枠の描き直し / 削除、矢印の追加、枠・自動矢印・スポットライトの切り替え、矩形ぼかし（`work/` のコピーに適用し、原本 `raw/` は変更しません）、再ビルド
 - **エージェント向けの文脈**: アプリ / ウィンドウの切り替えは常に記録します。`--record-urls` で前面のブラウザタブの URL（macOS: Safari・Chrome・Edge・Arc。`--keep-query` なしではクエリ文字列を除去）、`--record-clipboard` でコピーした文字列（文字数と先頭 80 文字）も記録します。これらはステップにはならず、`stepcap skill` が「Browser at …」「Then: copied …」として使います
-- **プライバシー重視の初期設定**: `--record-typing` を付けない限り入力内容は保存しません。パスワード / ログイン画面では常にマスクします。`--exclude-app` を指定したアプリが前面の間は記録もスクショもしません。通信は一切行いません
+- **音声メモ**（`--voice`、既定はオフ）: 記録しながら「何をしているか・なぜか」を声で話せます。停止時にマイクの音声を**この PC 上で**文字起こし（faster-whisper、CPU）し、各ステップの説明と、スキルの「Narration: …」（最初のクリック前に話した内容は Goal）に入れます。`audio.wav` は文字起こし後に削除します（`--keep-audio` で保持）。一時停止中に話した内容は残りません。`pip install "stepcap[voice]"` または単体実行ファイルの音声版が必要です。音声モデル（`--voice-model base` で約 150 MB。日本語は `small` の方が精度が上がります）は初回だけ Hugging Face からダウンロードし、以降はオフラインで動きます
+- **プライバシー重視の初期設定**: `--record-typing` を付けない限り入力内容は保存しません。パスワード / ログイン画面では常にマスクします。`--exclude-app` を指定したアプリが前面の間は記録もスクショもしません。通信は一切行いません（`--voice` の音声モデルの初回ダウンロードを除く）
 
 ### できないこと（v0.1）
 
 - **Wayland**（Linux）には非対応で、X11 のみです。Wayland では理由を表示して停止します
 - **OCR / AI による命名**はしません。部品名は OS のアクセシビリティ API（Windows / macOS）から取得し、画面の文字は読み取りません。文章として整えたい場合は同梱のエージェント用スキルか、`stepcap skill --agent claude|codex` を使ってください。Linux（AT-SPI）は未対応です
-- **動画**、ナレーション、クラウド共有、チーム管理
+- **動画**、クラウド共有、チーム管理
 - PDF の直接出力（`guide.html` をブラウザで印刷 → PDF）
 
 ## なぜ作ったか
@@ -213,7 +214,9 @@ Scribe（Basic）と Tango の無料プランはブラウザ内の Web アプリ
 stepcap record [-o SESSION_DIR] [--monitor all|active] [--record-typing]
                [--exclude-app NAME ...] [--hotkey-stop F9] [--hotkey-pause F8]
                [--hotkey-manual F7] [--note-prompt auto|gui|terminal|none]
-               [--record-urls] [--keep-query] [--record-clipboard] [--dry-run] [--json]
+               [--record-urls] [--keep-query] [--record-clipboard]
+               [--voice [--voice-model base] [--voice-language ja] [--keep-audio]]
+               [--dry-run] [--json]
 stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--lang en|ja]
               [--title "..."] [--marker box|ring] [--[no-]spotlight] [--[no-]auto-arrows]
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
@@ -225,7 +228,8 @@ stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|ge
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
 stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--json]
-stepcap schema [session|event|steps|terminal] [--path]
+stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
+stepcap schema [session|event|steps|terminal|voice] [--path]
 stepcap agents [--json]                                    # agents you can --install / --agent
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]

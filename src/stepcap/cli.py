@@ -61,7 +61,23 @@ def cmd_record(args: argparse.Namespace) -> int:
         as_json=args.json,
         control=args.control,
         element_names=not args.no_element_names,
+        voice=args.voice,
+        voice_model=args.voice_model,
+        voice_language=args.voice_language,
+        keep_audio=args.keep_audio,
     )
+    if args.voice:
+        from stepcap import voice
+
+        gone = voice.missing()
+        if "sounddevice" in gone:
+            _err(f"--voice needs the microphone library: {voice.install_hint()}")
+            return EXIT_FAIL
+        if gone:
+            _err(
+                f"warning: speech-to-text is not installed ({', '.join(gone)}); the audio is kept "
+                f"and can be transcribed later with `stepcap transcribe`. {voice.install_hint()}"
+            )
     try:
         result = record(opts)
     except (RecorderError, SessionError) as exc:
@@ -360,6 +376,23 @@ def cmd_agents(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_transcribe(args: argparse.Namespace) -> int:
+    from stepcap.voice import VoiceError, transcribe_session
+
+    try:
+        res = transcribe_session(Path(args.session), args.model, args.language, args.keep_audio)
+    except (VoiceError, SessionError, OSError, RuntimeError, ValueError) as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    if args.json:
+        _print_json(res)
+    else:
+        print(f"{res['segments']} voice notes ({res['language'] or '?'}) -> {args.session}")
+        for line in res["lines"]:
+            print(f"  {line['ts']:>7.1f}s  {line['text']}")
+    return EXIT_OK
+
+
 def cmd_schema(args: argparse.Namespace) -> int:
     from stepcap import schemas
 
@@ -504,6 +537,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="record copied text: length and the first 80 characters, secrets masked; "
         "nothing while a password/login window or an --exclude-app is in front",
+    )
+    r.add_argument(
+        "--voice",
+        action="store_true",
+        help="record the microphone for voice notes and transcribe them on this computer "
+        '(needs pip install "stepcap[voice]"; the speech model is downloaded once)',
+    )
+    r.add_argument(
+        "--voice-model",
+        default="base",
+        choices=("tiny", "base", "small", "medium", "large-v3"),
+        help="speech model size (default base; small is better for Japanese, slower)",
+    )
+    r.add_argument("--voice-language", metavar="LANG", help="e.g. ja or en (default: detect)")
+    r.add_argument(
+        "--keep-audio",
+        action="store_true",
+        help="keep audio.wav after transcribing (deleted by default)",
     )
     r.add_argument(
         "--dry-run", action="store_true", help="check permissions/hooks and exit without recording"
@@ -675,6 +726,19 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--json", action="store_true")
     c.set_defaults(func=cmd_check_skill)
 
+    t = sub.add_parser(
+        "transcribe",
+        help="turn a session's recorded audio (record --voice) into voice notes, locally",
+    )
+    t.add_argument("session", metavar="SESSION_DIR")
+    t.add_argument(
+        "--model", default="base", choices=("tiny", "base", "small", "medium", "large-v3")
+    )
+    t.add_argument("--language", metavar="LANG", help="e.g. ja or en (default: detect)")
+    t.add_argument("--keep-audio", action="store_true", help="keep audio.wav afterwards")
+    t.add_argument("--json", action="store_true")
+    t.set_defaults(func=cmd_transcribe)
+
     g = sub.add_parser(
         "agents",
         help="list the agents stepcap can install skills for or run (built-in + agents.toml)",
@@ -682,11 +746,13 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--json", action="store_true")
     g.set_defaults(func=cmd_agents)
 
+    from stepcap.schemas import NAMES as schema_names
+
     j = sub.add_parser(
         "schema",
-        help="print the JSON Schema of session.json, events.jsonl, steps.json or terminal.jsonl",
+        help="print the JSON Schema of a session file (session, event, steps, terminal, voice)",
     )
-    j.add_argument("name", nargs="?", choices=("session", "event", "steps", "terminal"))
+    j.add_argument("name", nargs="?", choices=schema_names)
     j.add_argument("--path", action="store_true", help="print the schema file path instead")
     j.set_defaults(func=cmd_schema)
 
