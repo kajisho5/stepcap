@@ -48,6 +48,11 @@ A screen may set ``"url": "https://..."`` (recorded with ``record_urls``) and
 ``{"left", "top", "scale"}``; every monitor has the ``screen`` size in logical
 points, and ``scale`` 2.0 gives Retina-like screenshots with twice the pixels).
 
+With ``"accessibility": true`` at the top level, clicks and typing also report
+the widget under the point like the OS accessibility APIs do (name from
+``label`` / ``placeholder`` / list and menu items, role from the widget type,
+exact rectangle); a widget with ``"password": true`` is a password field.
+
 ``target`` / ``from`` / ``to`` accept a widget id or ``[x, y]``. Each event
 may set ``t`` (seconds); otherwise events are 1.5 s apart.
 """
@@ -62,6 +67,7 @@ from typing import Any
 from PIL import Image, ImageDraw
 
 from stepcap.build.annotate import font
+from stepcap.capture.element import ElementInfo
 from stepcap.capture.events import EventProcessor, Monitor, ProcessorOptions, Shot, WindowInfo
 from stepcap.session import (
     EVENTS_FILE,
@@ -139,6 +145,42 @@ class ScreenRenderer:
         if not isinstance(idx, int) or not 0 <= idx < len(self.monitors):
             raise SimulationError(f"EVENTS.json: screen {name!r} has an invalid monitor index")
         return idx
+
+    def element_at(self, name: str, gx: float, gy: float) -> ElementInfo | None:
+        """The widget under global point (gx, gy) on screen ``name``, like an a11y API."""
+        m = self.monitors[self.monitor_index(name)]
+        x, y = gx - m.left, gy - m.top
+        roles = {
+            "button": "button",
+            "input": "text-field",
+            "select": "dropdown",
+            "checkbox": "checkbox",
+            "card": "list-item",
+        }
+        for w in reversed(self.widgets(name)):
+            t = w.get("type")
+            if t == "text" or "rect" not in w:
+                continue
+            x0, y0, x1, y1 = _rect(w)
+            if not (x0 <= x < x1 and y0 <= y < y1):
+                continue
+            rect = (x0 + m.left, y0 + m.top, x1 - x0, y1 - y0)
+            if t in roles:
+                label = w.get("label") or w.get("placeholder")
+                return ElementInfo(label, roles[t], rect, secure=bool(w.get("password")))
+            items, row, top = w.get("items") or [], 0, y0
+            if t == "list":
+                row = int(w.get("row", 52))
+            elif t == "menu":
+                row, top = 34, y0 + 4
+            if row and items:
+                i = int((y - top) // row)
+                if 0 <= i < len(items):
+                    item_rect = (x0 + m.left, top + i * row + m.top, x1 - x0, row)
+                    role = "menu-item" if t == "menu" else "list-item"
+                    return ElementInfo(items[i], role, item_rect)
+            return None
+        return None
 
     def url(self, name: str) -> str | None:
         sc = self.screen(name)
@@ -398,6 +440,9 @@ def simulate(
         n_context += "id" not in ev  # context events (app switch, URL, clipboard)
         writer.write(ev)
 
+    def element(x: float, y: float, focused: bool) -> ElementInfo | None:
+        return renderer.element_at(current["screen"], x, y)
+
     proc = EventProcessor(
         capture,
         window,
@@ -409,6 +454,7 @@ def simulate(
             keep_query=keep_query,
             record_clipboard=record_clipboard,
         ),
+        element=element if spec.get("accessibility") else None,
     )
     proc.observe_clipboard(0.0, "", window())  # clipboard is empty when recording starts
     t = 0.0

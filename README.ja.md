@@ -161,7 +161,7 @@ $ cat demo/terminal.jsonl
 
 - **デスクトップ全体を記録**（ブラウザに限定されません）: クリック（シングル / ダブル / 右）、ドラッグ、スクロール（連続操作は 1 ステップに集約）、文字入力、Enter / Esc、Ctrl+S などのショートカット、F7 の手動メモ。マルチモニタと HiDPI / Retina に対応
 - **ステップごとにスクリーンショット**: カーソルのあるモニタを撮影（`--monitor all` で全画面）。撮影は押下時なので、クリックで画面が変わる前の状態が残ります。保存は別スレッドで行い、クリック→保存の遅延を計測・記録します（目標 < 300 ms）
-- **自動タイトル**: ウィンドウ名から `「設定」でクリック`、`「請求書 - Excel」に入力` のように付けます（`--lang ja` / `en`）
+- **クリックした部品名から自動タイトル**: Windows（UI Automation）と macOS（アクセシビリティ）では `ボタン「保存」をクリック`、`入力欄「プロジェクト名」に入力`、`メニュー「名前の変更」を選択` のように付け、部品の正確な位置で枠を描きます。Linux、部品名を公開しないアプリ、`--no-element-names` 指定時はウィンドウ名（`「設定」でクリック`）になります。パスワード欄は名前を取得せず、入力は常に伏せ字です（`--lang ja` / `en`）
 - **同じ画面は画像を再利用**: 連続するステップの画面が 98% 以上同じなら 1 枚を共有するので、ぼかしも 1 回で全ステップに反映されます
 - **出力**: `guide.md` + `images/`、単一ファイルの `guide.html`（目次・ライト / ダーク・印刷 CSS）、印刷用の A4 チェックリスト `checklist.html`（チェック欄・対象周辺の縮小画像・備考欄・実施日 / 実施者 / 確認者の記入欄）、編集用の正本 `steps.json`
 - **再ビルドしても編集を上書きしない**: 人・`stepcap edit`・AI エージェントが `steps.json` に加えた編集は保持されます（最初から作り直すときは `--reset`）
@@ -174,7 +174,7 @@ $ cat demo/terminal.jsonl
 ### できないこと（v0.1）
 
 - **Wayland**（Linux）には非対応で、X11 のみです。Wayland では理由を表示して停止します
-- **OCR / AI による命名**はしません。タイトルはウィンドウ名ベースです。人が読みやすい文章にしたい場合は同梱のエージェント用スキルか、`stepcap skill --agent claude|codex` を使ってください
+- **OCR / AI による命名**はしません。部品名は OS のアクセシビリティ API（Windows / macOS）から取得し、画面の文字は読み取りません。文章として整えたい場合は同梱のエージェント用スキルか、`stepcap skill --agent claude|codex` を使ってください。Linux（AT-SPI）は未対応です
 - **動画**、ナレーション、クラウド共有、チーム管理
 - PDF の直接出力（`guide.html` をブラウザで印刷 → PDF）
 
@@ -246,7 +246,7 @@ stepcap skill my-guide -o skills --install claude --scope project   # .claude/sk
 stepcap check-skill skills/<名前>                     # 手で直した後の検証
 ```
 
-- **下書き（`--agent none`、既定）**: 決まった手順で作り、オフラインで動きます。frontmatter（`name`・`description`）、`## Goal`（F7 のメモ。なければ `TODO`）、`## Inputs`（入力した値はすべて `{{input_N}}`。名前の変更や「固定値」への切り替えは `stepcap edit` で）、番号付きの `## Steps`（アプリ・ウィンドウ名・`references/step-NN.png`。注釈付きでぼかし適用済み）、`## Notes for the agent`（クリックより CLI / API を優先、削除・送信・支払いの前は確認）
+- **下書き（`--agent none`、既定）**: 決まった手順で作り、オフラインで動きます。frontmatter（`name`・`description`）、`## Goal`（F7 のメモ。なければ `TODO`）、`## Inputs`（入力した値は入力欄の名前から `{{project_name}}` のような変数に。名前が取れない場合は `{{input_N}}`。名前の変更や「固定値」への切り替えは `stepcap edit` で）、番号付きの `## Steps`（アプリ・ウィンドウ名・`references/step-NN.png`。注釈付きでぼかし適用済み）、`## Notes for the agent`（クリックより CLI / API を優先、削除・送信・支払いの前は確認）
 - **清書（`--agent claude|codex`）**: スキルフォルダで `claude -p` または `codex exec` を実行し、[`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md) の指示で一般化させます。実行前に、エージェントが読めるファイルを一覧表示して `y/N` を確認します（`--yes` で省略、`--dry-run` は一覧表示のみ）。stepcap 自体は通信しません。エージェントがどこへ送るかはエージェント側の設定次第です
 - **配置（`--install claude|codex`）**: `~/.claude/skills/` または `./.claude/skills/`（Claude Code）、`~/.agents/skills/` または `./.agents/skills/`（Codex）にコピーします。同名のスキルがあれば `--force` なしでは上書きしません
 - **必ず検証**: Agent Skills の frontmatter 規則、名前 = フォルダ名、500 行未満、約 5000 トークン以内、`references/` のリンク切れなし、秘密情報のパターン（GitHub / AWS / OpenAI / Anthropic のキー、JWT、URL 内のパスワード、カード番号）なし。満たさなければ終了コード 1

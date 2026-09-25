@@ -200,7 +200,9 @@ def render(
         example = _clean(ev.get("text")) if not ev.get("masked", True) else ""
         if inp.get("variable", True) or not example:
             where = _where(s)
-            line = f"- `{{{{{inp.get('name', f'input_{n}')}}}}}` - typed in step {n}"
+            field = _one_line((s.get("element") or {}).get("name"))
+            line = f"- `{{{{{inp.get('name', f'input_{n}')}}}}}` - typed "
+            line += f'into "{field}" in step {n}' if field else f"in step {n}"
             line += f" ({where})" if where else ""
             if example:
                 line += f"; example from the recording: `{_one_line(example)}`"

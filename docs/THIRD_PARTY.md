@@ -8,6 +8,7 @@ them is AGPL. Versions are minimums from `pyproject.toml`.
 | [Pillow](https://python-pillow.github.io/) ≥ 10.1 | image annotation, encoding, simulate screens; bundled font (`ImageFont.load_default(size=…)`) | MIT-CMU (HPND) |
 | [mss](https://github.com/BoboTiG/python-mss) ≥ 9.0 | fast multi-monitor screenshots | MIT |
 | [pynput](https://github.com/moses-palmer/pynput) ≥ 1.7.7 | global mouse / keyboard hooks | **LGPL-3.0** |
+| [comtypes](https://github.com/enthought/comtypes) ≥ 1.4 (Windows only) | UI Automation: name and frame of the clicked element | MIT |
 
 ### Transitive (installed by pynput, platform dependent)
 

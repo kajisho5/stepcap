@@ -177,6 +177,9 @@ def collect_probes(include_hooks: bool = True) -> dict[str, Any]:
     from stepcap.capture import clipboard
 
     p["clipboard"] = clipboard.backend()
+    from stepcap.capture import element
+
+    p["element"] = element.backend()
     return p
 
 
@@ -346,6 +349,18 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
             )
         )
 
+    if "element" in p:
+        backend = p.get("element")
+        if backend:
+            detail = f"{backend}: steps are titled with the clicked button / field name"
+            checks.append(Check("element", OK, "Element names", detail))
+        else:
+            fix = (
+                "pip install comtypes"
+                if plat == "win32"
+                else "not available on Linux yet; titles use the window name"
+            )
+            checks.append(Check("element", INFO, "Element names", "unavailable", fix))
     if plat == "darwin":
         checks.append(Check("urls", INFO, "Browser URLs (--record-urls)", MAC_URL_NOTE, ""))
     clip = p.get("clipboard")

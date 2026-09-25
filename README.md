@@ -196,8 +196,12 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
 - **Screenshot per step** of the monitor under the cursor (`--monitor all` for every
   screen), taken on mouse-down so it shows what the reader must find. Saved on a
   background thread; click→saved latency is measured and logged (target < 300 ms).
-- **Titles steps automatically** from the window name: `Click in "Settings"`,
-  `Type into "Invoice - Excel"` — English or Japanese (`--lang ja`).
+- **Titles steps from the clicked element** on Windows (UI Automation) and macOS
+  (Accessibility): `Click the "Save" button`, `Type into the "Project name" field`,
+  `Choose "Rename"` — and frames the element with its exact rectangle. Falls back to the
+  window name (`Click in "Settings"`) on Linux, in apps that expose no names, or with
+  `--no-element-names`. Password fields never report a name and typing into them is always
+  masked. English or Japanese (`--lang ja`).
 - **Reuses identical screenshots**: consecutive steps on the same screen (≥ 98 % same
   area) share one image, so blurring it once covers all of them.
 - **Outputs** `guide.md` + `images/`, a single-file `guide.html` (table of contents,
@@ -224,8 +228,9 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
 ### What it doesn't do (v0.1)
 
 - **Wayland** (Linux) — X11 only; stepcap stops with an explanation on Wayland.
-- **OCR / AI naming** — titles come from window names; use the bundled agent skill for
-  human-quality text, or `stepcap skill --agent claude|codex`.
+- **OCR / AI naming** — names come from the OS accessibility APIs (Windows / macOS), not
+  from reading pixels; for full sentences use the bundled agent skill or
+  `stepcap skill --agent claude|codex`. Linux (AT-SPI) is not supported yet.
 - **Video**, narration, cloud sharing, team workspaces.
 - Direct PDF export — print `guide.html` to PDF from any browser.
 
@@ -323,7 +328,8 @@ stepcap check-skill skills/<name>                    # validate after editing by
 
 - **Draft (`--agent none`, default)**: deterministic, offline. Frontmatter (`name`,
   `description`), `## Goal` (from your F7 notes, else `TODO`), `## Inputs` (every typed value
-  becomes `{{input_N}}`; rename it or mark it as a fixed value in `stepcap edit`),
+  becomes a variable named after its field, e.g. `{{project_name}}`, else `{{input_N}}`;
+  rename it or mark it as a fixed value in `stepcap edit`),
   numbered `## Steps` with app, window and `references/step-NN.png` (annotated, blur applied),
   and `## Notes for the agent` (prefer CLI/API over clicks; confirm before deleting, sending,
   paying).

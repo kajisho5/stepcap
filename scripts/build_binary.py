@@ -24,6 +24,25 @@ BACKENDS = {
 }
 
 
+def _uia_modules() -> list[str]:
+    """Generate the UI Automation wrappers now, so the frozen binary does not have to."""
+    try:
+        import comtypes.client
+
+        comtypes.client.GetModule("UIAutomationCore.dll")
+        import comtypes.gen.UIAutomationClient as uia
+    except Exception as exc:  # pragma: no cover - only on the Windows build runner
+        print(f"warning: UI Automation wrappers not generated ({exc})", flush=True)
+        return []
+    typelib = getattr(uia, "__name__", "")
+    mods = ["comtypes.gen", "comtypes.gen.UIAutomationClient"]
+    for name in dir(uia):
+        mod = getattr(getattr(uia, name), "__module__", "") or ""
+        if mod.startswith("comtypes.gen._") and mod not in mods:
+            mods.append(mod)
+    return mods if typelib else []
+
+
 def hidden_imports() -> list[str]:
     plat = "linux" if sys.platform.startswith("linux") else sys.platform
     mods = []
@@ -33,7 +52,8 @@ def hidden_imports() -> list[str]:
     if plat == "linux":
         mods += ["Xlib.ext.xtest", "Xlib.ext.record"]
     if plat == "win32":
-        mods += ["mss.windows"]
+        mods += ["mss.windows", "comtypes", "comtypes.client", "comtypes.stream"]
+        mods += _uia_modules()
     elif plat == "darwin":
         mods += ["mss.darwin", "Quartz", "ApplicationServices"]
     else:

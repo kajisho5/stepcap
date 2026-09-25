@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from stepcap.capture.element import ElementInfo
 from stepcap.redact import redact_text
 
 # Window titles that force typed content to be masked even with --record-typing.
@@ -146,6 +147,9 @@ class WindowInfo:
 
 
 CaptureFn = Callable[[float, float, float], "Shot | None"]  # (x, y, ts) -> Shot
+# (x, y, focused) -> the UI element under the point / with keyboard focus, or None
+ElementFn = Callable[[float, float, bool], "ElementInfo | None"]
+MAX_ELEMENT_AREA = 0.5  # element boxes covering more of the screenshot are not a target
 WindowFn = Callable[[], WindowInfo]
 EmitFn = Callable[[dict[str, Any]], None]
 
@@ -158,6 +162,7 @@ class _PendingClick:
     button: str
     shot: Shot | None
     win: WindowInfo
+    el: ElementInfo | None = None
     count: int = 1
     released: bool = False
     release_ts: float = 0.0
@@ -185,6 +190,7 @@ class _TypingRun:
     win: WindowInfo
     ignored: bool
     masked: bool
+    el: ElementInfo | None = None
     chars: int = 0
     text: list[str] = field(default_factory=list)
     enter: bool = False
@@ -215,9 +221,11 @@ class EventProcessor:
         emit: EmitFn,
         options: ProcessorOptions | None = None,
         t0: float = 0.0,
+        element: ElementFn | None = None,
     ) -> None:
         self.capture = capture
         self.window = window
+        self.element = element
         self._emit_cb = emit
         self.opt = options or ProcessorOptions()
         self.t0 = t0
@@ -265,6 +273,31 @@ class EventProcessor:
         else:
             ev.update({"x": round(x), "y": round(y)})
 
+    def _lookup(self, x: float, y: float, focused: bool = False) -> ElementInfo | None:
+        if self.element is None:
+            return None
+        try:
+            return self.element(x, y, focused)
+        except Exception:
+            return None
+
+    def _with_element(self, ev: dict[str, Any], el: ElementInfo | None, shot: Shot | None) -> None:
+        """Add ``element`` {name, role, rect, box}; ``box`` is in screenshot pixels."""
+        if el is None:
+            return
+        d = el.to_dict()
+        if el.rect and shot:
+            rx, ry, rw, rh = el.rect
+            x0 = max(0, round((rx - shot.monitor.left) * shot.scale_x))
+            y0 = max(0, round((ry - shot.monitor.top) * shot.scale_y))
+            x1 = min(shot.width, round((rx + rw - shot.monitor.left) * shot.scale_x))
+            y1 = min(shot.height, round((ry + rh - shot.monitor.top) * shot.scale_y))
+            w, h = x1 - x0, y1 - y0
+            if w >= 4 and h >= 4 and w * h <= MAX_ELEMENT_AREA * shot.width * shot.height:
+                d["box"] = [x0, y0, w, h]
+        if d:
+            ev["element"] = d
+
     def _emit(self, ev: dict[str, Any]) -> None:
         self._emit_cb(ev)
 
@@ -294,6 +327,7 @@ class EventProcessor:
         ev["button"] = c.button
         ev["click_type"] = click_type
         self._with_point(ev, c.shot, c.x, c.y)
+        self._with_element(ev, c.el, c.shot)
         self._emit(ev)
 
     def _flush_scroll(self) -> None:
@@ -329,6 +363,7 @@ class EventProcessor:
         if not t.masked:
             ev["text"] = "".join(t.text)
         self._with_point(ev, t.shot, t.x, t.y)
+        self._with_element(ev, t.el, t.shot)
         self._emit(ev)
 
     def flush(self) -> None:
@@ -382,7 +417,8 @@ class EventProcessor:
             return
         self._ignored_buttons.discard(button)
         shot = self.capture(x, y, ts)
-        self._click = _PendingClick(ts=ts, x=x, y=y, button=button, shot=shot, win=win)
+        el = self._lookup(x, y)  # after the screenshot: it must not delay the capture
+        self._click = _PendingClick(ts=ts, x=x, y=y, button=button, shot=shot, win=win, el=el)
 
     def _on_release(self, ts: float, x: float, y: float, button: str) -> None:
         self.last_pos = (x, y)
@@ -400,6 +436,7 @@ class EventProcessor:
             ev = self._base("drag", c.ts, c.win, c.shot)
             ev["button"] = c.button
             self._with_point(ev, c.shot, c.x, c.y)
+            self._with_element(ev, c.el, c.shot)
             if c.shot:
                 ev["from"] = c.shot.point(c.x, c.y)
                 ev["to"] = c.shot.point(x, y)
@@ -501,10 +538,15 @@ class EventProcessor:
         ignored = self.is_excluded(win)
         if ignored:
             self.excluded_count += 1
-        masked = (not self.opt.record_typing) or is_sensitive_title(win.title)
         shot = None if ignored else self.capture(x, y, ts)
+        el = None if ignored else self._lookup(x, y, focused=True)
+        masked = (
+            (not self.opt.record_typing)
+            or is_sensitive_title(win.title)
+            or bool(el and el.secure)  # a password field, whatever the window is called
+        )
         self._typing = _TypingRun(
-            ts=ts, x=x, y=y, shot=shot, win=win, ignored=ignored, masked=masked
+            ts=ts, x=x, y=y, shot=shot, win=win, ignored=ignored, masked=masked, el=el
         )
         return self._typing
 
