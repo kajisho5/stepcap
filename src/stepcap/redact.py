@@ -29,6 +29,11 @@ PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
 _URL_USERINFO = re.compile(r"(?i)\b([a-z][a-z0-9+.\-]*://[^/\s:@]+):([^/\s@]+)@")
 _URL_PARAM = re.compile(rf"(?i)([?&;#](?:{_SENSITIVE_PARAMS})=)([^&#;\s]+)")
 _CARD = re.compile(r"(?<![\d.])\d(?:[ \-]?\d){12,18}(?![\d.])")
+# A date and time such as stepcap's own folder names (20260925-055333): 14 digits that
+# pass the Luhn check about one time in ten. 14-digit cards start with 30, 36 or 38.
+_STAMP = re.compile(
+    r"(?:19|20)\d\d(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])[ \-]?(?:[01]\d|2[0-3])[0-5]\d[0-5]\d"
+)
 
 
 def luhn_ok(digits: str) -> bool:
@@ -44,6 +49,8 @@ def luhn_ok(digits: str) -> bool:
 
 
 def _card(m: re.Match[str]) -> str:
+    if _STAMP.fullmatch(m.group(0)):
+        return m.group(0)
     digits = re.sub(r"\D", "", m.group(0))
     if 13 <= len(digits) <= 19 and luhn_ok(digits) and len(set(digits)) > 1:
         return "[REDACTED:card]"

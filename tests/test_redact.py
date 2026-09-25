@@ -22,6 +22,7 @@ CARD = "4242 4242 4242 4242"
         (JWT, "jwt"),
         (CARD, "card"),
         ("4242-4242-4242-4242", "card"),
+        ("3056 9309 0259 04", "card"),  # 14-digit Diners test number
     ],
 )
 def test_secret_is_replaced(secret, kind):
@@ -50,6 +51,8 @@ def test_ordinary_text_is_untouched():
         "https://example.com/search?q=token",
         "sk-short",
         "Click the Keys tab",
+        "recorded-procedure-20260925-055333",  # a date-time name that passes Luhn
+        "20260925055333",
     ):
         assert redact_text(text) == text, text
         assert leak_kinds(text) == [], text
