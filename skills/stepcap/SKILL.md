@@ -36,7 +36,9 @@ SESSION_DIR/
 2. **Read `SESSION_DIR/steps.json`.** Relevant fields per step:
    `id`, `kind` (click / type / drag / scroll / key / manual), `click_type`,
    `title`, `description`, `rendered` (annotated image, e.g. `images/step-003.webp`),
-   `window_title`, `app_name`, `keys`, `direction`. Top level: `title`, `lang`.
+   `window_title`, `app_name`, `keys`, `direction`, and `element` (`name` / `role` of the
+   clicked control when the OS reported it, `source: "ocr"` when read from the screenshot -
+   check OCR names against the image). Top level: `title`, `lang`.
 3. **Look at every step image** (`rendered`; if it is null, use `image` and the
    pixel position `point.img_x` / `point.img_y`). A numbered frame surrounds the clicked
    element (`box` in steps.json); a numbered ring marks the click when no element was
@@ -69,7 +71,9 @@ SESSION_DIR/
    stepcap skill SESSION_DIR -o OUT_DIR --agent none
    ```
    It prints the skill folder (`OUT_DIR/<name>/`: `SKILL.md` + `references/step-NN.png`).
-   Use `--name kebab-case-name` if the user gave a name.
+   Use `--name kebab-case-name` if the user gave a name. If the user recorded the same task
+   several times, pass all folders (`stepcap skill RUN1 RUN2 ... -o OUT_DIR`): the first is the
+   reference, and the draft marks optional steps and lists the values typed in each run.
 2. Read the draft `SKILL.md`, the step images in `references/`, and
    `SESSION_DIR/steps.json` / `SESSION_DIR/events.jsonl` (app switches, URLs, clipboard and
    terminal events are there when they were recorded).
@@ -99,8 +103,9 @@ SESSION_DIR/
    `.agents/skills` folder read by Codex, Gemini CLI and Cursor; `stepcap agents` lists all).
 
 The user can also let their own agent do step 3 in one go:
-`stepcap skill SESSION_DIR -o OUT_DIR --agent claude` (or `codex`). stepcap shows the files the
-agent will read and asks before running it.
+`stepcap skill SESSION_DIR -o OUT_DIR --agent claude` (or `codex`, `gemini`, or an agent from
+`agents.toml` - `stepcap agents` lists them). stepcap shows the files the agent will read and
+asks before running it.
 
 ## Rules
 
