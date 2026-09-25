@@ -92,6 +92,33 @@ def _find_window(title_part: str, timeout: float = 30.0) -> int | None:
     return None
 
 
+def _diagnose(hwnd: int) -> str:
+    """What UI Automation sees in the window (only used in failure messages)."""
+    import traceback
+
+    from stepcap.capture.element import _uia_client
+
+    lines = []
+    try:
+        UIA, uia = _uia_client()
+        root = uia.ElementFromHandle(hwnd)
+        lines.append(f"root: {root.CurrentName!r} {root.CurrentClassName!r}")
+        cond = uia.CreatePropertyCondition(30003, 50004)
+        found = root.FindAll(4, cond)
+        lines.append(f"edits: {found.Length}")
+        for i in range(min(found.Length, 8)):
+            el = found.GetElement(i)
+            try:
+                pat = el.GetCurrentPattern(10002).QueryInterface(UIA.IUIAutomationValuePattern)
+                value = pat.CurrentValue
+            except Exception as exc:
+                value = f"<{type(exc).__name__}: {exc}>"
+            lines.append(f"  {el.CurrentName!r} id={el.CurrentAutomationId!r} value={value!r}")
+    except Exception:
+        lines.append(traceback.format_exc())
+    return "\n".join(lines)
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows UI Automation")
 @pytest.mark.parametrize("browser", list(BROWSERS))
 def test_real_browser_address_bar(browser):
@@ -124,7 +151,10 @@ def test_real_browser_address_bar(browser):
             if url and "stepcap-url-test.html" in url:
                 break
             time.sleep(0.5)
-        assert url and url.startswith("file:///") and url.endswith("stepcap-url-test.html"), url
+        assert url and url.startswith("file:///") and url.endswith("stepcap-url-test.html"), (
+            url,
+            _diagnose(hwnd),
+        )
     finally:
         subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True)
         shutil.rmtree(profile, ignore_errors=True)
