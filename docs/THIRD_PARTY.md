@@ -9,6 +9,7 @@ them is AGPL. Versions are minimums from `pyproject.toml`.
 | [mss](https://github.com/BoboTiG/python-mss) ≥ 9.0 | fast multi-monitor screenshots | MIT |
 | [pynput](https://github.com/moses-palmer/pynput) ≥ 1.7.7 | global mouse / keyboard hooks | **LGPL-3.0** |
 | [comtypes](https://github.com/enthought/comtypes) ≥ 1.4 (Windows only) | UI Automation: name and frame of the clicked element | MIT |
+| [cryptography](https://github.com/pyca/cryptography) ≥ 42 | `stepcap share`: AES-256-GCM, PBKDF2 | Apache-2.0 OR BSD-3-Clause |
 
 ### Transitive (installed by pynput, platform dependent)
 

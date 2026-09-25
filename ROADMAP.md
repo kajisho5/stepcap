@@ -78,3 +78,4 @@ one to discuss it. Numbers are stable; new ideas get the next free number.
 | RM-068 | planned | agents | One skill from several recordings of the same task (merge variants, detect inputs) |
 | RM-069 | planned | record | Element names on Linux via AT-SPI |
 | RM-070 | planned | record | Browser URL on Linux for `--record-urls` (AT-SPI address bar) |
+| RM-071 | done | build | `stepcap share`: password-protected single-file guide (AES-GCM, decrypted in the browser) |

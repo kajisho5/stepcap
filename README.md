@@ -227,6 +227,10 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   light/dark, print CSS), a printable A4 `checklist.html` (tick box, small crop around the
   target, notes column, date / operator / sign-off fields) and `steps.json` — the editable
   source of truth.
+- **Share with a password** (`stepcap share`, or *Share with a password* in the window): one
+  HTML file encrypted with AES-256-GCM (key from the password via PBKDF2-SHA256, 600,000
+  rounds). It opens in any browser, offline, after the password (decrypted with the
+  browser's WebCrypto). No expiry date: a standalone file cannot enforce one.
 - **Rebuilds are idempotent**: edits in `steps.json` (by you, `stepcap edit` or an AI
   agent) are never overwritten; `--reset` starts over.
 - **Frames the clicked element** (button, input, checkbox, card) detected from the
@@ -311,6 +315,7 @@ stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|ge
               [--dry-run] [--json]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
+stepcap share SESSION_DIR -o FILE.html [--file guide|checklist] [--password-stdin]
 stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--json]
 stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
 stepcap schema [session|event|steps|terminal|voice] [--path]
