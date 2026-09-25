@@ -180,12 +180,14 @@ _UIA_ROLES = {
     50031: "button",  # split button
     50035: "header",
 }
-_uia: Any = None
+_uia_local = threading.local()  # COM objects belong to the thread (apartment) that made them
+UIA_TIMEOUT_MS = 500  # a hung application must not stall the caller for long
 
 
 def _uia_client() -> Any:
-    global _uia
-    if _uia is None:
+    """(UIAutomationClient module, IUIAutomation) for the calling thread."""
+    client = getattr(_uia_local, "client", None)
+    if client is None:
         import comtypes
         import comtypes.client
 
@@ -194,11 +196,13 @@ def _uia_client() -> Any:
         comtypes.client.GetModule("UIAutomationCore.dll")
         from comtypes.gen import UIAutomationClient as UIA
 
-        _uia = (
-            UIA,
-            comtypes.client.CreateObject(UIA.CUIAutomation, interface=UIA.IUIAutomation),
-        )
-    return _uia
+        uia = comtypes.client.CreateObject(UIA.CUIAutomation, interface=UIA.IUIAutomation)
+        with contextlib.suppress(Exception):  # IUIAutomation2: Windows 8+
+            uia2 = uia.QueryInterface(UIA.IUIAutomation2)
+            uia2.ConnectionTimeout = UIA_TIMEOUT_MS
+            uia2.TransactionTimeout = UIA_TIMEOUT_MS
+        client = _uia_local.client = (UIA, uia)
+    return client
 
 
 def _win_lookup(x: float, y: float, focused: bool) -> ElementInfo | None:

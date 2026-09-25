@@ -208,6 +208,10 @@ MAC_URL_NOTE = (
     "Safari, Chrome, Edge and Arc are supported; macOS asks once per browser to allow "
     "the app that runs stepcap to control it (Privacy & Security > Automation)"
 )
+WIN_URL_NOTE = (
+    "Chrome, Edge, Firefox, Brave, Vivaldi and Opera: the address bar is read with UI "
+    "Automation (no permission needed)"
+)
 X11_FIX = "Run stepcap inside a graphical X11 session (DISPLAY must be set, e.g. DISPLAY=:0)."
 SESSION_FIX = "Run stepcap in an interactive desktop session (not a service or SSH session)."
 WIN_ADMIN_NOTE = (
@@ -366,6 +370,8 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
             checks.append(Check("element", INFO, "Element names", "unavailable", fix))
     if plat == "darwin":
         checks.append(Check("urls", INFO, "Browser URLs (--record-urls)", MAC_URL_NOTE, ""))
+    elif plat == "win32":
+        checks.append(Check("urls", INFO, "Browser URLs (--record-urls)", WIN_URL_NOTE, ""))
     clip = p.get("clipboard")
     if clip:
         checks.append(Check("clipboard", OK, "Clipboard reader (--record-clipboard)", clip))

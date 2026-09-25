@@ -524,8 +524,9 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument(
         "--record-urls",
         action="store_true",
-        help="record the front browser tab's URL when it changes (macOS: Safari, Chrome, Edge, "
-        "Arc; asks for the Automation permission). Query strings are dropped.",
+        help="record the front browser tab's URL when it changes (Windows: Chrome, Edge, "
+        "Firefox, Brave, Vivaldi, Opera via UI Automation; macOS: Safari, Chrome, Edge, Arc, "
+        "asks for the Automation permission; not on Linux yet). Query strings are dropped.",
     )
     r.add_argument(
         "--keep-query",

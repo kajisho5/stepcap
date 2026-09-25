@@ -229,8 +229,8 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   remove highlight frames, draw arrows, toggle frames / auto arrows / spotlight, blur
   rectangles (applied to `work/` copies — `raw/` originals stay untouched), rebuild.
 - **Context for agents**: app / window switches are always logged; with `--record-urls` the
-  front browser tab's URL (macOS: Safari, Chrome, Edge, Arc; query strings dropped unless
-  `--keep-query`), with `--record-clipboard` copied text (length + first 80 characters).
+  front browser tab's URL (Windows: Chrome, Edge, Firefox, Brave, Vivaldi, Opera via UI
+  Automation; macOS: Safari, Chrome, Edge, Arc; query strings dropped unless `--keep-query`), with `--record-clipboard` copied text (length + first 80 characters).
   These never become steps; `stepcap skill` uses them ("Browser at ...", "Then: copied ...").
 - **Voice notes** (`--voice`, off by default): say what you are doing and why while you
   record. The microphone is transcribed **on this computer** (faster-whisper, CPU) when

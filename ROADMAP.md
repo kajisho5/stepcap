@@ -71,9 +71,10 @@ issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-
 | RM-061 | done | record | Context events: app switches, `--record-urls` (macOS Safari / Chrome / Edge / Arc), `--record-clipboard` |
 | RM-062 | done | privacy | Secret masking (GitHub / AWS / OpenAI / Anthropic keys, JWT, URL passwords, card numbers) before anything is written |
 | RM-063 | done | record | `stepcap shell`: bash / zsh commands with exit status as terminal events (macOS / Linux) |
-| RM-064 | planned | record | Browser URL on Windows (UI Automation address bar) and Linux for `--record-urls` |
+| RM-064 | done | record | Browser URL on Windows for `--record-urls` (UI Automation address bar: Chrome, Edge, Firefox, Brave, Vivaldi, Opera) |
 | RM-065 | planned | record | `stepcap shell` for Windows PowerShell |
 | RM-066 | done | record | Voice notes: `record --voice`, local speech-to-text (faster-whisper), narration in guide + skill, voice edition binaries |
 | RM-067 | done | agents | Check a skill against its recording: apps, elements, inputs, URLs, commands, notes still mentioned (`check-skill --session`) |
 | RM-068 | planned | agents | One skill from several recordings of the same task (merge variants, detect inputs) |
 | RM-069 | planned | record | Element names on Linux via AT-SPI |
+| RM-070 | planned | record | Browser URL on Linux for `--record-urls` (AT-SPI address bar) |
