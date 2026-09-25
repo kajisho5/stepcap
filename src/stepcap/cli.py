@@ -285,6 +285,46 @@ def cmd_check_skill(args: argparse.Namespace) -> int:
     return EXIT_FAIL if problems else EXIT_OK
 
 
+def cmd_agents(args: argparse.Namespace) -> int:
+    from stepcap.skill import registry
+
+    path = registry.config_path()
+    try:
+        specs = registry.load()
+    except registry.RegistryError as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    rows = []
+    for spec in specs.values():
+        rows.append(
+            {
+                "name": spec.name,
+                "label": spec.label,
+                "user_dir": spec.user_dir,
+                "project_dir": spec.project_dir,
+                "also_read_by": list(spec.readers),
+                "refine": list(spec.refine),
+                "refine_cli_found": spec.executable() if spec.can_refine else None,
+                "source": spec.source,
+            }
+        )
+    if args.json:
+        _print_json({"config": str(path), "config_exists": path.is_file(), "agents": rows})
+        return EXIT_OK
+    for r in rows:
+        where = r["user_dir"] or "-"
+        readers = f" (also {', '.join(r['also_read_by'])})" if r["also_read_by"] else ""
+        if r["refine"]:
+            found = "found" if r["refine_cli_found"] else "not installed"
+            refine = f"--agent {r['name']}: {r['refine'][0]} {found}"
+        else:
+            refine = "install only"
+        print(f"{r['name']:<8} {r['label']:<28} {where}{readers}; {refine}")
+    state = "" if path.is_file() else " (not present; create it to add agents)"
+    print(f"\nConfig: {path}{state}")
+    return EXIT_OK
+
+
 def cmd_schema(args: argparse.Namespace) -> int:
     from stepcap import schemas
 
@@ -334,11 +374,11 @@ def _skill_args(k: argparse.ArgumentParser) -> None:
     )
     k.add_argument(
         "--agent",
-        choices=("none", "claude", "codex"),
         default="none",
-        help="none: deterministic draft, no LLM (default). claude / codex: let your own "
-        "agent CLI rewrite the draft into a general skill (asks first; stepcap itself "
-        "sends nothing)",
+        metavar="AGENT",
+        help="none: deterministic draft, no LLM (default). claude / codex / gemini or an agent "
+        "from agents.toml: let your own agent CLI rewrite the draft into a general skill (asks "
+        "first; stepcap itself sends nothing). See `stepcap agents`",
     )
     k.add_argument("--yes", action="store_true", help="do not ask before running the agent")
     k.add_argument("--force", action="store_true", help="replace existing output folders")
@@ -534,10 +574,11 @@ def build_parser() -> argparse.ArgumentParser:
     _skill_args(k)
     k.add_argument(
         "--install",
-        choices=("none", "claude", "codex"),
         default="none",
-        help="also copy the skill to where Claude Code (.claude/skills) or Codex "
-        "(.agents/skills) loads skills from",
+        metavar="AGENT",
+        help="also copy the skill to where an agent loads skills from: claude (.claude/skills), "
+        "agents (.agents/skills: Codex, Gemini CLI, Cursor), codex, gemini, cursor or an agent "
+        "from agents.toml. See `stepcap agents`",
     )
     k.add_argument(
         "--scope",
@@ -576,6 +617,13 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("skill_dir", metavar="SKILL_DIR")
     c.add_argument("--json", action="store_true")
     c.set_defaults(func=cmd_check_skill)
+
+    g = sub.add_parser(
+        "agents",
+        help="list the agents stepcap can install skills for or run (built-in + agents.toml)",
+    )
+    g.add_argument("--json", action="store_true")
+    g.set_defaults(func=cmd_agents)
 
     j = sub.add_parser(
         "schema",

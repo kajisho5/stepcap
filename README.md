@@ -74,8 +74,8 @@ When you stop, the window offers the two results:
 
 - **For AI agents: skill (SKILL.md)**: **Add to Claude Code** (copies it to
   `~/.claude/skills/<name>/`; then type `/<name>` or just ask for the task),
-  **Add to Codex** (`~/.agents/skills/<name>/`; `$<name>` or `/skills`), or
-  **Create SKILL.md** only. If the `claude` or `codex` CLI is installed, tick
+  **Add to Codex / Gemini CLI / Cursor** (the shared `~/.agents/skills/<name>/`), or
+  **Create SKILL.md** only. If the `claude`, `codex` or `gemini` CLI is installed, tick
   *Generalise first* to let it rewrite the one-run draft into a general procedure (asks
   before running). An installed skill with the same name is only replaced after you confirm.
 - **For people: guide**: **Open guide**, **Printable checklist**, **Edit steps**.
@@ -285,13 +285,14 @@ stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
 stepcap edit SESSION_DIR [--port 8765] [--host 127.0.0.1] [--no-browser]
-stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex]
-              [--install none|claude|codex] [--scope user|project] [--yes] [--force]
+stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|gemini|AGENT]
+              [--install none|claude|agents|codex|gemini|cursor|AGENT] [--scope user|project] [--yes] [--force]
               [--dry-run] [--json]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
-               [--agent none|claude|codex] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
+               [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
 stepcap check-skill SKILL_DIR [--json]
 stepcap schema [session|event|steps|terminal] [--path]
+stepcap agents [--json]                                    # agents you can --install / --agent
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap app [--lang en|ja]                                 # window: start / stop / edit / export
@@ -339,6 +340,7 @@ Details: [docs/permissions.md](docs/permissions.md).
 stepcap skill my-guide -o skills                     # draft, no LLM: skills/<name>/SKILL.md
 stepcap skill my-guide -o skills --agent claude      # let your Claude Code CLI generalise it
 stepcap skill my-guide -o skills --install claude --scope project   # + .claude/skills/<name>/
+stepcap skill my-guide -o skills --install agents    # + ~/.agents/skills/ (Codex, Gemini CLI, Cursor)
 stepcap check-skill skills/<name>                    # validate after editing by hand
 ```
 
@@ -349,14 +351,42 @@ stepcap check-skill skills/<name>                    # validate after editing by
   numbered `## Steps` with app, window and `references/step-NN.png` (annotated, blur applied),
   and `## Notes for the agent` (prefer CLI/API over clicks; confirm before deleting, sending,
   paying).
-- **Refine (`--agent claude|codex`)**: runs `claude -p` or `codex exec` in the skill folder
-  with [`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md). Before it runs,
-  stepcap lists every file the agent can read and asks `y/N` (`--yes` skips, `--dry-run` only
-  lists). stepcap makes no network request itself; where your agent sends data depends on
-  your agent's settings.
-- **Install (`--install claude|codex`)**: copies the folder to `~/.claude/skills/` or
-  `./.claude/skills/` (Claude Code), `~/.agents/skills/` or `./.agents/skills/` (Codex).
-  Never overwrites an existing skill without `--force`.
+- **Refine (`--agent claude|codex|gemini`)**: runs `claude -p`, `codex exec` or `gemini -p`
+  in the skill folder with [`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md).
+  Before it runs, stepcap lists every file the agent can read and asks `y/N` (`--yes` skips,
+  `--dry-run` only lists). stepcap makes no network request itself; where your agent sends
+  data depends on your agent's settings.
+- **Install (`--install ...`)**: copies the folder to where the agent loads skills from
+  (`--scope user` = your home folder, `project` = the current folder). Never overwrites an
+  existing skill without `--force`.
+
+  | `--install` | Folder | Loaded by |
+  |---|---|---|
+  | `claude` | `.claude/skills/` | Claude Code (Cursor reads it too) |
+  | `agents` (= `codex`) | `.agents/skills/` | Codex, Gemini CLI, Cursor |
+  | `gemini` | `.gemini/skills/` | Gemini CLI |
+  | `cursor` | `.cursor/skills/` | Cursor |
+
+  Folders as documented by [Claude Code](https://code.claude.com/docs/en/skills),
+  [Codex](https://learn.chatgpt.com/docs/build-skills),
+  [Gemini CLI](https://geminicli.com/docs/cli/skills/) and
+  [Cursor](https://cursor.com/docs/skills) (checked 2026-09-25).
+- **Other agents (`agents.toml`)**: add your own, or change a built-in command, without
+  touching stepcap. `stepcap agents` lists them and prints where the file goes
+  (`~/.config/stepcap/agents.toml`, `%APPDATA%\stepcap\agents.toml` on Windows, or
+  `$STEPCAP_AGENTS_FILE`):
+
+  ```toml
+  [agents.myagent]
+  label = "My agent"
+  user_dir = "~/.myagent/skills"          # --install myagent
+  project_dir = ".myagent/skills"         # --install myagent --scope project
+  refine = ["myagent", "run", "{prompt}"] # --agent myagent (optional)
+  ```
+
+  `{prompt}` points the agent at `_context/INSTRUCTIONS.md`; `{skill_dir}` and `{images}`
+  (comma-separated annotated screenshots; the argument is dropped when there are none) are
+  also available. Agents from this file get their own "Add to …" button in `stepcap app`.
 - **Always validated**: Agent Skills frontmatter rules, name = folder name, < 500 lines,
   ~5000 tokens, every `references/` link exists, and no secret patterns (GitHub / AWS /
   OpenAI / Anthropic keys, JWTs, passwords in URLs, card numbers). Exit code 1 if not.

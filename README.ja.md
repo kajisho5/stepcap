@@ -56,7 +56,7 @@ stepcap app          # または Releases の単体実行ファイルをダブ�
 
 保存先を選んで **記録開始** を押し、作業をして、常に前面に出る小さなバーの **停止** を押します（F9 / F8 / F7 も使えます）。バー自体のクリックはステップになりません。停止すると、2 種類の成果物を選べます。
 
-- **AI エージェント向け：スキル（SKILL.md）**: **Claude Code に追加**（`~/.claude/skills/<名前>/` にコピー。Claude Code で `/<名前>` と入力するか、作業をそのまま頼む）、**Codex に追加**（`~/.agents/skills/<名前>/`。`$<名前>` または `/skills`）、または **SKILL.md を作る** だけ。`claude` / `codex` CLI が入っていれば「先に一般化する」にチェックすると、1 回分の記録から汎用的な手順に書き直させられます（実行前に確認します）。同じ名前のスキルが既にある場合は、確認してから置き換えます。
+- **AI エージェント向け：スキル（SKILL.md）**: **Claude Code に追加**（`~/.claude/skills/<名前>/` にコピー。Claude Code で `/<名前>` と入力するか、作業をそのまま頼む）、**Codex・Gemini CLI・Cursor に追加**（共通フォルダ `~/.agents/skills/<名前>/` にコピー）、または **SKILL.md を作る** だけ。`claude` / `codex` / `gemini` CLI が入っていれば「先に一般化する」にチェックすると、1 回分の記録から汎用的な手順に書き直させられます（実行前に確認します）。同じ名前のスキルが既にある場合は、確認してから置き換えます。
 - **人向け：手順書**: **手順書を開く**・**印刷用チェックリスト**・**手順を編集**。
 
 **手順書とスキルを書き出す（共有用）** は両方を記録の隣（`<名前>-export/`）に出力します。表示言語はシステムの言語（日本語 / English）に合わせます。
@@ -219,13 +219,14 @@ stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
 stepcap edit SESSION_DIR [--port 8765] [--host 127.0.0.1] [--no-browser]
-stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex]
-              [--install none|claude|codex] [--scope user|project] [--yes] [--force]
+stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|gemini|AGENT]
+              [--install none|claude|agents|codex|gemini|cursor|AGENT] [--scope user|project] [--yes] [--force]
               [--dry-run] [--json]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
-               [--agent none|claude|codex] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
+               [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
 stepcap check-skill SKILL_DIR [--json]
 stepcap schema [session|event|steps|terminal] [--path]
+stepcap agents [--json]                                    # agents you can --install / --agent
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap app [--lang en|ja]                                 # ウィンドウ: 開始 / 停止 / 編集 / 書き出し
@@ -252,12 +253,33 @@ stepcap doctor [--json]
 stepcap skill my-guide -o skills                     # 下書き（LLM 不要）: skills/<名前>/SKILL.md
 stepcap skill my-guide -o skills --agent claude      # 手元の Claude Code CLI に一般化させる
 stepcap skill my-guide -o skills --install claude --scope project   # .claude/skills/<名前>/ にも配置
+stepcap skill my-guide -o skills --install agents    # ~/.agents/skills/ にも配置（Codex・Gemini CLI・Cursor）
 stepcap check-skill skills/<名前>                     # 手で直した後の検証
 ```
 
 - **下書き（`--agent none`、既定）**: 決まった手順で作り、オフラインで動きます。frontmatter（`name`・`description`）、`## Goal`（F7 のメモ。なければ `TODO`）、`## Inputs`（入力した値は入力欄の名前から `{{project_name}}` のような変数に。名前が取れない場合は `{{input_N}}`。名前の変更や「固定値」への切り替えは `stepcap edit` で）、番号付きの `## Steps`（アプリ・ウィンドウ名・`references/step-NN.png`。注釈付きでぼかし適用済み）、`## Notes for the agent`（クリックより CLI / API を優先、削除・送信・支払いの前は確認）
-- **清書（`--agent claude|codex`）**: スキルフォルダで `claude -p` または `codex exec` を実行し、[`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md) の指示で一般化させます。実行前に、エージェントが読めるファイルを一覧表示して `y/N` を確認します（`--yes` で省略、`--dry-run` は一覧表示のみ）。stepcap 自体は通信しません。エージェントがどこへ送るかはエージェント側の設定次第です
-- **配置（`--install claude|codex`）**: `~/.claude/skills/` または `./.claude/skills/`（Claude Code）、`~/.agents/skills/` または `./.agents/skills/`（Codex）にコピーします。同名のスキルがあれば `--force` なしでは上書きしません
+- **清書（`--agent claude|codex|gemini`）**: スキルフォルダで `claude -p`・`codex exec`・`gemini -p` のいずれかを実行し、[`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md) の指示で一般化させます。実行前に、エージェントが読めるファイルを一覧表示して `y/N` を確認します（`--yes` で省略、`--dry-run` は一覧表示のみ）。stepcap 自体は通信しません。エージェントがどこへ送るかはエージェント側の設定次第です
+- **配置（`--install ...`）**: エージェントがスキルを読み込むフォルダにコピーします（`--scope user` はホームフォルダ、`project` は今いるフォルダ）。同名のスキルがあれば `--force` なしでは上書きしません
+
+  | `--install` | フォルダ | 読み込むツール |
+  |---|---|---|
+  | `claude` | `.claude/skills/` | Claude Code（Cursor も読みます） |
+  | `agents`（= `codex`） | `.agents/skills/` | Codex・Gemini CLI・Cursor |
+  | `gemini` | `.gemini/skills/` | Gemini CLI |
+  | `cursor` | `.cursor/skills/` | Cursor |
+
+  フォルダは各ツールの公式ドキュメントに基づきます（[Claude Code](https://code.claude.com/docs/en/skills)・[Codex](https://learn.chatgpt.com/docs/build-skills)・[Gemini CLI](https://geminicli.com/docs/cli/skills/)・[Cursor](https://cursor.com/docs/skills)、2026-09-25 確認）。
+- **その他のエージェント（`agents.toml`）**: stepcap を変更せずに、エージェントを追加したり組み込みのコマンドを変えたりできます。`stepcap agents` で一覧とファイルの置き場所（`~/.config/stepcap/agents.toml`、Windows は `%APPDATA%\stepcap\agents.toml`、または `$STEPCAP_AGENTS_FILE`）を表示します。
+
+  ```toml
+  [agents.myagent]
+  label = "My agent"
+  user_dir = "~/.myagent/skills"          # --install myagent
+  project_dir = ".myagent/skills"         # --install myagent --scope project
+  refine = ["myagent", "run", "{prompt}"] # --agent myagent（任意）
+  ```
+
+  `{prompt}` はエージェントに `_context/INSTRUCTIONS.md` を読ませる短い指示です。ほかに `{skill_dir}` と `{images}`（注釈付きスクリーンショットをカンマ区切りで。無い場合はその引数ごと省略）が使えます。このファイルで追加したエージェントは、`stepcap app` の完了画面に「… に追加」ボタンが出ます。
 - **必ず検証**: Agent Skills の frontmatter 規則、名前 = フォルダ名、500 行未満、約 5000 トークン以内、`references/` のリンク切れなし、秘密情報のパターン（GitHub / AWS / OpenAI / Anthropic のキー、JWT、URL 内のパスワード、カード番号）なし。満たさなければ終了コード 1
 - **ターミナルでの操作**: 記録中に別のターミナルで `stepcap shell my-guide` を開くと、そこで打ったコマンド（出力は含まない）が終了コード付き・秘密情報マスク済みで追加され、スキルに「Ran in a terminal: `...`」として載ります。macOS / Linux の bash と zsh に対応し、Windows の PowerShell は未対応です。先頭にスペースを付けたコマンドは記録されません（シェルが履歴から除外する設定の場合）
 - **記録中に F7 で「なぜ」をメモ**してください。スキルの Goal になり、エージェントにとって最も役立つ情報です

@@ -204,12 +204,13 @@ class App:
             ttk.Label(agents, text=t["agents_hint"]).pack(anchor="w", pady=(0, 6))
             row = ttk.Frame(agents)
             row.pack(anchor="w")
-            for key, install in (
-                ("add_claude", "claude"),
-                ("add_codex", "codex"),
-                ("make_skill", "none"),
-            ):
-                b = ttk.Button(row, text=t[key], command=lambda i=install: self.skill(session, i))
+            targets = [(t["add_claude"], "claude"), (t["add_agents"], "agents")]
+            targets += [
+                (t["add_to"].format(agent=label), n) for n, label in ctl.custom_installers()
+            ]
+            targets.append((t["make_skill"], "none"))
+            for text, install in targets:
+                b = ttk.Button(row, text=text, command=lambda i=install: self.skill(session, i))
                 b.pack(side="left", padx=(0, 6))
                 self.action_buttons.append(b)
             self.refine_agent = ctl.refine_agent()
@@ -375,7 +376,9 @@ class App:
                 ctl.open_path(skill_dir)
             elif install != "none" and res.installed_to:
                 self.status.set(
-                    t[f"installed_{install}"].format(path=res.installed_to, name=res.name)
+                    t.get(f"installed_{install}", t["installed_other"]).format(
+                        path=res.installed_to, name=res.name, agent=ctl.agent_label(install)
+                    )
                 )
             else:
                 self.status.set(t["skill_made"].format(path=skill_dir / "SKILL.md"))

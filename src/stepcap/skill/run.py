@@ -26,7 +26,7 @@ from stepcap.build.pipeline import (
 )
 from stepcap.redact import redact_obj
 from stepcap.session import STEPS_FILE, SessionError, load_session, write_json
-from stepcap.skill import agents, draft
+from stepcap.skill import agents, draft, registry
 from stepcap.skill import install as install_mod
 from stepcap.skill.validate import MAX_NAME, NAME_RE, validate_skill
 
@@ -135,10 +135,19 @@ def _write_references(session: Path, doc: dict[str, Any], refs, skill_dir: Path)
 
 def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) -> SkillResult:
     session = Path(session)
-    if opt.agent not in ("none", *agents.AGENTS):
-        raise SkillError(f"unknown agent {opt.agent!r}; use none, claude or codex")
-    if opt.install not in ("none", *install_mod.AGENTS):
-        raise SkillError(f"unknown --install {opt.install!r}; use none, claude or codex")
+    try:
+        refiners, installers = agents.refiners(), install_mod.installers()
+    except registry.RegistryError as exc:
+        raise SkillError(str(exc)) from exc
+    if opt.agent not in ("none", *refiners):
+        raise SkillError(
+            f"unknown --agent {opt.agent!r}; use none or {', '.join(refiners)} (see stepcap agents)"
+        )
+    if opt.install not in ("none", *installers):
+        raise SkillError(
+            f"unknown --install {opt.install!r}; use none or {', '.join(installers)} "
+            "(see stepcap agents)"
+        )
     if opt.name is not None and (len(opt.name) > MAX_NAME or not NAME_RE.match(opt.name)):
         raise SkillError(
             f"--name {opt.name!r}: use 1-{MAX_NAME} characters of a-z, 0-9 and single hyphens"

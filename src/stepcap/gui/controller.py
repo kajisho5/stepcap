@@ -65,7 +65,8 @@ TEXTS = {
         "agents_hint": "Add the skill and your agent can do this task for you.",
         "make_skill": "Create SKILL.md",
         "add_claude": "Add to Claude Code",
-        "add_codex": "Add to Codex",
+        "add_agents": "Add to Codex / Gemini CLI / Cursor",
+        "add_to": "Add to {agent}",
         "refine": "Generalise with {agent} first (optional, may take a few minutes)",
         "refine_confirm": "{agent} will read the draft SKILL.md, the annotated screenshots and "
         "the step list (secrets already masked) and rewrite them into a general procedure.\n\n"
@@ -78,8 +79,10 @@ TEXTS = {
         "exists": "A skill named “{name}” is already installed:\n{path}\n\nReplace it?",
         "installed_claude": "Added to Claude Code: {path}\nIn Claude Code type /{name}, or just "
         "ask for the task in your own words. If it does not show up, restart Claude Code.",
-        "installed_codex": "Added to Codex: {path}\nIn Codex type ${name} or /skills. If it does "
-        "not show up, restart Codex.",
+        "installed_agents": "Added to the shared skills folder: {path}\nCodex: type ${name} or "
+        "/skills. Gemini CLI: /skills (run /skills reload if it is open). Cursor: type / in Agent "
+        "chat. Restart the tool if the skill does not show up.",
+        "installed_other": "Added to {agent}: {path}",
         "export_all": "Export guide + skill (to share)",
     },
     "ja": {
@@ -124,7 +127,8 @@ TEXTS = {
         "agents_hint": "スキルを追加すると、エージェントがこの作業を代わりに行えます。",
         "make_skill": "SKILL.md を作る",
         "add_claude": "Claude Code に追加",
-        "add_codex": "Codex に追加",
+        "add_agents": "Codex・Gemini CLI・Cursor に追加",
+        "add_to": "{agent} に追加",
         "refine": "先に {agent} で一般化する（任意・数分かかることがあります）",
         "refine_confirm": "{agent} が SKILL.md の下書き・注釈付きスクリーンショット・手順一覧"
         "（秘密情報は伏せ字済み）を読み、汎用的な手順に書き直します。\n\n{agent} を実行しますか？",
@@ -137,8 +141,11 @@ TEXTS = {
         "installed_claude": "Claude Code に追加しました: {path}\n"
         "Claude Code で /{name} と入力するか、やりたい作業をそのまま頼んでください。"
         "表示されない場合は Claude Code を再起動してください。",
-        "installed_codex": "Codex に追加しました: {path}\nCodex で ${name} または /skills から"
-        "使えます。表示されない場合は Codex を再起動してください。",
+        "installed_agents": "共通のスキルフォルダに追加しました: {path}\nCodex は ${name} または "
+        "/skills、Gemini CLI は /skills（起動中なら /skills reload）、"
+        "Cursor はチャットで / を入力して使えます。"
+        "表示されない場合は各ツールを再起動してください。",
+        "installed_other": "{agent} に追加しました: {path}",
         "export_all": "手順書とスキルを書き出す（共有用）",
     },
 }
@@ -226,13 +233,33 @@ def step_count(session: Path) -> int:
 
 def refine_agent() -> str | None:
     """The agent CLI that can generalise a skill here (claude first), or None."""
-    from stepcap.skill import agents
+    from stepcap.skill import agents, registry
 
-    return next((a for a in agents.AGENTS if agents.find_cli(a)), None)
+    try:
+        names = agents.refiners()
+    except registry.RegistryError:
+        return None
+    return next((a for a in names if agents.find_cli(a)), None)
 
 
 def agent_label(agent: str) -> str:
-    return {"claude": "Claude Code", "codex": "Codex"}.get(agent, agent)
+    from stepcap.skill import registry
+
+    try:
+        return registry.get(agent).label
+    except registry.RegistryError:
+        return agent
+
+
+def custom_installers() -> list[tuple[str, str]]:
+    """(name, label) of agents from the user's agents.toml that have a skills folder."""
+    from stepcap.skill import registry
+
+    try:
+        specs = registry.load()
+    except registry.RegistryError:
+        return []
+    return [(n, s.label) for n, s in specs.items() if n not in registry.BUILTIN and s.can_install]
 
 
 def build_guide(session: Path, lang: str | None) -> dict[str, Path]:
