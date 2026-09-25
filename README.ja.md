@@ -48,6 +48,18 @@ stepcap export my-guide --format both -o dist --lang ja
 
 Python を入れたくない場合は、[Releases](https://github.com/kajisho5/stepcap/releases) から Windows / macOS / Linux 用の単体実行ファイル（PyInstaller 製）を使えます。
 
+### ターミナルを使わない場合: ウィンドウで操作
+
+```bash
+stepcap app          # または Releases の単体実行ファイルをダブルクリック
+```
+
+保存先を選んで **記録開始** を押し、作業をして、常に前面に出る小さなバーの **停止** を押します（F9 / F8 / F7 も使えます）。バー自体のクリックはステップになりません。終わったら **手順を編集** または **手順書とスキルを書き出す**（記録の隣に `<名前>-export/guide/` と `<名前>-export/skill/<名前>/` として出力）。表示言語はシステムの言語（日本語 / English）に合わせます。
+
+![stepcap app: 開始画面・記録バー・完了画面](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/app.png)
+
+Releases の実行ファイルにはまだコード署名がありません。Windows では「Windows によって PC が保護されました」が出ることがあります（**詳細情報 → 実行**）。macOS ではダウンロードしたファイルがブロックされることがあります（システム設定 → プライバシーとセキュリティ → **このまま開く**）。記録バーはスクリーンショットに写るので、必要なら `stepcap edit` でぼかしてください。
+
 ## デモ
 
 **1 回の記録 → 人向けの手順書（左）とエージェント用の SKILL.md（右）:**
@@ -209,6 +221,7 @@ stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
 stepcap check-skill SKILL_DIR [--json]
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
+stepcap app [--lang en|ja]                                 # ウィンドウ: 開始 / 停止 / 編集 / 書き出し
 stepcap doctor [--json]
 ```
 

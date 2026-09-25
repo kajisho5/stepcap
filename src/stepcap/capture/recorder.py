@@ -6,11 +6,21 @@ Threads:
   processor thread   owns mss + EventProcessor; grabs the screen on press
   writer thread      encodes PNGs to raw/
   main thread        waits, shows the F7 note prompt, handles Ctrl+C
+  control thread     (--control only) reads commands from stdin
+
+--control is the protocol `stepcap app` uses to drive a recording in a child
+process (no GUI toolkit ever runs in the recording process: on recent macOS,
+Tk/Cocoa + pynput's keyboard listener in one process crash). Commands on stdin,
+one per line: stop | pause | resume | manual | note <text> | note-cancel |
+exclude <x> <y> <w> <h> (clicks inside that screen rectangle are ignored).
+Status on stdout, one JSON object per line: ready | step | paused | resumed |
+note_request | done | error.
 """
 
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import queue
 import sys
@@ -73,6 +83,36 @@ class RecordOptions:
     record_clipboard: bool = False
     dry_run: bool = False
     as_json: bool = False
+    control: bool = False
+
+
+_status_lock = threading.Lock()
+
+
+def emit_status(event: str, **data: Any) -> None:
+    """One JSON line on stdout for `stepcap app` (only used with --control)."""
+    line = json.dumps({"event": event, **data}, ensure_ascii=False)
+    with _status_lock:
+        print(line, flush=True)
+
+
+def parse_command(line: str) -> tuple[str, Any] | None:
+    """Parse one --control command line; None if it is not understood."""
+    line = line.strip()
+    if not line:
+        return None
+    cmd, _, rest = line.partition(" ")
+    if cmd in ("stop", "pause", "resume", "manual", "note-cancel"):
+        return (cmd, None)
+    if cmd == "note":
+        return ("note", rest.strip())
+    if cmd == "exclude":
+        try:
+            x, y, w, h = (float(v) for v in rest.split())
+        except ValueError:
+            return None
+        return ("exclude", (x, y, w, h) if w > 0 and h > 0 else None)
+    return None
 
 
 def _say(msg: str) -> None:
@@ -123,10 +163,29 @@ def normalise_key(key: Any) -> str | None:
 
 
 # ---------------------------------------------------------------------------- note prompt
+def _prompt_osascript() -> str | None:
+    """macOS dialog in a separate process (Tk in this process would crash pynput)."""
+    import subprocess
+
+    script = (
+        'text returned of (display dialog "Note for this step (Cancel = skip):" '
+        'default answer "" with title "stepcap")'
+    )
+    try:
+        out = subprocess.run(["osascript", "-e", script], capture_output=True, text=True)
+    except OSError:
+        return None
+    if out.returncode != 0:  # Cancel (or no GUI session)
+        return None
+    return out.stdout.rstrip("\n") or None
+
+
 def prompt_note(mode: str) -> str | None:
     """Ask for the manual-step note. None = cancelled."""
     if mode == "none":
         return ""
+    if mode in ("auto", "gui") and sys.platform == "darwin":
+        return _prompt_osascript()
     if mode in ("auto", "gui"):
         try:
             import tkinter as tk
@@ -159,6 +218,7 @@ class Recorder:
         self.out = out
         self.raw_q: queue.Queue = queue.Queue()
         self.ui_q: queue.Queue = queue.Queue()
+        self.note_q: queue.Queue = queue.Queue()
         self.stopped = threading.Event()
         self.paused = threading.Event()
         self.prompting = threading.Event()
@@ -237,10 +297,53 @@ class Recorder:
         if self.paused.is_set():
             self.paused.clear()
             _say("stepcap: resumed")
+            if self.opts.control:
+                emit_status("resumed")
         else:
             self.paused.set()
             self.raw_q.put(("flush",))
             _say(f"stepcap: paused ({self.opts.hotkey_pause} to resume)")
+            if self.opts.control:
+                emit_status("paused")
+
+    def _control_main(self) -> None:
+        """--control: commands from the parent process (stepcap app) on stdin."""
+        for line in sys.stdin:
+            parsed = parse_command(line)
+            if parsed is None:
+                continue
+            cmd, arg = parsed
+            if cmd == "stop":
+                self.stop("control")
+            elif (cmd == "pause" and not self.paused.is_set()) or (
+                cmd == "resume" and self.paused.is_set()
+            ):
+                self.toggle_pause()
+            elif cmd == "manual":
+                if not self.prompting.is_set() and not self.stopped.is_set():
+                    self.raw_q.put(("manual", time.monotonic()))
+            elif cmd in ("note", "note-cancel"):
+                self.note_q.put(arg if cmd == "note" else None)
+            elif cmd == "exclude":
+                self.raw_q.put(("exclude", arg))
+            if self.stopped.is_set():
+                break
+        else:  # stdin closed: the app went away, so stop and save
+            self.note_q.put(None)
+            self.stop("control closed")
+
+    def _ask_note(self) -> str | None:
+        if not self.opts.control:
+            return prompt_note(self.opts.note_prompt)
+        while not self.note_q.empty():  # drop stale answers
+            self.note_q.get_nowait()
+        emit_status("note_request")
+        while not self.stopped.is_set():
+            try:
+                return self.note_q.get(timeout=0.2)
+            except queue.Empty:
+                continue
+        return None
 
     # ------------------------------------------------------------ processor thread
     def _processor_main(self) -> None:
@@ -283,6 +386,9 @@ class Recorder:
             self.counts[ev["kind"]] = self.counts.get(ev["kind"], 0) + 1
             where = ev.get("window_title") or ev.get("app_name") or ""
             _say(f"  #{ev['id']:<3} {kind:<13} {where[:60]}")
+            if self.opts.control:
+                steps = sum(self.counts.values())
+                emit_status("step", n=steps, kind=kind, where=where[:80])
 
         proc = EventProcessor(
             capture,
@@ -324,6 +430,8 @@ class Recorder:
                     self.ui_q.put(("manual", proc.manual_capture(item[1], pos())))
                 elif kind == "manual_commit":
                     proc.manual_commit(item[1], item[2])
+                elif kind == "exclude":
+                    proc.ignore_rects = [item[1]] if item[1] else []
                 elif kind == "observe":
                     _, ts, win, url, clip = item
                     proc.observe(ts, win, url)
@@ -390,6 +498,9 @@ class Recorder:
         for lst in self._listeners:
             lst.wait()
         threading.Thread(target=self._context_main, name="stepcap-context", daemon=True).start()
+        if o.control:
+            threading.Thread(target=self._control_main, name="stepcap-control", daemon=True).start()
+            emit_status("ready", session=str(self.out))
         if not all(lst.is_alive() for lst in self._listeners) or any(
             getattr(lst, "IS_TRUSTED", True) is False for lst in self._listeners
         ):
@@ -428,7 +539,7 @@ class Recorder:
                 if req[0] == "manual":
                     self.prompting.set()
                     try:
-                        note = prompt_note(o.note_prompt)
+                        note = self._ask_note()
                     finally:
                         self.prompting.clear()
                     if note is None:
@@ -494,6 +605,8 @@ class Recorder:
         else:
             _say(f"stepcap: saved {n_events} steps to {self.out}")
             _say(f"Next: stepcap build {self.out}")
+        if self.opts.control:
+            emit_status("done", **result)
         return result
 
 

@@ -233,6 +233,9 @@ class EventProcessor:
         self._last_url: str | None = None
         self._clip: str | None = None
         self._clip_seen = False
+        # Screen rectangles (x, y, w, h) whose clicks/scrolls are ignored: the
+        # `stepcap app` control bar, so pressing Stop is not a step.
+        self.ignore_rects: list[tuple[float, float, float, float]] = []
 
     # ------------------------------------------------------------------ helpers
     def is_excluded(self, win: WindowInfo) -> bool:
@@ -264,6 +267,9 @@ class EventProcessor:
 
     def _emit(self, ev: dict[str, Any]) -> None:
         self._emit_cb(ev)
+
+    def in_ignored_rect(self, x: float, y: float) -> bool:
+        return any(rx <= x < rx + rw and ry <= y < ry + rh for rx, ry, rw, rh in self.ignore_rects)
 
     def _pos(self, pos: tuple[float, float] | None) -> tuple[float, float]:
         if pos is not None:
@@ -366,6 +372,9 @@ class EventProcessor:
             c.released = False
             return
         self._flush_click()
+        if self.in_ignored_rect(x, y):
+            self._ignored_buttons.add(button)
+            return
         win = self.window()
         if self.is_excluded(win):
             self._ignored_buttons.add(button)
@@ -407,6 +416,8 @@ class EventProcessor:
 
     def on_scroll(self, ts: float, x: float, y: float, dx: float, dy: float) -> None:
         self.tick(ts)
+        if self.in_ignored_rect(x, y):
+            return
         self.last_pos = (x, y)
         self._flush_click()
         self._flush_typing()

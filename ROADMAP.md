@@ -37,7 +37,7 @@ issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-
 | RM-027 | planned | record | Region capture (`--region x,y,w,h`) for demos |
 | RM-028 | planned | record | Hover-only steps (manual hotkey that marks the pointer position) |
 | RM-029 | planned | record | Mouse cursor overlay in screenshots |
-| RM-030 | planned | record | Tray icon / small floating recorder window with stop / pause / note |
+| RM-030 | done | record | Small floating recorder window with stop / pause / note (`stepcap app`; tray icon not planned) |
 | RM-031 | planned | record | Detect and describe keyboard-only navigation (Tab sequences) |
 | RM-032 | planned | record | Per-app exclusion by process path / bundle id, not only name |
 | RM-033 | planned | record | Resume recording into an existing session (`record --append`) |
