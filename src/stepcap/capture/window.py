@@ -233,6 +233,10 @@ def address_to_url(text: str | None) -> str | None:
         return None
     if re.match(r"^([a-z][a-z0-9+.-]*://|(about|mailto|data|view-source):)", text, re.I):
         return text
+    if re.match(r"^[a-z]:[\\/]", text, re.I):  # Chrome / Edge show a local file as C:/dir/x.html
+        return "file:///" + text.replace("\\", "/")
+    if text.startswith("\\\\"):  # \\server\share\x.html
+        return "file:" + text.replace("\\", "/")
     return f"https://{text}" if _DOMAIN.match(text) else None
 
 

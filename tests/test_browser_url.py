@@ -26,6 +26,9 @@ from stepcap.capture.events import WindowInfo
         ("edge://settings/privacy", "edge://settings/privacy"),
         ("192.168.0.10/admin", "https://192.168.0.10/admin"),
         ("about:blank", "about:blank"),
+        ("C:/Users/me/guide.html", "file:///C:/Users/me/guide.html"),  # what Chrome shows
+        ("C:\\Users\\me\\guide.html", "file:///C:/Users/me/guide.html"),
+        ("\\\\nas\\share\\guide.html", "file://nas/share/guide.html"),
         ("how to reset the mixer", None),  # search text being typed
         ("mixer", None),
         ("", None),
@@ -103,6 +106,18 @@ def _diagnose(hwnd: int) -> str:
         UIA, uia = _uia_client()
         root = uia.ElementFromHandle(hwnd)
         lines.append(f"root: {root.CurrentName!r} {root.CurrentClassName!r}")
+        everything = root.FindAll(4, uia.CreateTrueCondition())
+        types: dict[int, int] = {}
+        interesting = []
+        for i in range(min(everything.Length, 400)):
+            el = everything.GetElement(i)
+            ct = el.CurrentControlType
+            types[ct] = types.get(ct, 0) + 1
+            name = el.CurrentName or ""
+            if ct in (50003, 50004, 50030) or any(k in name.lower() for k in ("search", "address")):
+                interesting.append(f"  type={ct} {name[:60]!r} id={el.CurrentAutomationId!r}")
+        lines.append(f"all: {everything.Length} by type: {sorted(types.items())}")
+        lines += interesting[:15]
         cond = uia.CreatePropertyCondition(30003, 50004)
         found = root.FindAll(4, cond)
         lines.append(f"edits: {found.Length}")
