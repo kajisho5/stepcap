@@ -257,12 +257,13 @@ any agent.
 
 ## How it compares
 
-Facts as published by each project (checked 2026-09-24; follow the links).
+Facts as published by each project (checked 2026-09-24, Claude row 2026-09-25; follow the links).
 
 | | Runs on | Guide for people | SKILL.md for agents | Account | Sends data |
 |---|---|---|---|---|---|
 | **stepcap** | Windows, macOS, Linux (X11) | ✅ MD, HTML, checklist | ✅ any agent (Claude Code, Codex, ...) | none | nothing (the optional agent step is your own CLI) |
 | [skill-recorder](https://github.com/microsoft/skill-recorder) | macOS, Windows 11, Ubuntu | — (skills and automations) | ✅ for Microsoft Scout / Copilot Cowork / Copilot Studio | GitHub account with Copilot | events and screen images to GitHub's cloud on Analyze |
+| [Claude "Record a skill"](https://support.claude.com/en/articles/12512198-how-to-create-custom-skills) | Claude for Mac (Cowork); not on Windows | — | ✅ for Claude (saved to your Claude skills) | Pro, Max or Team plan | the recording (screen, input, voice) is reviewed by Claude; video and audio are not retained, screenshots are |
 | [OpenSteps](https://github.com/ebanez8/openstep) | Windows 10+ | ✅ MD, HTML | — | none | none (local) |
 | [BetterStepsRecorder](https://github.com/Mentaleak/BetterStepsRecorder) | Windows | ✅ HTML, RTF, ODT | — | none | none documented |
 | [Scribe](https://scribe.com/pricing) | browser; desktop apps on Pro | ✅ (PDF/HTML/Markdown export on Pro) | — | required | cloud |

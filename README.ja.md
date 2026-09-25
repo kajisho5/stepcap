@@ -192,12 +192,13 @@ stepcap はこの 2 つの空白を埋めます。1 回のローカル記録か�
 
 ## 他ツールとの比較
 
-各プロジェクトの公開情報に基づきます（2026-09-24 時点で確認。詳細は各リンクを参照してください）。
+各プロジェクトの公開情報に基づきます（2026-09-24 時点で確認、Claude の行は 2026-09-25。詳細は各リンクを参照してください）。
 
 | | 動作環境 | 人向け手順書 | エージェント用 SKILL.md | アカウント | 外部送信 |
 |---|---|---|---|---|---|
 | **stepcap** | Windows / macOS / Linux(X11) | ✅ MD・HTML・チェックリスト | ✅ どのエージェントでも（Claude Code、Codex など） | 不要 | なし（任意のエージェント連携は利用者自身の CLI） |
 | [skill-recorder](https://github.com/microsoft/skill-recorder) | macOS / Windows 11 / Ubuntu | —（スキルと自動化のみ） | ✅ Microsoft Scout / Copilot Cowork / Copilot Studio 向け | Copilot を使える GitHub アカウント | Analyze 時にイベントと画面画像を GitHub のクラウドへ |
+| [Claude の「Record a skill」](https://support.claude.com/en/articles/12512198-how-to-create-custom-skills) | Claude for Mac（Cowork）。Windows 非対応 | — | ✅ Claude 向け（Claude のスキルに保存） | Pro / Max / Team プラン | 記録（画面・操作・音声）を Claude が確認。動画と音声は保持されず、スクリーンショットが保存される |
 | [OpenSteps](https://github.com/ebanez8/openstep) | Windows 10 以降 | ✅ MD・HTML | — | 不要 | なし（ローカル） |
 | [BetterStepsRecorder](https://github.com/Mentaleak/BetterStepsRecorder) | Windows | ✅ HTML・RTF・ODT | — | 不要 | 記載なし |
 | [Scribe](https://scribe.com/pricing) | ブラウザ（Pro はデスクトップアプリも） | ✅（PDF / HTML / Markdown 書き出しは Pro） | — | 必要 | クラウド |
