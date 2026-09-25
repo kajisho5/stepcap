@@ -102,6 +102,84 @@ T: dict[str, dict[str, str]] = {
     },
 }
 
+# Titles from the clicked UI element's name (accessibility APIs), e.g. 'Click the "Save"
+# button'. {n} = element name, {r} = role word. Keys: "<kind>" or "<kind>:<role>".
+EL = {
+    "en": {
+        "single": 'Click "{n}"',
+        "single:role": 'Click the "{n}" {r}',
+        "single:menu-item": 'Choose "{n}"',
+        "single:tab": 'Open the "{n}" tab',
+        "single:list-item": 'Click "{n}"',
+        "double": 'Double-click "{n}"',
+        "right": 'Right-click "{n}"',
+        "middle": 'Middle-click "{n}"',
+        "type": 'Type into "{n}"',
+        "type:text-field": 'Type into the "{n}" field',
+        "drag": 'Drag "{n}"',
+    },
+    "ja": {
+        "single": "「{n}」をクリック",
+        "single:role": "{r}「{n}」をクリック",
+        "single:menu-item": "メニュー「{n}」を選択",
+        "single:tab": "タブ「{n}」を開く",
+        "single:list-item": "「{n}」をクリック",
+        "double": "「{n}」をダブルクリック",
+        "right": "「{n}」を右クリック",
+        "middle": "「{n}」を中クリック",
+        "type": "「{n}」に入力",
+        "type:text-field": "入力欄「{n}」に入力",
+        "drag": "「{n}」をドラッグ",
+    },
+}
+ROLE_WORDS = {
+    "en": {
+        "button": "button",
+        "link": "link",
+        "checkbox": "checkbox",
+        "radio": "option",
+        "text-field": "field",
+        "dropdown": "menu",
+        "combo-box": "box",
+    },
+    "ja": {
+        "button": "ボタン",
+        "link": "リンク",
+        "checkbox": "チェックボックス",
+        "radio": "選択肢",
+        "text-field": "入力欄",
+        "dropdown": "ドロップダウン",
+        "combo-box": "入力欄",
+    },
+}
+
+
+def element_title(ev: dict[str, Any], lang: str) -> str | None:
+    """Title from the element name, or None when there is no usable name."""
+    el = ev.get("element") or {}
+    name = el.get("name") if isinstance(el, dict) else None
+    if not isinstance(name, str) or not name.strip():
+        return None
+    name = " ".join(name.split())
+    role = el.get("role")
+    kind = ev.get("kind")
+    tpl = EL[lang]
+    if kind == "click":
+        ct = ev.get("click_type", "single")
+        if ct != "single":
+            return tpl.get(ct, tpl["single"]).format(n=name)
+        if f"single:{role}" in tpl:
+            return tpl[f"single:{role}"].format(n=name)
+        if role in ROLE_WORDS[lang]:
+            return tpl["single:role"].format(n=name, r=ROLE_WORDS[lang][role])
+        return tpl["single"].format(n=name)
+    if kind == "type":
+        return tpl.get(f"type:{role}", tpl["type"]).format(n=name)
+    if kind == "drag":
+        return tpl["drag"].format(n=name)
+    return None
+
+
 KEY_LABELS = {
     "ctrl": "Ctrl",
     "alt": "Alt",
@@ -149,6 +227,9 @@ def _with_window(lang: str, key: str, ev: dict[str, Any], **kw: Any) -> str:
 
 
 def auto_title(ev: dict[str, Any], lang: str = "en") -> str:
+    by_element = element_title(ev, lang)
+    if by_element:
+        return by_element
     kind = ev.get("kind")
     if kind == "click":
         ct = ev.get("click_type", "single")

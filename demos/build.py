@@ -268,7 +268,9 @@ def main() -> int:
     OUT.mkdir(parents=True)
     DOCS.mkdir(parents=True, exist_ok=True)
     session = OUT / "demo"
-    simulate(make_events(), session)
+    spec = make_events()
+    spec["accessibility"] = True  # element names + frames, as Windows UIA / macOS AX report them
+    simulate(spec, session)
     meta = read_json(session / SESSION_FILE)
     meta["started"] = FIXED_START
     write_json(session / SESSION_FILE, meta)

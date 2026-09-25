@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 import shutil
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -93,6 +94,18 @@ def step_from_event(ev: dict[str, Any], lang: str) -> dict[str, Any]:
     for key in ("click_type", "direction", "keys"):
         if key in ev:
             step[key] = ev[key]
+    el = ev.get("element")
+    if isinstance(el, dict) and (el.get("name") or el.get("role")):
+        step["element"] = {k: el[k] for k in ("name", "role") if el.get(k)}
+        box = el.get("box")
+        if (
+            ev.get("kind") in BOX_KINDS
+            and isinstance(box, list)
+            and len(box) == 4
+            and all(isinstance(v, int) for v in box)
+        ):
+            step["box"] = box  # exact frame from the accessibility API
+            step["box_source"] = "a11y"
     if ev.get("kind") == "drag":
         step["from"] = _point(ev.get("from"))
         step["to"] = _point(ev.get("to"))
@@ -136,8 +149,18 @@ def create_steps(
     }
 
 
+def input_name_for(label: Any) -> str | None:
+    """snake_case variable name from a field label ("Project name" -> project_name)."""
+    if not isinstance(label, str):
+        return None
+    ascii_label = unicodedata.normalize("NFKD", label).encode("ascii", "ignore").decode("ascii")
+    name = re.sub(r"[^a-z0-9]+", "_", ascii_label.lower()).strip("_")[:40].strip("_")
+    return name if name and INPUT_NAME.match(name) else None
+
+
 def assign_inputs(steps: list[dict[str, Any]]) -> int:
-    """Give every ``type`` step without one an ``input`` (``input_1``, ``input_2`` ...)."""
+    """Give every ``type`` step without one an ``input``: named after the field it was
+    typed into when that is known (``project_name``), else ``input_1``, ``input_2`` ..."""
     used = {
         s["input"]["name"]
         for s in steps
@@ -148,10 +171,17 @@ def assign_inputs(steps: list[dict[str, Any]]) -> int:
         if s.get("kind") != "type" or isinstance(s.get("input"), dict):
             continue
         n += 1
-        while f"input_{n}" in used:
-            n += 1
-        s["input"] = {"name": f"input_{n}", "variable": True}
-        used.add(s["input"]["name"])
+        name = input_name_for((s.get("element") or {}).get("name"))
+        if name:
+            base, k = name, 2
+            while name in used:
+                name, k = f"{base}_{k}", k + 1
+        else:
+            while f"input_{n}" in used:
+                n += 1
+            name = f"input_{n}"
+        s["input"] = {"name": name, "variable": True}
+        used.add(name)
         changed += 1
     return changed
 
@@ -168,7 +198,8 @@ def migrate_steps(doc: dict[str, Any]) -> dict[str, Any]:
 def detect_boxes(session: Path, steps: list[dict[str, Any]]) -> int:
     """Auto-detect the clicked element's box for steps that have no box decision yet.
 
-    ``box_source`` records who decided: ``auto`` (this function) or ``manual``
+    ``box_source`` records who decided: ``auto`` (this function), ``a11y`` (the
+    element rectangle reported by the OS while recording) or ``manual``
     (``stepcap edit``). Steps that already have one are left alone, so manual
     boxes and manual removals survive rebuilds. Detection reads ``raw/``, never
     the (possibly blurred) ``work/`` copy. Returns the number of steps updated.

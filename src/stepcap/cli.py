@@ -60,6 +60,7 @@ def cmd_record(args: argparse.Namespace) -> int:
         dry_run=args.dry_run,
         as_json=args.json,
         control=args.control,
+        element_names=not args.no_element_names,
     )
     try:
         result = record(opts)
@@ -409,6 +410,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="check permissions/hooks and exit without recording"
     )
     r.add_argument("--json", action="store_true", help="print a JSON summary when done")
+    r.add_argument(
+        "--no-element-names",
+        action="store_true",
+        help="do not ask the OS for the clicked element's name and frame "
+        "(Windows UI Automation / macOS Accessibility); steps are then titled from the "
+        "window name",
+    )
     r.add_argument(
         "--control",
         action="store_true",

@@ -28,7 +28,7 @@ issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-
 | RM-018 | planned | build | Configurable marker style (colour, size, shape, spotlight dimming) |
 | RM-019 | planned | build | Step grouping into sections (by window / app change) |
 | RM-020 | planned | build | Optional local OCR to name the clicked element (off by default) |
-| RM-021 | planned | build | Use accessibility APIs (UIA / AX / AT-SPI) to name clicked controls and get exact frames |
+| RM-021 | done | build | Use accessibility APIs (UIA / AX) to name clicked controls and get exact frames (AT-SPI: RM-069) |
 | RM-022 | planned | build | More UI languages for automatic texts (zh, ko, de, fr, es) |
 | RM-023 | planned | build | Animated GIF / WebP per step option for drags |
 | RM-024 | planned | build | Include a CJK-capable font for simulate / captions |
@@ -76,3 +76,4 @@ issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-
 | RM-066 | planned | record | Voice notes while recording (local speech-to-text, off by default) |
 | RM-067 | planned | agents | Check a generated skill against its recording (step coverage / dry-run report) |
 | RM-068 | planned | agents | One skill from several recordings of the same task (merge variants, detect inputs) |
+| RM-069 | planned | record | Element names on Linux via AT-SPI |

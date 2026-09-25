@@ -84,6 +84,7 @@ class RecordOptions:
     dry_run: bool = False
     as_json: bool = False
     control: bool = False
+    element_names: bool = True  # name + frame of the clicked element (UIA / AX)
 
 
 _status_lock = threading.Lock()
@@ -403,6 +404,7 @@ class Recorder:
                 record_clipboard=self.opts.record_clipboard,
             ),
             t0=time.monotonic(),
+            element=self._element_lookup(),
         )
         self.meta["t0_epoch"] = round(time.time(), 3)  # aligns `stepcap shell` commands
         self.processor = proc
@@ -446,6 +448,14 @@ class Recorder:
     def _window(self) -> WindowInfo:
         return window_mod.get_active_window()
 
+    def _element_lookup(self):
+        if not self.opts.element_names:
+            return None
+        from stepcap.capture.element import ElementLookup
+
+        lookup = ElementLookup()
+        return lookup if lookup.enabled else None
+
     def _context_main(self) -> None:
         """Poll the front window (+ browser URL, clipboard) for context events."""
         from stepcap.capture import clipboard
@@ -475,6 +485,7 @@ class Recorder:
                 "record_urls": o.record_urls,
                 "keep_query": o.keep_query,
                 "record_clipboard": o.record_clipboard,
+                "element_names": o.element_names,
             },
         )
         self.writer = EventWriter(self.out / EVENTS_FILE)
