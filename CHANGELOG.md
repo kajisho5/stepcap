@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.5](https://github.com/kajisho5/stepcap/compare/v0.1.4...v0.1.5) (2026-09-25)
+
+
+### Features
+
+* name and frame the clicked element (Windows UI Automation, macOS Accessibility) ([#66](https://github.com/kajisho5/stepcap/issues/66)) ([02b79ce](https://github.com/kajisho5/stepcap/commit/02b79ceddf550d9478fa4e32d97af4a27f33f60e))
+* stepcap app - a window to record without the terminal ([#64](https://github.com/kajisho5/stepcap/issues/64)) ([2ebd60d](https://github.com/kajisho5/stepcap/commit/2ebd60d6221470a87a38f55f5b4b58b8a02fa904))
+
 ## [0.1.4](https://github.com/kajisho5/stepcap/compare/v0.1.3...v0.1.4) (2026-09-24)
 
 
