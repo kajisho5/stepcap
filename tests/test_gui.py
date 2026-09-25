@@ -281,6 +281,7 @@ def test_window_views(tmp_path, monkeypatch):
     try:
         app = App(root, "ja")
         root.update()
+        assert [(i.width(), i.height()) for i in app.icons] == [(256, 256), (32, 32)]
         app.rec = FakeRec()
         app.session = tmp_path / "s1"
         app.handle({"event": "ready", "session": str(app.session)})

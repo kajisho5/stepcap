@@ -50,6 +50,8 @@ def test_ui_and_steps(server):
     assert status == 200 and len(data["doc"]["steps"]) == 12
     assert data["usage"]["0002"] == 4  # dialog screenshot shared by 4 steps
     assert (session / "steps.json").exists()
+    status, icon = call(base, "GET", "/favicon.ico")
+    assert status == 200 and icon.startswith(b"\x89PNG")
 
 
 def test_reorder_delete_rename_and_save(server):

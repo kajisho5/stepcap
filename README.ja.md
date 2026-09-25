@@ -1,4 +1,9 @@
-# stepcap
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/brand/banner-dark.png">
+    <img alt="stepcap" src="https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/brand/banner-light.png" width="640">
+  </picture>
+</h1>
 
 **1 回の記録から、人向けの手順書と、どのエージェントでも使える SKILL.md の両方を。ローカル完結・アカウント不要・Copilot 不要。**
 
@@ -66,7 +71,7 @@ stepcap app          # または Releases の単体実行ファイルをダブ�
 
 **手順書とスキルを書き出す（共有用）** は両方を記録の隣（`<名前>-export/`）に出力します。表示言語はシステムの言語（日本語 / English）に合わせます。
 
-![stepcap app: 開始画面・記録バー・完了画面](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/app.png)
+![stepcap app: 開始画面・記録バー・完了画面](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/app-ja.png)
 
 Releases の実行ファイルにはまだコード署名がありません。Windows では「Windows によって PC が保護されました」が出ることがあります（**詳細情報 → 実行**）。macOS ではダウンロードしたファイルがブロックされることがあります（システム設定 → プライバシーとセキュリティ → **このまま開く**）。記録バーはスクリーンショットに写るので、必要なら `stepcap edit` でぼかしてください。
 

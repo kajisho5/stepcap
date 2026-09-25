@@ -1,4 +1,9 @@
-# stepcap
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/brand/banner-dark.png">
+    <img alt="stepcap" src="https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/brand/banner-light.png" width="640">
+  </picture>
+</h1>
 
 **Record once. Get a how-to guide for humans and a SKILL.md for any agent. Local, no account, no Copilot.**
 
