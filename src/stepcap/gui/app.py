@@ -4,16 +4,23 @@ Three views in one window:
   home       where to save, options, Start, recent recordings
   recording  a compact always-on-top bar: time, step count, Pause, Note, Stop;
              its screen rectangle is sent to the recorder so clicking it is not a step
-  finished   Edit steps (browser), Export guide + skill, Open folder, New recording
+  finished   two groups: for people (open the guide, printable checklist, edit steps)
+             and for AI agents (create SKILL.md, add it to Claude Code / Codex,
+             optionally generalise it with the agent CLI first)
+
+Slow work (building, the agent CLI) runs on a thread; its result comes back through
+``self.jobs`` and is applied in ``poll`` on the Tk thread.
 """
 
 from __future__ import annotations
 
+import queue
 import threading
 import time
 import tkinter as tk
+from collections.abc import Callable
 from pathlib import Path
-from tkinter import filedialog, ttk
+from tkinter import filedialog, messagebox, ttk
 from typing import Any
 
 from stepcap.gui import controller as ctl
@@ -43,6 +50,9 @@ class App:
         self.opt_clip = tk.BooleanVar(value=False)
         self.guide_lang = tk.StringVar(value=self.lang)
         self.status = tk.StringVar(value="")
+        self.refine = tk.BooleanVar(value=False)
+        self.jobs: queue.Queue[Callable[[], None]] = queue.Queue()
+        self.busy = False
         self.frame: ttk.Frame | None = None
         self.show_home()
         root.after(POLL_MS, self.poll)
@@ -104,14 +114,24 @@ class App:
                 row = ttk.Frame(f)
                 row.grid(row=13 + i, column=0, columnspan=3, sticky="we")
                 ttk.Label(row, text=s.name, width=24).pack(side="left")
-                ttk.Button(row, text=t["edit"], command=lambda p=s: self.edit(p)).pack(side="left")
-                ttk.Button(row, text=t["export"], command=lambda p=s: self.export(p)).pack(
-                    side="left", padx=4
-                )
-                ttk.Button(row, text=t["open_folder"], command=lambda p=s: ctl.open_path(p)).pack(
+                ttk.Button(row, text=t["open"], command=lambda p=s: self.open_session(p)).pack(
                     side="left"
                 )
+                ttk.Button(row, text=t["open_folder"], command=lambda p=s: ctl.open_path(p)).pack(
+                    side="left", padx=4
+                )
         f.columnconfigure(1, weight=1)
+        self.fit_on_screen()
+
+    def fit_on_screen(self) -> None:
+        """Back to natural size, moved so the whole window is visible (after the bar)."""
+        r = self.root
+        r.geometry("")
+        r.update_idletasks()
+        sw, sh = r.winfo_screenwidth(), r.winfo_screenheight()
+        x = min(max(0, r.winfo_x()), max(0, sw - r.winfo_reqwidth() - 24))
+        y = min(max(0, r.winfo_y()), max(0, sh - r.winfo_reqheight() - 48))
+        r.geometry(f"+{x}+{y}")
 
     def show_bar(self) -> None:
         t, f = self.t, self._new_frame()
@@ -174,25 +194,67 @@ class App:
         ttk.Label(f, text=t["saved"].format(n=n), font=("TkDefaultFont", 14, "bold")).pack(
             anchor="w"
         )
-        ttk.Label(f, text=str(session)).pack(anchor="w", pady=(0, 10))
-        if not n:
-            ttk.Label(f, text=t["no_steps"], foreground="#a33").pack(anchor="w")
-        buttons = ttk.Frame(f)
-        buttons.pack(anchor="w")
+        ttk.Label(f, text=str(session), foreground="#667", wraplength=560).pack(
+            anchor="w", pady=(0, 10)
+        )
+        self.action_buttons: list[ttk.Button] = []
         if session is not None and n:
-            ttk.Button(buttons, text=t["edit"], command=lambda: self.edit(session)).pack(
-                side="left"
-            )
-            ttk.Button(buttons, text=t["export"], command=lambda: self.export(session)).pack(
-                side="left", padx=4
-            )
+            agents = ttk.LabelFrame(f, text=t["for_agents"], padding=10)
+            agents.pack(fill="x", pady=(0, 10))
+            ttk.Label(agents, text=t["agents_hint"]).pack(anchor="w", pady=(0, 6))
+            row = ttk.Frame(agents)
+            row.pack(anchor="w")
+            for key, install in (
+                ("add_claude", "claude"),
+                ("add_codex", "codex"),
+                ("make_skill", "none"),
+            ):
+                b = ttk.Button(row, text=t[key], command=lambda i=install: self.skill(session, i))
+                b.pack(side="left", padx=(0, 6))
+                self.action_buttons.append(b)
+            self.refine_agent = ctl.refine_agent()
+            self.refine.set(False)
+            if self.refine_agent:
+                label = t["refine"].format(agent=ctl.agent_label(self.refine_agent))
+                ttk.Checkbutton(agents, text=label, variable=self.refine).pack(
+                    anchor="w", pady=(6, 0)
+                )
+            people = ttk.LabelFrame(f, text=t["for_people"], padding=10)
+            people.pack(fill="x")
+            row = ttk.Frame(people)
+            row.pack(anchor="w")
+            for key, cmd in (
+                ("open_guide", lambda: self.open_guide(session, "guide")),
+                ("checklist", lambda: self.open_guide(session, "checklist")),
+                ("edit", lambda: self.edit(session)),
+            ):
+                b = ttk.Button(row, text=t[key], command=cmd)
+                b.pack(side="left", padx=(0, 6))
+                self.action_buttons.append(b)
+
+        elif not n:
+            ttk.Label(f, text=t["no_steps"], foreground="#a33").pack(anchor="w")
+        bottom = ttk.Frame(f)
+        bottom.pack(anchor="w", pady=(12, 0))
         if session is not None:
-            ttk.Button(buttons, text=t["open_folder"], command=lambda: ctl.open_path(session)).pack(
+            ttk.Button(bottom, text=t["open_folder"], command=lambda: ctl.open_path(session)).pack(
                 side="left"
             )
-        ttk.Button(f, text=t["new"], command=self.show_home).pack(anchor="w", pady=(12, 0))
-        ttk.Label(f, textvariable=self.status, wraplength=520).pack(anchor="w", pady=(8, 0))
+            if n:
+                b = ttk.Button(bottom, text=t["export_all"], command=lambda: self.export(session))
+                b.pack(side="left", padx=6)
+                self.action_buttons.append(b)
+        ttk.Button(bottom, text=t["new"], command=self.show_home).pack(side="left")
+        ttk.Label(f, textvariable=self.status, wraplength=560, justify="left").pack(
+            anchor="w", pady=(10, 0)
+        )
         self.status.set("")
+        self.fit_on_screen()
+
+    def open_session(self, session: Path) -> None:
+        """A recent recording -> its finished view."""
+        self.session = session
+        self.show_finished({"events": ctl.step_count(session)})
 
     # ------------------------------------------------------------------ actions
     def choose_dir(self) -> None:
@@ -244,30 +306,109 @@ class App:
 
         subprocess.Popen([*ctl.self_command(), "edit", str(session)])
 
-    def export(self, session: Path) -> None:
-        self.status.set(self.t["exporting"])
+    def run_job(self, message: str, work: Callable[[], Any], done: Callable[[Any], None]) -> None:
+        """Run ``work`` on a thread; ``done(result)`` (or the error) is applied on the Tk thread."""
+        if self.busy:
+            return
+        self.busy = True
+        self.status.set(message)
+        for b in getattr(self, "action_buttons", []):
+            if b.winfo_exists():
+                b.state(["disabled"])
+
+        def finish(fn: Callable[[], None]) -> None:
+            self.busy = False
+            for b in getattr(self, "action_buttons", []):
+                if b.winfo_exists():
+                    b.state(["!disabled"])
+            fn()
+
+        def thread() -> None:
+            try:
+                result = work()
+            except Exception as exc:  # shown to the user, not raised in a Tk callback
+                err = f"{type(exc).__name__}: {exc}"
+                self.jobs.put(lambda: finish(lambda: self.status.set(err)))
+                return
+            self.jobs.put(lambda: finish(lambda: done(result)))
+
+        threading.Thread(target=thread, daemon=True).start()
+
+    def open_guide(self, session: Path, which: str) -> None:
         lang = self.guide_lang.get()
 
-        def work() -> None:
+        def done(paths: dict[str, Path]) -> None:
+            self.status.set(str(paths[which]))
+            ctl.open_path(paths[which])
+
+        self.run_job(self.t["building"], lambda: ctl.build_guide(session, lang), done)
+
+    def skill(self, session: Path, install: str) -> None:
+        t = self.t
+        replace = False
+        if install != "none":
+            try:
+                name, target = ctl.skill_target(session, install)
+            except Exception as exc:
+                self.status.set(f"{type(exc).__name__}: {exc}")
+                return
+            if target.exists():
+                if not messagebox.askyesno(
+                    "stepcap", t["exists"].format(name=name, path=target), parent=self.root
+                ):
+                    return
+                replace = True
+        agent = "none"
+        if self.refine.get() and self.refine_agent:
+            label = ctl.agent_label(self.refine_agent)
+            if not messagebox.askyesno(
+                "stepcap", t["refine_confirm"].format(agent=label), parent=self.root
+            ):
+                return
+            agent = self.refine_agent
+        message = t["refining"].format(agent=ctl.agent_label(agent)) if agent != "none" else ""
+
+        def done(res: Any) -> None:
+            skill_dir = Path(res.skill_dir)
+            if res.problems:
+                self.status.set(t["skill_problems"].format(problems="\n".join(res.problems)))
+                ctl.open_path(skill_dir)
+            elif install != "none" and res.installed_to:
+                self.status.set(
+                    t[f"installed_{install}"].format(path=res.installed_to, name=res.name)
+                )
+            else:
+                self.status.set(t["skill_made"].format(path=skill_dir / "SKILL.md"))
+                ctl.open_path(skill_dir)
+
+        self.run_job(
+            message or t["working"],
+            lambda: ctl.make_skill(session, install, agent, replace),
+            done,
+        )
+
+    def export(self, session: Path) -> None:
+        lang = self.guide_lang.get()
+        out = ctl.export_dir(session)
+
+        def work() -> Path:
             from stepcap.build.pipeline import BuildOptions
             from stepcap.skill.run import SkillOptions, run_export
 
-            out = ctl.export_dir(session)
-            try:
-                run_export(
-                    session,
-                    "both",
-                    out,
-                    SkillOptions(out_dir=out / "skill", force=True),
-                    BuildOptions(lang=lang),
-                )
-                msg = self.t["exported"].format(path=out)
-                self.root.after(0, lambda: (self.status.set(msg), ctl.open_path(out)))
-            except Exception as exc:  # shown to the user, not raised in a Tk callback
-                err = f"{type(exc).__name__}: {exc}"
-                self.root.after(0, lambda: self.status.set(err))
+            run_export(
+                session,
+                "both",
+                out,
+                SkillOptions(out_dir=out / "skill", name=ctl.skill_name(session), force=True),
+                BuildOptions(lang=lang),
+            )
+            return out
 
-        threading.Thread(target=work, daemon=True).start()
+        def done(path: Path) -> None:
+            self.status.set(self.t["exported"].format(path=path))
+            ctl.open_path(path)
+
+        self.run_job(self.t["exporting"], work, done)
 
     def run_doctor(self) -> None:
         import subprocess
@@ -285,6 +426,11 @@ class App:
     # ------------------------------------------------------------------ events
     def poll(self) -> None:
         try:
+            while True:
+                try:
+                    self.jobs.get_nowait()()
+                except queue.Empty:
+                    break
             if self.rec is not None:
                 for ev in self.rec.drain():
                     self.handle(ev)

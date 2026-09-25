@@ -70,9 +70,18 @@ stepcap app          # or double-click the release binary
 
 Pick where to save, press **Start recording**, do the task, press **Stop** on the small
 always-on-top bar (F9 / F8 / F7 keep working). Clicks on the bar itself are never steps.
-Then **Edit steps** or **Export guide + skill** (written next to the recording as
-`<name>-export/guide/` and `<name>-export/skill/<name>/`). The window follows the system
-language (English / 日本語).
+When you stop, the window offers the two results:
+
+- **For AI agents: skill (SKILL.md)**: **Add to Claude Code** (copies it to
+  `~/.claude/skills/<name>/`; then type `/<name>` or just ask for the task),
+  **Add to Codex** (`~/.agents/skills/<name>/`; `$<name>` or `/skills`), or
+  **Create SKILL.md** only. If the `claude` or `codex` CLI is installed, tick
+  *Generalise first* to let it rewrite the one-run draft into a general procedure (asks
+  before running). An installed skill with the same name is only replaced after you confirm.
+- **For people: guide**: **Open guide**, **Printable checklist**, **Edit steps**.
+
+**Export guide + skill** writes both next to the recording (`<name>-export/`) to share. The
+window follows the system language (English / 日本語).
 
 ![stepcap app: start, recording bar, done](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/app.png)
 

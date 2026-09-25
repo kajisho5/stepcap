@@ -20,11 +20,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from stepcap.session import EVENTS_FILE
+from stepcap.session import EVENTS_FILE, load_session
 
 TEXTS = {
     "en": {
-        "subtitle": "Record once: a guide for people and a skill for agents",
+        "subtitle": "Show your AI agent a task once: stepcap turns the recording into a skill "
+        "(SKILL.md) the agent can follow, plus a step-by-step guide for people.",
         "save_to": "Save to",
         "change": "Change…",
         "name": "Name",
@@ -56,9 +57,34 @@ TEXTS = {
         "failed": "Recording could not start",
         "hint_keys": "F9 stop · F8 pause · F7 note also work while recording",
         "no_steps": "No steps were recorded. Run “Check setup”.",
+        "open": "Open",
+        "for_people": "For people: step-by-step guide",
+        "open_guide": "Open guide",
+        "checklist": "Printable checklist",
+        "for_agents": "For AI agents: skill (SKILL.md)",
+        "agents_hint": "Add the skill and your agent can do this task for you.",
+        "make_skill": "Create SKILL.md",
+        "add_claude": "Add to Claude Code",
+        "add_codex": "Add to Codex",
+        "refine": "Generalise with {agent} first (optional, may take a few minutes)",
+        "refine_confirm": "{agent} will read the draft SKILL.md, the annotated screenshots and "
+        "the step list (secrets already masked) and rewrite them into a general procedure.\n\n"
+        "Run {agent} now?",
+        "working": "Working…",
+        "refining": "{agent} is generalising the skill… (this can take a few minutes)",
+        "building": "Building the guide…",
+        "skill_made": "SKILL.md created: {path}",
+        "skill_problems": "The skill did not pass the checks and was not added:\n{problems}",
+        "exists": "A skill named “{name}” is already installed:\n{path}\n\nReplace it?",
+        "installed_claude": "Added to Claude Code: {path}\nIn Claude Code type /{name}, or just "
+        "ask for the task in your own words. If it does not show up, restart Claude Code.",
+        "installed_codex": "Added to Codex: {path}\nIn Codex type ${name} or /skills. If it does "
+        "not show up, restart Codex.",
+        "export_all": "Export guide + skill (to share)",
     },
     "ja": {
-        "subtitle": "1 回の記録で、人向けの手順書とエージェント用のスキル",
+        "subtitle": "作業を 1 回見せるだけで、AI エージェントが同じ作業をできる"
+        "スキル（SKILL.md）と、人向けの手順書ができます。",
         "save_to": "保存先",
         "change": "変更…",
         "name": "名前",
@@ -90,6 +116,30 @@ TEXTS = {
         "failed": "記録を開始できませんでした",
         "hint_keys": "記録中は F9 停止・F8 一時停止・F7 メモ も使えます",
         "no_steps": "ステップが記録されていません。「環境チェック」を実行してください。",
+        "open": "開く",
+        "for_people": "人向け：手順書",
+        "open_guide": "手順書を開く",
+        "checklist": "印刷用チェックリスト",
+        "for_agents": "AI エージェント向け：スキル（SKILL.md）",
+        "agents_hint": "スキルを追加すると、エージェントがこの作業を代わりに行えます。",
+        "make_skill": "SKILL.md を作る",
+        "add_claude": "Claude Code に追加",
+        "add_codex": "Codex に追加",
+        "refine": "先に {agent} で一般化する（任意・数分かかることがあります）",
+        "refine_confirm": "{agent} が SKILL.md の下書き・注釈付きスクリーンショット・手順一覧"
+        "（秘密情報は伏せ字済み）を読み、汎用的な手順に書き直します。\n\n{agent} を実行しますか？",
+        "working": "処理中…",
+        "refining": "{agent} がスキルを一般化しています…（数分かかることがあります）",
+        "building": "手順書を作成中…",
+        "skill_made": "SKILL.md を作成しました: {path}",
+        "skill_problems": "スキルがチェックに通らなかったため追加していません:\n{problems}",
+        "exists": "「{name}」という名前のスキルが既にあります:\n{path}\n\n置き換えますか？",
+        "installed_claude": "Claude Code に追加しました: {path}\n"
+        "Claude Code で /{name} と入力するか、やりたい作業をそのまま頼んでください。"
+        "表示されない場合は Claude Code を再起動してください。",
+        "installed_codex": "Codex に追加しました: {path}\nCodex で ${name} または /skills から"
+        "使えます。表示されない場合は Codex を再起動してください。",
+        "export_all": "手順書とスキルを書き出す（共有用）",
     },
 }
 
@@ -161,6 +211,98 @@ def record_argv(out: Path, typing: bool, urls: bool, clipboard: bool) -> list[st
 def export_dir(session: Path) -> Path:
     """Exports go next to the session (never inside it)."""
     return session.parent / f"{session.name}-export"
+
+
+def step_count(session: Path) -> int:
+    """Recorded steps (context events such as app switches or URLs do not count)."""
+    from stepcap.skill.draft import CONTEXT_KINDS
+
+    try:
+        _, events = load_session(session)
+    except Exception:
+        return 0
+    return sum(1 for ev in events if ev.get("kind") not in CONTEXT_KINDS)
+
+
+def refine_agent() -> str | None:
+    """The agent CLI that can generalise a skill here (claude first), or None."""
+    from stepcap.skill import agents
+
+    return next((a for a in agents.AGENTS if agents.find_cli(a)), None)
+
+
+def agent_label(agent: str) -> str:
+    return {"claude": "Claude Code", "codex": "Codex"}.get(agent, agent)
+
+
+def build_guide(session: Path, lang: str | None) -> dict[str, Path]:
+    """Build guide.html / checklist.html in the session folder (keeps edits in steps.json)."""
+    from stepcap.build.pipeline import CHECKLIST_HTML, GUIDE_HTML, BuildOptions, run_build
+
+    run_build(session, BuildOptions(lang=lang))
+    return {"guide": session / GUIDE_HTML, "checklist": session / CHECKLIST_HTML}
+
+
+def skill_out(session: Path) -> Path:
+    return export_dir(session) / "skill"
+
+
+def skill_name(session: Path) -> str:
+    """The name `stepcap skill` would pick, made unique per recording when it falls back.
+
+    A title with no ASCII letters (e.g. Japanese) gives the generic
+    ``recorded-procedure``; in the window every such recording would then replace
+    the previous one, so the recording's folder name (or start time) is appended.
+    """
+    from stepcap.skill import draft
+    from stepcap.skill.run import SkillOptions, run_skill
+    from stepcap.skill.validate import MAX_NAME
+
+    res = run_skill(session, SkillOptions(out_dir=skill_out(session), force=True, dry_run=True))
+    if res.name != draft.DEFAULT_NAME:
+        return res.name
+    suffix = draft.slugify(session.name)
+    if not suffix:
+        stamp = (session / EVENTS_FILE).stat().st_mtime if (session / EVENTS_FILE).exists() else 0
+        suffix = new_session_name(datetime.fromtimestamp(stamp))
+    return f"{draft.DEFAULT_NAME}-{suffix}"[:MAX_NAME].strip("-")
+
+
+def skill_target(session: Path, agent: str, home: Path | None = None) -> tuple[str, Path]:
+    """(skill name, the folder `agent` loads it from) without writing anything."""
+    from stepcap.skill import install as install_mod
+
+    name = skill_name(session)
+    return name, install_mod.target_dir(agent, "user", name, home=home)
+
+
+def make_skill(
+    session: Path,
+    install: str = "none",
+    agent: str = "none",
+    replace: bool = False,
+    home: Path | None = None,
+):
+    """Write SKILL.md next to the session and optionally add it to Claude Code / Codex.
+
+    The draft folder (``<session>-export/skill/<name>``) is always ours to replace;
+    an installed skill is replaced only with ``replace=True`` (the window asks
+    first), and only after the new one passed validation. The agent run was
+    confirmed in the window, so ``yes=True``.
+    """
+    import shutil
+
+    from stepcap.skill.run import SkillOptions, run_skill
+
+    out = skill_out(session)
+    name = skill_name(session)
+    force = replace or install == "none"
+    if not force and (out / name / "SKILL.md").is_file():
+        shutil.rmtree(out / name)
+    opt = SkillOptions(
+        out_dir=out, name=name, install=install, agent=agent, force=force, yes=True, home=home
+    )
+    return run_skill(session, opt)
 
 
 def open_path(path: Path) -> None:
