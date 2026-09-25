@@ -11,8 +11,9 @@ Threads:
 --control is the protocol `stepcap app` uses to drive a recording in a child
 process (no GUI toolkit ever runs in the recording process: on recent macOS,
 Tk/Cocoa + pynput's keyboard listener in one process crash). Commands on stdin,
-one per line: stop | pause | resume | manual | note <text> | note-cancel |
-exclude <x> <y> <w> <h> (clicks inside that screen rectangle are ignored).
+one per line: stop | pause | resume | manual | note <text> | note-cancel | undo (forget
+the newest step) | exclude <x> <y> <w> <h> (clicks inside that screen rectangle are
+ignored and the rectangle is painted over in screenshots).
 Status on stdout, one JSON object per line: ready | step | paused | resumed |
 note_request | done | error.
 """
@@ -107,7 +108,7 @@ def parse_command(line: str) -> tuple[str, Any] | None:
     if not line:
         return None
     cmd, _, rest = line.partition(" ")
-    if cmd in ("stop", "pause", "resume", "manual", "note-cancel"):
+    if cmd in ("stop", "pause", "resume", "manual", "note-cancel", "undo"):
         return (cmd, None)
     if cmd == "note":
         return ("note", rest.strip())
@@ -233,6 +234,8 @@ class Recorder:
         self.down: set[str] = set()
         self.counts: dict[str, int] = {}
         self.context_count = 0
+        self.step_log: list[tuple[int, str, str | None]] = []  # (id, kind, screenshot)
+        self.undone: list[tuple[int, str | None]] = []
         self.meta: dict[str, Any] = {}
         self.writer: EventWriter | None = None
         self.shot_writer = None
@@ -337,6 +340,8 @@ class Recorder:
                 self.note_q.put(arg if cmd == "note" else None)
             elif cmd == "exclude":
                 self.raw_q.put(("exclude", arg))
+            elif cmd == "undo" and not self.stopped.is_set():
+                self.raw_q.put(("undo",))
             if self.stopped.is_set():
                 break
         else:  # stdin closed: the app went away, so stop and save
@@ -358,7 +363,7 @@ class Recorder:
 
     # ------------------------------------------------------------ processor thread
     def _processor_main(self) -> None:
-        from stepcap.capture.screenshot import LatencyStats, ScreenGrabber, ShotWriter
+        from stepcap.capture.screenshot import LatencyStats, ScreenGrabber, ShotWriter, mask_rects
 
         try:
             grabber = ScreenGrabber(self.opts.monitor)
@@ -373,6 +378,9 @@ class Recorder:
 
         def capture(x, y, ts):
             img, mon = grabber.grab(x, y)
+            if self.processor is not None and self.processor.ignore_rects:
+                # the app's recording bar is on screen: keep it out of the guide
+                img = mask_rects(img, mon, self.processor.ignore_rects)
             return self.shot_writer.new_shot(img, mon, ts)
 
         pointer = None
@@ -395,6 +403,7 @@ class Recorder:
                 return
             kind = ev["kind"] if ev["kind"] != "click" else f"{ev['click_type']}-click"
             self.counts[ev["kind"]] = self.counts.get(ev["kind"], 0) + 1
+            self.step_log.append((ev["id"], ev["kind"], ev.get("screenshot")))
             where = ev.get("window_title") or ev.get("app_name") or ""
             _say(f"  #{ev['id']:<3} {kind:<13} {where[:60]}")
             if self.opts.control:
@@ -445,6 +454,9 @@ class Recorder:
                     proc.manual_commit(item[1], item[2])
                 elif kind == "exclude":
                     proc.ignore_rects = [item[1]] if item[1] else []
+                elif kind == "undo":
+                    proc.flush()  # a pending typing run or drag is the newest step too
+                    self._undo_last()
                 elif kind == "observe":
                     _, ts, win, url, clip = item
                     proc.observe(ts, win, url)
@@ -455,6 +467,53 @@ class Recorder:
             self.stopped.set()
         finally:
             grabber.close()
+
+    def _undo_last(self) -> None:
+        """Forget the newest step (processor thread).
+
+        events.jsonl stays append-only while recording: an ``undo`` line marks the
+        step, and ``_drop_undone`` removes both (and the screenshot) at the end.
+        ``load_session`` also skips marked steps, so a crash cannot bring them back.
+        """
+        if not self.step_log:
+            if self.opts.control:
+                emit_status("undone", n=0, target=None)
+            return
+        sid, kind, shot = self.step_log.pop()
+        ts = round(time.monotonic() - self.t0, 3)
+        if self.writer is not None:
+            self.writer.write({"kind": "undo", "target": sid, "seq": sid, "ts": ts})
+        self.counts[kind] -= 1
+        if not self.counts[kind]:
+            del self.counts[kind]
+        self.undone.append((sid, shot))
+        _say(f"  #{sid:<3} undone")
+        if self.opts.control:
+            emit_status("undone", n=sum(self.counts.values()), target=sid)
+
+    def _drop_undone(self) -> None:
+        """Remove undone steps, their markers and unused screenshots (after recording)."""
+        ids = {sid for sid, _ in self.undone}
+        path = self.out / EVENTS_FILE
+        kept, used = [], set()
+        for line in path.read_text(encoding="utf-8").splitlines():
+            try:
+                ev = json.loads(line)
+            except json.JSONDecodeError:
+                kept.append(line)
+                continue
+            if ev.get("id") in ids or (ev.get("kind") == "undo" and ev.get("target") in ids):
+                continue
+            kept.append(line)
+            if ev.get("screenshot"):
+                used.add(ev["screenshot"])
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text("".join(f"{line}\n" for line in kept), encoding="utf-8", newline="\n")
+        os.replace(tmp, path)
+        for _, shot in self.undone:
+            if shot and shot not in used:
+                with contextlib.suppress(OSError):
+                    (self.out / shot).unlink()
 
     def _window(self) -> WindowInfo:
         return window_mod.get_active_window()
@@ -599,9 +658,14 @@ class Recorder:
 
     def _finish(self, proc_thread: threading.Thread, duration: float) -> dict[str, Any]:
         self._shutdown(proc_thread)
+        if self.undone:
+            try:
+                self._drop_undone()
+            except OSError as exc:  # the markers still hide the steps (load_session)
+                self.fatal.append(f"could not remove undone steps: {exc}")
         if self.audio is not None:
             self.meta["audio"] = self.audio.stop()
-        n_events = (self.writer.count if self.writer else 0) - self.context_count
+        n_events = sum(self.counts.values())
         latency = self.stats.to_dict() if self.stats else {}
         excluded = self.processor.excluded_count if self.processor else 0
         self.meta["ended"] = now_iso()
@@ -610,6 +674,7 @@ class Recorder:
             "context_events": self.context_count,
             "screenshots": len(self.stats.grab_ms) if self.stats else 0,
             "excluded": excluded,
+            "undone": len(self.undone),
             "by_kind": self.counts,
             "duration_s": round(duration, 1),
             "latency": latency,

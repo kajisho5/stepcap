@@ -31,6 +31,8 @@ for line in sys.stdin:
         n += 1; say("step", n=n, kind="manual", where=" ".join(cmd[1:]))
     elif cmd[0] == "pause":
         say("paused")
+    elif cmd[0] == "undo":
+        n = max(0, n - 1); say("undone", n=n, target=None)
     elif cmd[0] == "stop":
         say("done", ok=True, events=n, session=sys.argv[1]); break
 """
@@ -42,6 +44,7 @@ def test_parse_command():
     assert parse_command("exclude 10 20 300 40") == ("exclude", (10.0, 20.0, 300.0, 40.0))
     assert parse_command("exclude 0 0 0 0") == ("exclude", None)
     assert parse_command("exclude a b c d") is None
+    assert parse_command("undo") == ("undo", None)
     assert parse_command("rm -rf /") is None
     assert parse_command("") is None
 
@@ -74,6 +77,12 @@ def test_recorder_process_protocol(tmp_path):
     _wait(rp, "note_request")
     rp.send("note 照明が緑か確認")
     assert _wait(rp, "step")["where"] == "照明が緑か確認"  # UTF-8 both ways
+    rp.send("manual")
+    _wait(rp, "note_request")
+    rp.send("note second")
+    assert _wait(rp, "step")["n"] == 2
+    rp.send("undo")
+    assert _wait(rp, "undone")["n"] == 1
     rp.send("stop")
     assert _wait(rp, "done")["events"] == 1
     assert _wait(rp, "exited")["code"] == 0
@@ -119,6 +128,63 @@ def test_helpers(tmp_path, monkeypatch):
         assert ctl.ui_lang() == "en"
 
 
+def test_when_text_and_session_time(tmp_path):
+    t = ctl.TEXTS["ja"]
+    now = datetime(2026, 9, 25, 12, 0)
+    assert ctl.when_text(datetime(2026, 9, 25, 9, 2), t, now) == "今日 09:02"
+    assert ctl.when_text(datetime(2026, 9, 24, 17, 40), t, now) == "昨日 17:40"
+    assert ctl.when_text(datetime(2026, 9, 20, 11, 5), t, now) == "2026-09-20 11:05"
+    assert ctl.session_time(tmp_path / "missing") == datetime.fromtimestamp(0)
+
+
+def test_compare_report_and_combined_skill(demo_session, tmp_path):
+    import shutil
+
+    other = tmp_path / "demo-again"
+    shutil.copytree(demo_session, other)
+    path, summary = ctl.compare_report(demo_session, other)
+    assert path == ctl.export_dir(demo_session) / "diff-demo-again.html"
+    assert path.is_file() and summary["same"] > 0
+    assert summary["changed"] == summary["missing"] == summary["extra"] == 0
+
+    res = ctl.make_skill(demo_session, also=(other,), home=tmp_path / "home")
+    assert res.ok and len(res.recordings) == 2
+    assert Path(res.skill_dir).parent == ctl.export_dir(demo_session) / "skill"
+
+
+def test_theme_fonts_and_dark_override(monkeypatch):
+    from stepcap.gui import theme
+
+    assert all((theme.font_dir() / name).is_file() for name in theme.FONT_FILES)
+    assert (theme.font_dir() / "LICENSE-OFL.txt").is_file()
+    monkeypatch.setenv("STEPCAP_THEME", "dark")
+    assert theme.os_prefers_dark() is True
+    monkeypatch.setenv("STEPCAP_THEME", "light")
+    assert theme.os_prefers_dark() is False
+
+
+def test_wrap_breaks_japanese_between_characters():
+    from stepcap.gui.theme import wrap
+
+    class Mono:  # every character is 10 px wide
+        def measure(self, text):
+            return 10 * len(text)
+
+    text = "作業を 1 回見せるだけで、AI エージェントが同じ作業をできるスキル（SKILL.md）と、人向け"
+    lines = wrap(text, Mono(), 200).split("\n")
+    assert all(len(line) <= 20 for line in lines)
+    assert lines[0] == "作業を 1 回見せるだけで、AI エー"  # not at the space after "AI"
+    assert "（SKILL.md）" in "".join(lines) and not any(ln.startswith(("、", "）")) for ln in lines)
+    assert wrap("a b", Mono(), 200) == "a b"
+    assert wrap("path: /a/very/long/folder/name", Mono(), 100).split("\n") == [
+        "path:",
+        "/a/very/lo",
+        "ng/folder/",
+        "name",
+    ]
+    assert wrap("one\ntwo", Mono(), 100) == "one\ntwo"
+
+
 def test_texts_have_the_same_keys():
     assert set(ctl.TEXTS["en"]) == set(ctl.TEXTS["ja"])
     for lang in ("en", "ja"):  # every placeholder the window fills in exists in both languages
@@ -132,6 +198,12 @@ def test_texts_have_the_same_keys():
         t["exists"].format(name="n", path="p")
         t["refine"].format(agent="a")
         t["refine_confirm"].format(agent="a")
+        t["compared"].format(a="a", b="b", path="p", same=1, changed=2, missing=3, extra=4)
+        t["combine"].format(n=2)
+        t["combine_title"].format(n=2)
+        t["added_head"].format(agent="A")
+        t["copy_cmd"].format(cmd="/x")
+        t["copied"].format(cmd="/x")
         assert "SKILL.md" in t["subtitle"]
 
 
@@ -278,18 +350,53 @@ def test_window_views(tmp_path, monkeypatch):
         def terminate(self):
             pass
 
+    for name in ("a", "b", "c"):  # recent recordings on the home view
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "events.jsonl").write_text("", encoding="utf-8")
+    monkeypatch.setenv("STEPCAP_THEME", "dark")
     try:
         app = App(root, "ja")
         root.update()
         assert [(i.width(), i.height()) for i in app.icons] == [(256, 256), (32, 32)]
+        assert app.theme.dark == app.theme.sv_ttk  # dark needs sv-ttk; without it: light
+        # the bundled font, registered for this process only (Windows / macOS / fontconfig)
+        assert app.theme.family == "Noto Sans JP", app.theme.font_note
+
+        # tick two recordings: combine and compare; a third: combine only
+        assert app.combine_btn.instate(["disabled"]) and app.compare_btn.instate(["disabled"])
+        boxes = [w for w in _widgets(app.frame) if w.winfo_class() == "TCheckbutton"]
+        picks = [b for b in boxes if not b.cget("text")]
+        picks[1].invoke()
+        picks[0].invoke()
+        assert len(app.picked) == 2
+        assert not app.combine_btn.instate(["disabled"])
+        assert not app.compare_btn.instate(["disabled"])
+        first = app.picked[0]
+        assert first == app.recent[1]  # the first one ticked is the reference
+        picks[2].invoke()
+        assert app.compare_btn.instate(["disabled"]) and not app.combine_btn.instate(["disabled"])
+        assert app.combine_btn.cget("text") == app.t["combine"].format(n=3)
+        app.combine()
+        root.update()
+        assert app.session == first and len(app.also) == 2
+        labels = _texts(app.frame)
+        assert app.t["combine_title"].format(n=3) in labels and app.t["add_claude"] in labels
+        app.show_home()
+        root.update()
         app.rec = FakeRec()
         app.session = tmp_path / "s1"
         app.handle({"event": "ready", "session": str(app.session)})
         root.update()
         assert any(isinstance(c, tuple) and c[0] == "exclude" for c in sent)
+        assert app.undo_btn.instate(["disabled"])  # nothing to undo yet
         app.handle({"event": "step", "n": 3, "kind": "single-click", "where": "x"})
         app.update_bar()
         assert "3 ステップ" in app.bar_label.cget("text")
+        app.undo()
+        assert sent[-1] == "undo"
+        app.handle({"event": "undone", "n": 2, "target": 3})
+        assert app.steps == 2
+        app.handle({"event": "step", "n": 3, "kind": "single-click", "where": "x"})
         app.handle({"event": "note_request"})
         root.update()
         assert app.note_row is not None
@@ -338,6 +445,13 @@ def test_window_views(tmp_path, monkeypatch):
         assert "no permission" in app.status.get()
     finally:
         root.destroy()
+
+
+def _widgets(widget) -> list:
+    out = [widget]
+    for w in widget.winfo_children():
+        out += _widgets(w)
+    return out
 
 
 def _texts(widget) -> set[str]:

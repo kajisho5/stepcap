@@ -84,8 +84,10 @@ stepcap app          # or double-click the release binary
 ```
 
 Pick where to save, press **Start recording**, do the task, press **Stop** on the small
-always-on-top bar (F9 / F8 / F7 keep working). Clicks on the bar itself are never steps.
-When you stop, the window offers the two results:
+always-on-top bar (F9 / F8 / F7 keep working). Clicks on the bar itself are never steps, and
+the bar is painted out of the screenshots. A wrong click? **↶ Undo** on the bar forgets the
+newest step (its screenshot is deleted when you stop). When you stop, the window offers the
+two results:
 
 - **For AI agents: skill (SKILL.md)**: **Add to Claude Code** (copies it to
   `~/.claude/skills/<name>/`; then type `/<name>` or just ask for the task),
@@ -96,14 +98,19 @@ When you stop, the window offers the two results:
 - **For people: guide**: **Open guide**, **Printable checklist**, **Edit steps**.
 
 **Export guide + skill** writes both next to the recording (`<name>-export/`) to share. The
-window follows the system language (English / 日本語).
+window follows the system language (English / 日本語) and the system's light or dark mode
+(`STEPCAP_THEME=light|dark` to override); it uses the bundled Noto Sans JP font.
+
+Under **Recent recordings**, tick two or more recordings of the same task: **One skill from N**
+merges them into one skill (the first one ticked is the reference, as in
+`stepcap skill A B C`), **Compare the two** writes the `stepcap diff` report
+(`<first>-export/diff-<second>.html`) and opens it.
 
 ![stepcap app: start, recording bar, done](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/app.png)
 
 The release binaries are not code-signed yet. Windows may show "Windows protected your PC"
 (click **More info → Run anyway**); macOS may block the download (System Settings →
-Privacy & Security → **Open Anyway**). The recording bar is visible in screenshots; blur it
-in `stepcap edit` if needed.
+Privacy & Security → **Open Anyway**).
 
 ## Demo
 
@@ -575,4 +582,5 @@ it (different language and design); it only credits the idea.
 ## License
 
 [MIT](LICENSE). Runtime dependencies: Pillow (MIT-CMU), mss (MIT), pynput (LGPL-3.0,
-used as an unmodified library) — see [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).
+used as an unmodified library), sv-ttk (MIT); the window's Noto Sans JP font is SIL Open Font
+License 1.1 — see [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).

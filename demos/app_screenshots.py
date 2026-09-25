@@ -3,7 +3,7 @@
 Drives the real window on an X display with real mouse clicks: Start, two clicks on
 the desktop, Add note, Stop, "Add to Claude Code". Needs tkinter, pynput and a
 display without a window manager (Xvfb); install stepcap[voice] too, or the voice
-option is shown greyed out. E.g.
+option is shown greyed out. The light theme is used (``STEPCAP_THEME=light``). E.g.
 
     Xvfb :99 -screen 0 1600x1000x24 &
     DISPLAY=:99 python demos/app_screenshots.py --lang en
@@ -30,19 +30,23 @@ NOTE = {"en": "Save the file first", "ja": "先にファイルを保存する"}
 LABELS = {
     "en": (
         "1. Start",
-        "2. Recording bar (always on top; its clicks are not steps)",
+        "2. Recording bar (always on top; its clicks are not steps and it is painted out "
+        "of the screenshots; Undo forgets the last step)",
         "3. Done: add the skill to your agent (Claude Code, Codex, Gemini CLI, Cursor) "
         "or open the guide",
     ),
     "ja": (
         "1. 開始",
-        "2. 記録バー（常に手前に表示。バーのクリックは手順になりません）",
+        "2. 記録バー（常に手前に表示。バーのクリックは手順にならず、画像からも消えます。"
+        "取り消すで直前の手順を削除）",
         "3. 完了: スキルをエージェント（Claude Code・Codex など）に追加、または手順書を開く",
     ),
 }
-FONTS = {  # label fonts, first one found wins
-    "en": ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",),
+BUNDLED = str(ROOT / "src" / "stepcap" / "assets" / "fonts" / "NotoSansJP-Regular.otf")
+FONTS = {  # label fonts, first one found wins (the window's own font first)
+    "en": (BUNDLED, "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
     "ja": (
+        BUNDLED,
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf",
         "/usr/share/fonts/truetype/fonts-japanese-gothic.ttf",
@@ -182,6 +186,7 @@ def main() -> None:
     work = Path(tempfile.mkdtemp(prefix="stepcap-app-"))
     HOME.mkdir(parents=True, exist_ok=True)
     os.environ["HOME"] = str(HOME)  # the recorder subprocess and the skill install use it
+    os.environ.setdefault("STEPCAP_THEME", "light")
     os.chdir(work)
     try:
         capture(args.lang, work)

@@ -25,7 +25,8 @@
         "events": {"type": "integer", "minimum": 0, "description": "step events (with an id)"},
         "context_events": {"type": "integer", "minimum": 0},
         "screenshots": {"type": "integer", "minimum": 0},
-        "excluded": {"type": "integer", "minimum": 0}
+        "excluded": {"type": "integer", "minimum": 0},
+        "undone": {"type": "integer", "minimum": 0, "description": "steps undone in stepcap app (already removed from events.jsonl)"}
       }
     }
   },

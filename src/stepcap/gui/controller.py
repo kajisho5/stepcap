@@ -97,6 +97,32 @@ TEXTS = {
         "coverage_missing": "Not mentioned any more (check that the skill still covers them): "
         "{items}",
         "list_sep": ", ",
+        "advanced": "Options",
+        "adv_extra": "Also recorded",
+        "adv_none": "clicks and keys only",
+        "short_typing": "typed text",
+        "short_urls": "URLs",
+        "short_clip": "copied text",
+        "short_voice": "voice notes",
+        "undo": "↶ Undo",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "recent_hint": "Tick two or more recordings of the same task to combine them into "
+        "one skill or to compare them (the first one ticked is the reference).",
+        "combine": "One skill from {n}",
+        "compare": "Compare the two",
+        "combine_title": "One skill from {n} recordings",
+        "combine_hint": "Recordings of the same task are merged: the first is the reference, "
+        "steps missing from another run are marked optional and the values typed in each run "
+        "are listed.",
+        "reference": "reference",
+        "back": "Back",
+        "comparing": "Comparing…",
+        "compared": "{a} → {b}: {same} same, {changed} changed, {missing} missing in {b}, "
+        "{extra} only in {b}\n{path}",
+        "added_head": "✓ Added to {agent}",
+        "copy_cmd": "Copy {cmd}",
+        "copied": "Copied {cmd}",
     },
     "ja": {
         "subtitle": "作業を 1 回見せるだけで、AI エージェントが同じ作業をできる"
@@ -172,6 +198,31 @@ TEXTS = {
         "coverage": "記録との照合: {total} 項目中 {found} 項目がスキルに書かれています。",
         "coverage_missing": "書かれていない項目（スキルで扱えているか確認してください）: {items}",
         "list_sep": "、",
+        "advanced": "詳細設定",
+        "adv_extra": "追加で記録",
+        "adv_none": "なし（クリックとキー操作のみ）",
+        "short_typing": "入力文字",
+        "short_urls": "URL",
+        "short_clip": "コピー",
+        "short_voice": "音声メモ",
+        "undo": "↶ 取り消す",
+        "today": "今日",
+        "yesterday": "昨日",
+        "recent_hint": "同じ作業の記録を 2 件以上チェックすると、まとめて 1 つのスキルにしたり"
+        "比較したりできます（最初にチェックした記録が基準）。",
+        "combine": "{n} 件から 1 つのスキル",
+        "compare": "2 件を比較",
+        "combine_title": "{n} 件の記録から 1 つのスキルを作ります",
+        "combine_hint": "同じ作業の記録をまとめます。1 件目が基準になり、ほかの記録に無い手順は"
+        "「任意」になり、記録ごとの入力値は一覧になります。",
+        "reference": "基準",
+        "back": "戻る",
+        "comparing": "比較中…",
+        "compared": "{a} → {b}: 同じ {same}・違う {changed}・{b} に無い {missing}・"
+        "{b} だけ {extra}\n{path}",
+        "added_head": "✓ {agent} に追加しました",
+        "copy_cmd": "{cmd} をコピー",
+        "copied": "{cmd} をコピーしました",
     },
 }
 
@@ -265,6 +316,34 @@ def step_count(session: Path) -> int:
     except Exception:
         return 0
     return sum(1 for ev in events if ev.get("kind") not in CONTEXT_KINDS)
+
+
+LANG_NAMES = {"ja": "日本語", "en": "English"}  # guide languages, in their own language
+
+
+def session_time(session: Path) -> datetime:
+    """When the recording was last written (events.jsonl)."""
+    with contextlib.suppress(OSError):
+        return datetime.fromtimestamp((session / EVENTS_FILE).stat().st_mtime)
+    return datetime.fromtimestamp(0)
+
+
+def when_text(when: datetime, t: dict[str, str], now: datetime | None = None) -> str:
+    """A short time: "Today 09:02", "Yesterday 17:40" or "2026-09-20 11:05"."""
+    days = ((now or datetime.now()).date() - when.date()).days
+    day = {0: t["today"], 1: t["yesterday"]}.get(days, when.strftime("%Y-%m-%d"))
+    return f"{day} {when:%H:%M}"
+
+
+def compare_report(a: Path, b: Path) -> tuple[Path, dict[str, int]]:
+    """`stepcap diff A B` as an HTML report next to A (in A's export folder)."""
+    from stepcap import diff
+
+    d = diff.compare(a, b)
+    out = export_dir(a) / f"diff-{b.name}.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(diff.report_html(d), encoding="utf-8")
+    return out, d.to_dict()["summary"]
 
 
 def refine_agent() -> str | None:
@@ -365,13 +444,15 @@ def make_skill(
     agent: str = "none",
     replace: bool = False,
     home: Path | None = None,
+    also: tuple[Path, ...] = (),
 ):
     """Write SKILL.md next to the session and optionally add it to Claude Code / Codex.
 
     The draft folder (``<session>-export/skill/<name>``) is always ours to replace;
     an installed skill is replaced only with ``replace=True`` (the window asks
     first), and only after the new one passed validation. The agent run was
-    confirmed in the window, so ``yes=True``.
+    confirmed in the window, so ``yes=True``. ``also``: more recordings of the same
+    task, merged into one skill (``session`` is the reference).
     """
     import shutil
 
@@ -383,7 +464,14 @@ def make_skill(
     if not force and (out / name / "SKILL.md").is_file():
         shutil.rmtree(out / name)
     opt = SkillOptions(
-        out_dir=out, name=name, install=install, agent=agent, force=force, yes=True, home=home
+        out_dir=out,
+        name=name,
+        install=install,
+        agent=agent,
+        force=force,
+        yes=True,
+        home=home,
+        also=tuple(also),
     )
     return run_skill(session, opt)
 

@@ -64,16 +64,18 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 stepcap app          # または Releases の単体実行ファイルをダブルクリック
 ```
 
-保存先を選んで **記録開始** を押し、作業をして、常に前面に出る小さなバーの **停止** を押します（F9 / F8 / F7 も使えます）。バー自体のクリックはステップになりません。停止すると、2 種類の成果物を選べます。
+保存先を選んで **記録開始** を押し、作業をして、常に前面に出る小さなバーの **停止** を押します（F9 / F8 / F7 も使えます）。バー自体のクリックはステップにならず、スクリーンショットからもバーは塗りつぶされます。クリックを間違えたらバーの **↶ 取り消す** で直前のステップを取り消せます（その画像は停止時に削除されます）。停止すると、2 種類の成果物を選べます。
 
 - **AI エージェント向け：スキル（SKILL.md）**: **Claude Code に追加**（`~/.claude/skills/<名前>/` にコピー。Claude Code で `/<名前>` と入力するか、作業をそのまま頼む）、**Codex・Gemini CLI・Cursor に追加**（共通フォルダ `~/.agents/skills/<名前>/` にコピー）、または **SKILL.md を作る** だけ。`claude` / `codex` / `gemini` CLI が入っていれば「先に一般化する」にチェックすると、1 回分の記録から汎用的な手順に書き直させられます（実行前に確認します）。同じ名前のスキルが既にある場合は、確認してから置き換えます。
 - **人向け：手順書**: **手順書を開く**・**印刷用チェックリスト**・**手順を編集**。
 
-**手順書とスキルを書き出す（共有用）** は両方を記録の隣（`<名前>-export/`）に出力します。表示言語はシステムの言語（日本語 / English）に合わせます。
+**手順書とスキルを書き出す（共有用）** は両方を記録の隣（`<名前>-export/`）に出力します。表示言語はシステムの言語（日本語 / English）、ライト / ダークはシステムの設定に合わせます（`STEPCAP_THEME=light|dark` で固定）。フォントは同梱の Noto Sans JP です。
+
+**最近の記録** で同じ作業の記録を 2 件以上チェックすると、**N 件から 1 つのスキル** でまとめて 1 つのスキルにできます（最初にチェックした記録が基準。`stepcap skill A B C` と同じ）。**2 件を比較** は `stepcap diff` のレポート（`<1 件目>-export/diff-<2 件目>.html`）を作って開きます。
 
 ![stepcap app: 開始画面・記録バー・完了画面](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/app-ja.png)
 
-Releases の実行ファイルにはまだコード署名がありません。Windows では「Windows によって PC が保護されました」が出ることがあります（**詳細情報 → 実行**）。macOS ではダウンロードしたファイルがブロックされることがあります（システム設定 → プライバシーとセキュリティ → **このまま開く**）。記録バーはスクリーンショットに写るので、必要なら `stepcap edit` でぼかしてください。
+Releases の実行ファイルにはまだコード署名がありません。Windows では「Windows によって PC が保護されました」が出ることがあります（**詳細情報 → 実行**）。macOS ではダウンロードしたファイルがブロックされることがあります（システム設定 → プライバシーとセキュリティ → **このまま開く**）。
 
 ## デモ
 
@@ -368,4 +370,4 @@ mkdir -p ~/.claude/skills && cp -r skills/stepcap ~/.claude/skills/
 
 ## ライセンス
 
-[MIT](LICENSE)。実行時の依存は Pillow（MIT-CMU）、mss（MIT）、pynput（LGPL-3.0、無改変のライブラリとして利用）です。詳しくは [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md) を参照してください。
+[MIT](LICENSE)。実行時の依存は Pillow（MIT-CMU）、mss（MIT）、pynput（LGPL-3.0、無改変のライブラリとして利用）、sv-ttk（MIT）です。ウィンドウのフォント Noto Sans JP は SIL Open Font License 1.1 です。詳しくは [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md) を参照してください。

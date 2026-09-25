@@ -1,7 +1,8 @@
 # Third-party software
 
 stepcap is MIT licensed. It depends on the packages below at runtime. None of
-them is AGPL. Versions are minimums from `pyproject.toml`.
+them is AGPL. Versions are minimums from `pyproject.toml`. The package also ships a font
+under the SIL Open Font License (below), so its license expression is `MIT AND OFL-1.1`.
 
 | Package | Why | License |
 |---|---|---|
@@ -10,9 +11,16 @@ them is AGPL. Versions are minimums from `pyproject.toml`.
 | [pynput](https://github.com/moses-palmer/pynput) ≥ 1.7.7 | global mouse / keyboard hooks | **LGPL-3.0** |
 | [comtypes](https://github.com/enthought/comtypes) ≥ 1.4 (Windows only) | UI Automation: name and frame of the clicked element | MIT |
 | [cryptography](https://github.com/pyca/cryptography) ≥ 42 | `stepcap share`: AES-256-GCM, PBKDF2 | Apache-2.0 OR BSD-3-Clause |
+| [sv-ttk](https://github.com/rdbende/Sun-Valley-ttk-theme) ≥ 2.6 | `stepcap app`: Sun Valley ttk theme (light / dark) | MIT |
 | [pywinrt](https://github.com/pywinrt/pywinrt) `winrt-Windows.Media.Ocr` + Graphics.Imaging, Storage.Streams, Globalization, Foundation, Foundation.Collections (Windows only) | build: Windows' built-in OCR for unnamed elements | MIT |
 | [pyobjc-framework-Vision](https://github.com/ronaldoussoren/pyobjc) (macOS only) | build: macOS Vision text recognition for unnamed elements | MIT |
 | tesseract (Linux, optional, not installed by stepcap) | build: OCR when installed (`apt install tesseract-ocr`) | Apache-2.0 |
+
+### Bundled font
+
+| Font | Why | License |
+|---|---|---|
+| [Noto Sans JP](https://github.com/notofonts/noto-cjk) 2.004, Regular + Bold (`Sans/SubsetOTF/JP`, unmodified), © 2014-2021 Adobe | `stepcap app` window text (Japanese and Latin), registered for the app's process only, never installed on the system | SIL Open Font License 1.1 (`stepcap/assets/fonts/LICENSE-OFL.txt`) |
 
 ### Transitive (installed by pynput, platform dependent)
 

@@ -87,3 +87,70 @@ def test_unknown_mouse_buttons_are_ignored(tmp_path):
     rec = make(tmp_path)
     rec.on_click(1, 2, SimpleNamespace(name="x1"), True)
     assert drain(rec) == []
+
+
+def test_mask_rects_paints_the_bar_out_of_a_retina_shot():
+    from PIL import Image
+
+    from stepcap.capture.events import Monitor
+    from stepcap.capture.screenshot import mask_rects
+
+    img = Image.new("RGB", (400, 200), "white")  # 2x pixels for a 200x100 pt monitor
+    for x in range(200, 300):  # the bar: grey with dark "text" inside its rectangle
+        for y in range(20, 50):
+            img.putpixel((x, y), (0, 0, 0) if y == 30 else (90, 90, 90))
+    mon = Monitor(2, 100, 0, 200, 100)
+    out = mask_rects(img, mon, [(200.0, 10.0, 50.0, 15.0), (-500.0, 0.0, 50.0, 50.0)])
+    inside = {out.getpixel((x, y)) for x in range(200, 300) for y in range(20, 50)}
+    assert inside == {(255, 255, 255)}  # the colour around it: the bar is gone
+    assert out.getpixel((199, 30)) == (255, 255, 255) and out.getpixel((300, 30)) == (255, 255, 255)
+    whole = Image.new("RGB", (10, 10), (90, 90, 90))  # nothing around it: its own average
+    assert mask_rects(whole, Monitor(1, 0, 0, 10, 10), [(0, 0, 10, 10)]).getpixel((5, 5)) == (
+        90,
+        90,
+        90,
+    )
+    assert mask_rects(img, mon, []) is img
+
+
+def test_undo_marks_then_removes_the_newest_step(tmp_path):
+    import json
+
+    from stepcap.session import EVENTS_FILE, EventWriter, load_session
+
+    rec = make(tmp_path)
+    rec.writer = EventWriter(tmp_path / EVENTS_FILE)
+    (tmp_path / "raw").mkdir()
+    for sid in (1, 2, 3):
+        shot = f"raw/{sid:04d}.png"
+        (tmp_path / shot).write_bytes(b"png")
+        rec.writer.write(
+            {
+                "id": sid,
+                "kind": "click",
+                "ts": sid,
+                "screenshot": shot,
+                "button": "left",
+                "click_type": "single",
+            }
+        )
+        rec.counts["click"] = rec.counts.get("click", 0) + 1
+        rec.step_log.append((sid, "click", shot))
+    rec.writer.write({"seq": 4, "kind": "url", "ts": 3.5, "url": "https://example.com"})
+    rec._undo_last()
+    rec._undo_last()
+    assert rec.counts == {"click": 1} and [s for s, _ in rec.undone] == [3, 2]
+
+    # before the end (e.g. after a crash) the markers already hide the steps
+    _, events = load_session(tmp_path)
+    assert [ev.get("id") for ev in events if "id" in ev] == [1]
+
+    rec.writer.close()
+    rec._drop_undone()
+    lines = [json.loads(line) for line in (tmp_path / EVENTS_FILE).read_text().splitlines()]
+    assert [ev.get("id") or ev["kind"] for ev in lines] == [1, "url"]
+    assert sorted(p.name for p in (tmp_path / "raw").iterdir()) == ["0001.png"]
+
+    rec.step_log.clear()
+    rec._undo_last()  # nothing left to undo: no error, no marker
+    assert rec.counts == {"click": 1}
