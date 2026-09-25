@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.7](https://github.com/kajisho5/stepcap/compare/v0.1.6...v0.1.7) (2026-09-25)
+
+
+### Features
+
+* logo, English window screenshot; fix: time-stamp names taken for card numbers ([#72](https://github.com/kajisho5/stepcap/issues/72)) ([587244e](https://github.com/kajisho5/stepcap/commit/587244e7e9bc25ab283b68e3651da9d920960830))
+* schemas, agents.toml, skill coverage, voice notes, Windows URLs, MCP server ([#69](https://github.com/kajisho5/stepcap/issues/69)) ([3636c41](https://github.com/kajisho5/stepcap/commit/3636c41fffeef509eecfcf9517f7dfc7aa37262b))
+* share with a password, OCR names, recording diff, skill from several recordings ([#71](https://github.com/kajisho5/stepcap/issues/71)) ([12c08b5](https://github.com/kajisho5/stepcap/commit/12c08b5dc319c1c6084a0588ca1d3b3ce638b770))
+
+
+### Documentation
+
+* social preview image from the maintainer, 1280x640 ([#73](https://github.com/kajisho5/stepcap/issues/73)) ([40fe7c8](https://github.com/kajisho5/stepcap/commit/40fe7c8c265effa461bc133b65a95dda1fefd19c))
+
 ## [0.1.6](https://github.com/kajisho5/stepcap/compare/v0.1.5...v0.1.6) (2026-09-25)
 
 
