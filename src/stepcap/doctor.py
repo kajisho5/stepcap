@@ -181,8 +181,10 @@ def collect_probes(include_hooks: bool = True) -> dict[str, Any]:
 
     p["element"] = element.backend()
     from stepcap import voice
+    from stepcap.build import ocr
 
     p["voice"] = voice.probe()
+    p["ocr"] = ocr.backend()
     return p
 
 
@@ -385,6 +387,15 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
                 "sudo apt install xclip (or xsel)",
             )
         )
+    if "ocr" in p:
+        label = "Names from screenshot text (build OCR)"
+        if p["ocr"]:
+            checks.append(Check("ocr", OK, label, p["ocr"]))
+        else:
+            fix = "sudo apt install tesseract-ocr (tesseract-ocr-jpn for Japanese)"
+            if plat != "linux" and not plat.startswith("linux"):
+                fix = "reinstall stepcap (pip install -U stepcap) to get the OCR bindings"
+            checks.append(Check("ocr", INFO, label, "unavailable; steps keep window names", fix))
     v = p.get("voice")
     if isinstance(v, dict):
         label = "Voice notes (--voice)"

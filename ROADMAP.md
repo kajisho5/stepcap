@@ -27,7 +27,7 @@ one to discuss it. Numbers are stable; new ideas get the next free number.
 | RM-017 | planned | build | Custom HTML templates / themes (logo, colours, fonts) |
 | RM-018 | planned | build | Configurable marker style (colour, size, shape, spotlight dimming) |
 | RM-019 | planned | build | Step grouping into sections (by window / app change) |
-| RM-020 | planned | build | Optional local OCR to name the clicked element (off by default) |
+| RM-020 | done | build | Local OCR names clicked elements the OS does not name (Windows / macOS built-in, tesseract on Linux; `--no-ocr`) |
 | RM-021 | done | build | Use accessibility APIs (UIA / AX) to name clicked controls and get exact frames (AT-SPI: RM-069) |
 | RM-022 | planned | build | More UI languages for automatic texts (zh, ko, de, fr, es) |
 | RM-023 | planned | build | Animated GIF / WebP per step option for drags |

@@ -110,6 +110,7 @@ def cmd_build(args: argparse.Namespace) -> int:
             marker=args.marker,
             spotlight=args.spotlight,
             auto_arrows=args.auto_arrows,
+            ocr=not args.no_ocr,
         )
         res = run_build(Path(args.session), opts)
     except (SessionError, ValueError) as exc:
@@ -666,6 +667,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="add an arrow pointing at small targets such as checkboxes (default: on). "
         "Saved in steps.json.",
+    )
+    b.add_argument(
+        "--no-ocr",
+        action="store_true",
+        help="do not read the screenshot text to name clicked elements that have no name "
+        "(Windows / macOS built-in OCR, tesseract on Linux; runs on this computer)",
     )
     b.add_argument(
         "--reset",

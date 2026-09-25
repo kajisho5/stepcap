@@ -54,8 +54,16 @@ def hidden_imports() -> list[str]:
     if plat == "win32":
         mods += ["mss.windows", "comtypes", "comtypes.client", "comtypes.stream"]
         mods += _uia_modules()
+        mods += [  # build/ocr.py: Windows.Media.Ocr (imported lazily)
+            "winrt.windows.media.ocr",
+            "winrt.windows.graphics.imaging",
+            "winrt.windows.storage.streams",
+            "winrt.windows.globalization",
+            "winrt.windows.foundation",
+            "winrt.windows.foundation.collections",
+        ]
     elif plat == "darwin":
-        mods += ["mss.darwin", "Quartz", "ApplicationServices"]
+        mods += ["mss.darwin", "Quartz", "ApplicationServices", "Vision"]
     else:
         mods += ["mss.linux"]
     return mods

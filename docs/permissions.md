@@ -80,6 +80,9 @@ No permission dialog is needed. Two limitations:
   name contains NAME is in front.
 - Nothing leaves your machine: no network calls, no telemetry, no account.
   Screenshots are stored in `SESSION_DIR/raw/` — treat that folder as sensitive.
+- `stepcap build` reads text from a small area around each click when the app gave no
+  element name (OCR on this computer; `--no-ocr` turns it off). The text becomes the step
+  title, masked like other text.
 - `--voice` is off by default. The microphone is recorded to `SESSION_DIR/audio.wav`,
   transcribed on this computer and then deleted (`--keep-audio` keeps it); while
   recording is paused silence is written instead. The only network access is the

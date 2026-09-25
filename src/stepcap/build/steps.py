@@ -216,6 +216,60 @@ def migrate_steps(doc: dict[str, Any]) -> dict[str, Any]:
     return doc
 
 
+OCR_KINDS = ("click", "type")
+
+
+def ocr_names(session: Path, steps: list[dict[str, Any]], lang: str) -> int:
+    """Name steps the OS gave no element name for, from the screenshot text (build/ocr.py).
+
+    Each step is tried once (``element.source`` / ``ocr`` records it), on the raw
+    screenshot; the automatic title follows unless it was edited. Returns the number
+    of steps that got a name.
+    """
+    from stepcap.build import ocr
+    from stepcap.redact import redact_text
+
+    if ocr.backend() is None:
+        return 0
+    cache: dict[str, Image.Image | None] = {}
+    named = 0
+    for s in steps:
+        el = s.get("element") or {}
+        if s.get("kind") not in OCR_KINDS or el.get("name") or s.get("ocr") is not None:
+            continue
+        s["ocr"] = False
+        sid, pt = s.get("own_screenshot") or s.get("screenshot"), s.get("point") or {}
+        if not sid or "img_x" not in pt:
+            continue
+        if sid not in cache:
+            cache.clear()
+            p = raw_path(session, sid)
+            cache[sid] = Image.open(p).convert("RGB") if p.exists() else None
+        if cache[sid] is None:
+            continue
+        name = ocr.name_at(cache[sid], pt["img_x"], pt["img_y"], s.get("box"), lang, kind=s["kind"])
+        if not name:
+            continue
+        name = redact_text(name)
+        s["element"] = {**el, "name": name, "source": "ocr"}
+        s["ocr"] = True
+        named += 1
+        ev = {"kind": s["kind"], "click_type": s.get("click_type"), "element": s["element"]}
+        new_title = naming.element_title(ev, lang)
+        auto = s.setdefault("auto", {})
+        if new_title and s.get("title") == auto.get("title"):
+            s["title"] = new_title
+        if new_title:
+            auto["title"] = new_title
+        inp = s.get("input")
+        if isinstance(inp, dict) and re.fullmatch(r"input_\d+", str(inp.get("name"))):
+            better = input_name_for(name)
+            used = {x["input"]["name"] for x in steps if isinstance(x.get("input"), dict)}
+            if better and better not in used:
+                inp["name"] = better
+    return named
+
+
 def detect_boxes(session: Path, steps: list[dict[str, Any]]) -> int:
     """Auto-detect the clicked element's box for steps that have no box decision yet.
 
@@ -255,6 +309,8 @@ def refresh_auto_texts(
         ev = by_id.get(s.get("event_id"))
         if ev is None:
             continue
+        if (s.get("element") or {}).get("source") == "ocr" and not ev.get("element"):
+            ev = {**ev, "element": s["element"]}
         auto = s.setdefault("auto", {})
         new_title = naming.auto_title(ev, lang)
         new_desc = auto_description(ev, lang, said)

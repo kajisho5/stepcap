@@ -217,10 +217,13 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   background thread; click→saved latency is measured and logged (target < 300 ms).
 - **Titles steps from the clicked element** on Windows (UI Automation) and macOS
   (Accessibility): `Click the "Save" button`, `Type into the "Project name" field`,
-  `Choose "Rename"` — and frames the element with its exact rectangle. Falls back to the
-  window name (`Click in "Settings"`) on Linux, in apps that expose no names, or with
-  `--no-element-names`. Password fields never report a name and typing into them is always
-  masked. English or Japanese (`--lang ja`).
+  `Choose "Rename"` — and frames the element with its exact rectangle. Where the app gives
+  no name (or on Linux), `stepcap build` reads the text of the clicked control from the
+  screenshot on this computer — Windows and macOS built-in OCR, `tesseract` on Linux — so
+  the step still says `Click "Create"`; for a text field it uses the label above it.
+  `build --no-ocr` turns this off; the window name (`Click in "Settings"`) is the last
+  resort. Password fields never report a name and typing into them is always masked.
+  English or Japanese (`--lang ja`).
 - **Reuses identical screenshots**: consecutive steps on the same screen (≥ 98 % same
   area) share one image, so blurring it once covers all of them.
 - **Outputs** `guide.md` + `images/`, a single-file `guide.html` (table of contents,
@@ -260,9 +263,10 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
 ### What it doesn't do (v0.1)
 
 - **Wayland** (Linux) — X11 only; stepcap stops with an explanation on Wayland.
-- **OCR / AI naming** — names come from the OS accessibility APIs (Windows / macOS), not
-  from reading pixels; for full sentences use the bundled agent skill or
-  `stepcap skill --agent claude|codex`. Linux (AT-SPI) is not supported yet.
+- **AI-written sentences** — titles come from element names (accessibility APIs, else OCR
+  of the clicked control); for full sentences use the bundled agent skill or
+  `stepcap skill --agent claude|codex`. Linux accessibility names (AT-SPI) are not
+  supported yet (OCR is).
 - **Video**, cloud sharing, team workspaces.
 - Direct PDF export — print `guide.html` to PDF from any browser.
 
@@ -509,9 +513,8 @@ use the release binary.
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) (OCR-based naming, PDF export, Wayland via portals,
-redaction presets, localization and more). Planned items are tracked as GitHub issues
-labelled `roadmap`.
+See [ROADMAP.md](ROADMAP.md) (PDF export, Wayland via portals, redaction presets,
+localization and more). An issue is opened when an item is being discussed.
 
 ## Contributing
 
