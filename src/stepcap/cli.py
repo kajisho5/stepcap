@@ -221,8 +221,14 @@ def _print_skill(res: dict[str, Any], prefix: str = "") -> None:
     )
     for problem in res["problems"]:
         print(f"{prefix}  INVALID: {problem}", file=sys.stderr)
+    if len(res.get("recordings") or []) > 1:
+        print(f"{prefix}  from {len(res['recordings'])} recordings (the first is the reference)")
     if res["agent"] != "none":  # the draft always covers the recording; a rewrite may not
         _print_coverage(info.get("coverage") or {}, prefix)
+    for cov in info.get("coverage_others") or []:
+        if cov.get("found") != cov.get("total"):
+            print(f"{prefix}  {cov['session']}:")
+            _print_coverage(cov, prefix)
     if res["installed_to"]:
         print(f"{prefix}  installed to {res['installed_to']}")
     elif res["ok"]:
@@ -233,7 +239,9 @@ def cmd_skill(args: argparse.Namespace) -> int:
     from stepcap.skill.run import SkillError, ask, run_skill
 
     try:
-        res = run_skill(Path(args.session), _skill_options(args, Path(args.output)), ask)
+        opt = _skill_options(args, Path(args.output))
+        opt.also = tuple(Path(p) for p in args.session[1:])
+        res = run_skill(Path(args.session[0]), opt, ask)
     except (SkillError, SessionError, ValueError) as exc:
         _err(str(exc))
         return EXIT_FAIL
@@ -407,6 +415,52 @@ def cmd_share(args: argparse.Namespace) -> int:
     else:
         print(f"Protected {args.file} -> {out} (opens in any browser after the password)")
     return EXIT_OK
+
+
+def cmd_diff(args: argparse.Namespace) -> int:
+    from stepcap import diff
+
+    try:
+        d = diff.compare(Path(args.a), Path(args.b))
+        if args.output:
+            out = Path(args.output)
+            out.write_text(diff.report_html(d), encoding="utf-8")
+    except (SessionError, OSError, ValueError) as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    data = d.to_dict()
+    if args.json:
+        _print_json(data)
+    else:
+        _print_diff(data)
+        if args.output:
+            print(f"report -> {args.output}")
+    failed = (args.fail_on == "any" and not d.identical) or (
+        args.fail_on == "missing" and d.count("missing") > 0
+    )
+    return EXIT_FAIL if failed else EXIT_OK
+
+
+def _print_diff(data: dict[str, Any]) -> None:
+    sm = data["summary"]
+    print(
+        f"{sm['same']} same, {sm['changed']} changed, {sm['missing']} only in A, "
+        f"{sm['extra']} only in B"
+    )
+    mark = {"changed": "~", "missing": "-", "extra": "+"}
+    for c in data["changes"]:
+        if c["status"] == "same":
+            continue
+        ref = c["a"] if c["status"] == "missing" else c["b"]
+        where = f" [{ref['where']}]" if ref["where"] else ""
+        print(f"  {mark[c['status']]} {ref['number']}. {ref['title']}{where}")
+        for note in c["notes"]:
+            print(f"      {note}")
+    for title, items in (("URL", data["urls"]), ("command", data["commands"])):
+        for x in items["only_a"]:
+            print(f"  - {title} only in A: {x}")
+        for x in items["only_b"]:
+            print(f"  + {title} only in B: {x}")
 
 
 def cmd_transcribe(args: argparse.Namespace) -> int:
@@ -710,7 +764,13 @@ def build_parser() -> argparse.ArgumentParser:
         "skill",
         help="write an Agent Skill (SKILL.md + references/) for Claude Code, Codex or any agent",
     )
-    k.add_argument("session", metavar="SESSION_DIR")
+    k.add_argument(
+        "session",
+        metavar="SESSION_DIR",
+        nargs="+",
+        help="one recording, or several of the same task: the first is the reference; the "
+        "others add optional steps, the values typed in each run and steps only they had",
+    )
     k.add_argument(
         "-o",
         "--output",
@@ -792,6 +852,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sh.add_argument("--json", action="store_true")
     sh.set_defaults(func=cmd_share)
+
+    df = sub.add_parser(
+        "diff",
+        help="compare two recordings of the same task (app changed, or check an agent's run)",
+    )
+    df.add_argument("a", metavar="SESSION_A", help="the reference recording")
+    df.add_argument("b", metavar="SESSION_B", help="the new recording (or the agent's run)")
+    df.add_argument(
+        "-o", "--output", metavar="FILE.html", help="also write a report with screenshots"
+    )
+    df.add_argument(
+        "--fail-on",
+        choices=("none", "missing", "any"),
+        default="none",
+        help="exit 1 when steps of A are missing in B (missing) or on any difference (any)",
+    )
+    df.add_argument("--json", action="store_true")
+    df.set_defaults(func=cmd_diff)
 
     t = sub.add_parser(
         "transcribe",

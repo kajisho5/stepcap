@@ -23,7 +23,7 @@ from stepcap.build.pipeline import (
     run_build,
 )
 from stepcap.session import SessionError
-from stepcap.skill import agents, coverage, draft, registry
+from stepcap.skill import agents, coverage, draft, merge, registry
 from stepcap.skill import install as install_mod
 from stepcap.skill.recording import load_recording
 from stepcap.skill.validate import MAX_NAME, NAME_RE, validate_skill
@@ -49,6 +49,7 @@ class SkillOptions:
     dry_run: bool = False
     cwd: Path | None = None  # base for --scope project (default: current directory)
     home: Path | None = None  # base for --scope user (default: home directory)
+    also: tuple[Path, ...] = ()  # more recordings of the same task (RM-068)
 
 
 @dataclass
@@ -65,6 +66,7 @@ class SkillResult:
     problems: list[str] = field(default_factory=list)
     info: dict[str, Any] = field(default_factory=dict)
     dry_run: bool = False
+    recordings: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -144,6 +146,15 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
             f"--name {opt.name!r}: use 1-{MAX_NAME} characters of a-z, 0-9 and single hyphens"
         )
     meta, doc, events = load_recording(session)
+    others = []
+    for extra in opt.also:
+        extra = Path(extra)
+        if extra.resolve() == session.resolve() or any(
+            extra.resolve() == p.resolve() for p, _, _ in others
+        ):
+            raise SkillError(f"{extra} is given twice")
+        others.append((extra, *load_recording(extra)[1:]))
+    variants = merge.analyse((session, doc, events), others) if others else None
     name = opt.name or draft.choose_name(doc)
     skill_dir = Path(opt.out_dir) / name
     if _inside(session, skill_dir):
@@ -166,6 +177,7 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
         agent=opt.agent,
         dry_run=opt.dry_run,
         installed_to=str(target) if target else None,
+        recordings=[str(session), *(str(p) for p, _, _ in others)],
     )
     res.files = ["SKILL.md", *(r[0] for r in refs.values())]
     exe = None
@@ -189,7 +201,7 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
     skill_dir.mkdir(parents=True)
     _write_references(session, doc, refs, skill_dir)
     rel_refs = {sid: r[0] for sid, r in refs.items()}
-    text = draft.render(doc, events, meta, name, rel_refs)
+    text = draft.render(doc, events, meta, name, rel_refs, variants)
     (skill_dir / "SKILL.md").write_text(text, encoding="utf-8", newline="\n")
 
     if opt.agent != "none" and exe is not None:
@@ -215,7 +227,12 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
     res.problems, res.info = validate_skill(skill_dir)
     md = skill_dir / "SKILL.md"
     if md.is_file():
-        res.info["coverage"] = coverage.check(md.read_text(encoding="utf-8"), doc, events).to_dict()
+        body = md.read_text(encoding="utf-8")
+        res.info["coverage"] = coverage.check(body, doc, events).to_dict()
+        if others:  # what each other recording showed (its extra steps are listed too)
+            res.info["coverage_others"] = [
+                {"session": str(p), **coverage.check(body, d, ev).to_dict()} for p, d, ev in others
+            ]
     if res.ok and target is not None:
         install_mod.install(skill_dir, target, opt.force)
     elif target is not None:

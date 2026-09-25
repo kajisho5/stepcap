@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from stepcap.build import ocr
 from stepcap.build.pipeline import BuildOptions, run_build
@@ -84,6 +85,21 @@ def test_choosing_the_name():
 
     fn, _ = _fake(near)
     assert ocr.name_at(img, 400, 300, [393, 293, 14, 14], "en", fn) == "Private project"
+
+
+@pytest.mark.ocr
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows.Media.Ocr")
+def test_windows_engine_reads_rendered_text():
+    """Calls the backend directly so an error is shown instead of read_lines' []."""
+    from winrt.windows.media.ocr import OcrEngine
+
+    from stepcap.build.annotate import font
+
+    img = Image.new("RGB", (480, 120), "white")
+    ImageDraw.Draw(img).text((20, 30), "Create project", font=font(36), fill="black")
+    langs = [lang.language_tag for lang in OcrEngine.available_recognizer_languages]
+    lines = ocr._windows(img, "en")
+    assert "create project" in " ".join(ln.text for ln in lines).lower(), (langs, lines)
 
 
 @pytest.mark.ocr

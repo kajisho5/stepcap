@@ -234,6 +234,12 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   HTML file encrypted with AES-256-GCM (key from the password via PBKDF2-SHA256, 600,000
   rounds). It opens in any browser, offline, after the password (decrypted with the
   browser's WebCrypto). No expiry date: a standalone file cannot enforce one.
+- **Compare two recordings** (`stepcap diff A B -o report.html`): steps are matched in
+  order by what they did (the element's name, else app + window), so moved buttons and
+  reworded titles still match. It lists steps only in A, only in B, and matched steps whose
+  screen looks different or where a different value was typed, plus URLs and terminal
+  commands that differ; the HTML report puts the screenshots side by side. Use it when the
+  app changed (record again, see which steps to update) or to check what an agent did.
 - **Rebuilds are idempotent**: edits in `steps.json` (by you, `stepcap edit` or an AI
   agent) are never overwritten; `--reset` starts over.
 - **Frames the clicked element** (button, input, checkbox, card) detected from the
@@ -314,13 +320,14 @@ stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
 stepcap edit SESSION_DIR [--port 8765] [--host 127.0.0.1] [--no-browser]
-stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|gemini|AGENT]
+stepcap skill SESSION_DIR [SESSION_DIR ...] -o OUT_DIR [--name NAME] [--agent none|claude|codex|gemini|AGENT]
               [--install none|claude|agents|codex|gemini|cursor|AGENT] [--scope user|project] [--yes] [--force]
               [--dry-run] [--json]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
 stepcap share SESSION_DIR -o FILE.html [--file guide|checklist] [--password-stdin]
 stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--json]
+stepcap diff SESSION_A SESSION_B [-o report.html] [--fail-on none|missing|any] [--json]
 stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
 stepcap schema [session|event|steps|terminal|voice] [--path]
 stepcap agents [--json]                                    # agents you can --install / --agent
@@ -435,6 +442,31 @@ stepcap check-skill skills/<name>                    # validate after editing by
   out (when your shell ignores such commands in history).
 - **Press F7 while recording** to add notes like "why": they become the skill's Goal and are
   the most useful thing you can give an agent.
+- **Several recordings of the same task**: `stepcap skill run1 run2 run3 -o skills`. The
+  first is the reference (its steps and screenshots); the others are matched with it the
+  way `stepcap diff` does. Steps done in only some runs get "Optional: done in 2 of 3
+  recordings", each input lists what was typed in every run (or "the same in all 3
+  recordings", a hint that it may be a fixed value), and steps only the other runs did are
+  listed under "Differences between recordings" with their position. The skill is checked
+  against every recording. Typed values appear only when recorded with `--record-typing`.
+
+### Check what an agent did: `stepcap diff`
+
+Record while the agent does the task, then compare with the recording its skill came from:
+
+```bash
+stepcap record -o agent-run            # start before the agent, stop (F9) after it
+stepcap shell agent-run                # optional, macOS / Linux: the terminal the agent uses
+stepcap diff my-guide agent-run -o report.html --fail-on missing
+```
+
+- `stepcap record` sees the mouse and keyboard input the agent's automation sends (checked
+  with XTEST input on Linux; not checked with agents on Windows / macOS). An agent that
+  uses an API or CLI instead shows up only through `stepcap shell` commands, as extra
+  commands and missing clicks.
+- `--fail-on missing` exits 1 when a step of your recording was not done; `--fail-on any`
+  on any difference. Different screens and values are normal when the agent worked on
+  other data: read the report rather than expecting "identical".
 
 ### For agents over MCP: `stepcap mcp`
 
