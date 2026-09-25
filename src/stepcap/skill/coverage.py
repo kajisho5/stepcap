@@ -160,7 +160,7 @@ def check(skill_md: str, doc: dict[str, Any], events: list[dict[str, Any]]) -> C
 
 
 def check_dir(skill_dir: Path, session: Path) -> Coverage:
-    from stepcap.skill.run import load_recording
+    from stepcap.skill.recording import load_recording
 
     _, doc, events = load_recording(session)
     return check((Path(skill_dir) / "SKILL.md").read_text(encoding="utf-8"), doc, events)

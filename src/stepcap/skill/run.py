@@ -20,14 +20,12 @@ from stepcap.build.pipeline import (
     GUIDE_MD,
     IMAGES_DIR,
     BuildOptions,
-    BuildResult,
-    load_or_create_steps,
     run_build,
 )
-from stepcap.redact import redact_obj
-from stepcap.session import STEPS_FILE, SessionError, load_session, write_json
+from stepcap.session import SessionError
 from stepcap.skill import agents, coverage, draft, registry
 from stepcap.skill import install as install_mod
+from stepcap.skill.recording import load_recording
 from stepcap.skill.validate import MAX_NAME, NAME_RE, validate_skill
 
 REF_DIR = "references"
@@ -91,16 +89,6 @@ def _check_out(path: Path, force: bool, what: str) -> None:
 def _inside(child: Path, parent: Path) -> bool:
     child, parent = child.resolve(), parent.resolve()
     return child == parent or parent in child.parents
-
-
-def load_recording(
-    session: Path,
-) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
-    """(session meta, steps.json, redacted events) - creates steps.json if needed."""
-    meta, doc = load_or_create_steps(session, BuildOptions(), BuildResult("", 0))
-    write_json(session / STEPS_FILE, doc)  # keep migrations / first-time steps.json
-    _, events = load_session(session)
-    return meta, doc, [redact_obj(ev) for ev in events]
 
 
 def _references(session: Path, doc: dict[str, Any]) -> dict[str, tuple[str, dict[str, Any], int]]:

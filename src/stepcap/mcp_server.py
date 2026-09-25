@@ -85,7 +85,7 @@ class Tools:
 
     def get_steps(self, session: str) -> dict[str, Any]:
         from stepcap.skill import draft
-        from stepcap.skill.run import load_recording
+        from stepcap.skill.recording import load_recording
 
         s = self._session(session)
         _, doc, events = load_recording(s)
@@ -121,7 +121,7 @@ class Tools:
 
         from stepcap.build import annotate
         from stepcap.build import steps as steps_mod
-        from stepcap.skill.run import load_recording
+        from stepcap.skill.recording import load_recording
 
         s = self._session(session)
         _, doc, _ = load_recording(s)
