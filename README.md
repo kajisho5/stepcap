@@ -2,6 +2,14 @@
 
 **Record once. Get a how-to guide for humans and a SKILL.md for any agent. Local, no account, no Copilot.**
 
+- Do a task once, in a desktop app or a browser: you get a guide for people (`guide.html`)
+  and a `SKILL.md` your AI agent can follow.
+- Runs on your computer only, no account. (The free plans of browser-extension recorders
+  capture the browser only; see [How it compares](#how-it-compares).)
+- The demo images are synthetic: the "Acme Tasks" app is drawn by
+  [`demos/build.py`](demos/build.py), no real data.
+- Planned work lives in [ROADMAP.md](ROADMAP.md); issues are for bugs and questions.
+
 `Fully local · Works offline · No account · Any app, browsers included · Windows, macOS, Linux`
 
 [![tests](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml)

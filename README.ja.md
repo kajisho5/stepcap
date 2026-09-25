@@ -4,6 +4,11 @@
 
 *Record once. Get a how-to guide for humans and a SKILL.md for any agent. Local, no account, no Copilot.*
 
+- デスクトップアプリでもブラウザでも、作業を 1 回すると、人向けの手順書（`guide.html`）と AI エージェントが従える `SKILL.md` ができます。
+- 自分の PC だけで動き、アカウントは不要です（ブラウザ拡張型ツールの無料プランはブラウザ内しか記録できません。[他ツールとの比較](#他ツールとの比較)）。
+- デモ画像は合成です。「Acme Tasks」というアプリは [`demos/build.py`](demos/build.py) が描いたもので、実データは含みません。
+- 今後の予定は [ROADMAP.md](ROADMAP.md) にあります。Issue は不具合と質問用です。
+
 `完全ローカル · オフライン動作 · アカウント不要 · ブラウザもデスクトップアプリも記録 · Windows / macOS / Linux`
 
 [![tests](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml)

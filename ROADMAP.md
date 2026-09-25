@@ -1,10 +1,10 @@
 # Roadmap
 
-Status: `done` · `in-progress` · `planned`. Every `planned` item has a GitHub issue
-labelled [`roadmap`](https://github.com/kajisho5/stepcap/issues?q=label%3Aroadmap).
-Numbers are stable; new ideas get the next free number. RM-013 … RM-054 are
-issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-24;
-`scripts/roadmap_to_issues.py` adds new rows).
+Status: `done` · `in-progress` · `planned`. The plan is this table; a GitHub issue is
+opened only when an item is being discussed or worked on. The earlier one-issue-per-row
+[`roadmap`](https://github.com/kajisho5/stepcap/issues?q=label%3Aroadmap) issues (#2 … #43,
+#59 … #63) were closed on 2026-09-25 so that open issues mean bugs and questions; reopen
+one to discuss it. Numbers are stable; new ideas get the next free number.
 
 | ID | Status | Area | Item |
 |---|---|---|---|
