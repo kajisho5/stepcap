@@ -51,7 +51,11 @@ class Line:
 
 def backend() -> str | None:
     if sys.platform == "win32":
-        try:
+        try:  # every module _windows needs: a missing one would only show up as no text
+            import winrt.windows.foundation.collections  # OcrResult.lines
+            import winrt.windows.globalization
+            import winrt.windows.graphics.imaging
+            import winrt.windows.storage.streams  # noqa: F401
             from winrt.windows.media.ocr import OcrEngine  # noqa: F401
         except Exception:
             return None
