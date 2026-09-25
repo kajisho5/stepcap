@@ -383,6 +383,9 @@ class App:
             else:
                 self.status.set(t["skill_made"].format(path=skill_dir / "SKILL.md"))
                 ctl.open_path(skill_dir)
+            note = ctl.coverage_note(res, t) if agent != "none" else ""
+            if note and not res.problems:
+                self.status.set(self.status.get() + "\n\n" + note)
 
         self.run_job(
             message or t["working"],

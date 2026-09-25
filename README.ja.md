@@ -224,7 +224,7 @@ stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|ge
               [--dry-run] [--json]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
-stepcap check-skill SKILL_DIR [--json]
+stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--json]
 stepcap schema [session|event|steps|terminal] [--path]
 stepcap agents [--json]                                    # agents you can --install / --agent
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
@@ -281,6 +281,7 @@ stepcap check-skill skills/<名前>                     # 手で直した後の�
 
   `{prompt}` はエージェントに `_context/INSTRUCTIONS.md` を読ませる短い指示です。ほかに `{skill_dir}` と `{images}`（注釈付きスクリーンショットをカンマ区切りで。無い場合はその引数ごと省略）が使えます。このファイルで追加したエージェントは、`stepcap app` の完了画面に「… に追加」ボタンが出ます。
 - **必ず検証**: Agent Skills の frontmatter 規則、名前 = フォルダ名、500 行未満、約 5000 トークン以内、`references/` のリンク切れなし、秘密情報のパターン（GitHub / AWS / OpenAI / Anthropic のキー、JWT、URL 内のパスワード、カード番号）なし。満たさなければ終了コード 1
+- **記録との照合**: スキルを書き直した後（手作業でも `--agent` でも）、記録にはあったのに SKILL.md に書かれていないもの（アプリ、クリックしたボタンや入力欄、`{{入力値}}`、URL のホスト名、ターミナルのコマンド、F7 のメモ）を一覧にします。レビュー用のヒントです（クリック操作を CLI に置き換えるなど、正しく書き換えた結果として消えることもあります）。`--agent` 実行後とウィンドウには自動で表示され、`stepcap check-skill SKILL_DIR --session SESSION_DIR` でも確認できます（`--min-coverage 0.8` で 80 % 未満なら失敗）
 - **ターミナルでの操作**: 記録中に別のターミナルで `stepcap shell my-guide` を開くと、そこで打ったコマンド（出力は含まない）が終了コード付き・秘密情報マスク済みで追加され、スキルに「Ran in a terminal: `...`」として載ります。macOS / Linux の bash と zsh に対応し、Windows の PowerShell は未対応です。先頭にスペースを付けたコマンドは記録されません（シェルが履歴から除外する設定の場合）
 - **記録中に F7 で「なぜ」をメモ**してください。スキルの Goal になり、エージェントにとって最も役立つ情報です
 

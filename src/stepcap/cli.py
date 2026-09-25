@@ -204,6 +204,8 @@ def _print_skill(res: dict[str, Any], prefix: str = "") -> None:
     )
     for problem in res["problems"]:
         print(f"{prefix}  INVALID: {problem}", file=sys.stderr)
+    if res["agent"] != "none":  # the draft always covers the recording; a rewrite may not
+        _print_coverage(info.get("coverage") or {}, prefix)
     if res["installed_to"]:
         print(f"{prefix}  installed to {res['installed_to']}")
     elif res["ok"]:
@@ -268,12 +270,38 @@ def cmd_shell(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _print_coverage(cov: dict[str, Any], prefix: str = "") -> None:
+    if not cov.get("total"):
+        return
+    print(
+        f"{prefix}  recording coverage: {cov['found']}/{cov['total']} "
+        f"({cov['score']:.0%} of apps, elements, inputs, URLs, commands and notes mentioned)"
+    )
+    for item in cov["items"]:
+        if not item["found"]:
+            where = f" (step {', '.join(map(str, item['steps']))})" if item["steps"] else ""
+            print(f"{prefix}    not mentioned: {item['kind']} {item['value']!r}{where}")
+
+
 def cmd_check_skill(args: argparse.Namespace) -> int:
+    from stepcap.skill import coverage
     from stepcap.skill.validate import validate_skill
 
     problems, info = validate_skill(Path(args.skill_dir))
+    cov = None
+    if args.session and not problems:
+        try:
+            cov = coverage.check_dir(Path(args.skill_dir), Path(args.session)).to_dict()
+        except (SessionError, OSError, ValueError) as exc:
+            _err(str(exc))
+            return EXIT_FAIL
+    low = cov is not None and args.min_coverage is not None and cov["score"] < args.min_coverage
     if args.json:
-        _print_json({"skill_dir": args.skill_dir, "ok": not problems, "problems": problems, **info})
+        data = {"skill_dir": args.skill_dir, "ok": not problems and not low, "problems": problems}
+        data.update(info)
+        if cov is not None:
+            data["coverage"] = cov
+        _print_json(data)
     elif problems:
         for problem in problems:
             print(f"INVALID: {problem}", file=sys.stderr)
@@ -282,7 +310,14 @@ def cmd_check_skill(args: argparse.Namespace) -> int:
             f"{args.skill_dir}: valid ({info.get('lines')} lines, ~{info.get('tokens')} tokens, "
             f"{info.get('links')} local links)"
         )
-    return EXIT_FAIL if problems else EXIT_OK
+        if cov is not None:
+            _print_coverage(cov)
+        if low:
+            print(
+                f"coverage {cov['score']:.0%} is below --min-coverage {args.min_coverage:.0%}",
+                file=sys.stderr,
+            )
+    return EXIT_FAIL if problems or low else EXIT_OK
 
 
 def cmd_agents(args: argparse.Namespace) -> int:
@@ -365,6 +400,16 @@ def _positive_int(v: str) -> int:
     if n <= 0:
         raise argparse.ArgumentTypeError("must be a positive integer")
     return n
+
+
+def _fraction(value: str) -> float:
+    try:
+        f = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("must be a number between 0 and 1") from None
+    if not 0 <= f <= 1:
+        raise argparse.ArgumentTypeError("must be a number between 0 and 1")
+    return f
 
 
 def _skill_args(k: argparse.ArgumentParser) -> None:
@@ -615,6 +660,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="validate a skill folder (Agent Skills spec, links, size, secret patterns)",
     )
     c.add_argument("skill_dir", metavar="SKILL_DIR")
+    c.add_argument(
+        "--session",
+        metavar="SESSION_DIR",
+        help="also list what the recording showed but SKILL.md no longer mentions (apps, "
+        "clicked elements, inputs, URLs, commands, notes)",
+    )
+    c.add_argument(
+        "--min-coverage",
+        type=_fraction,
+        metavar="0-1",
+        help="with --session: exit 1 if less than this share is mentioned (e.g. 0.8)",
+    )
     c.add_argument("--json", action="store_true")
     c.set_defaults(func=cmd_check_skill)
 

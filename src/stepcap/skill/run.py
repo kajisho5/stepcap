@@ -26,7 +26,7 @@ from stepcap.build.pipeline import (
 )
 from stepcap.redact import redact_obj
 from stepcap.session import STEPS_FILE, SessionError, load_session, write_json
-from stepcap.skill import agents, draft, registry
+from stepcap.skill import agents, coverage, draft, registry
 from stepcap.skill import install as install_mod
 from stepcap.skill.validate import MAX_NAME, NAME_RE, validate_skill
 
@@ -93,7 +93,10 @@ def _inside(child: Path, parent: Path) -> bool:
     return child == parent or parent in child.parents
 
 
-def _load(session: Path) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+def load_recording(
+    session: Path,
+) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
+    """(session meta, steps.json, redacted events) - creates steps.json if needed."""
     meta, doc = load_or_create_steps(session, BuildOptions(), BuildResult("", 0))
     write_json(session / STEPS_FILE, doc)  # keep migrations / first-time steps.json
     _, events = load_session(session)
@@ -152,7 +155,7 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
         raise SkillError(
             f"--name {opt.name!r}: use 1-{MAX_NAME} characters of a-z, 0-9 and single hyphens"
         )
-    meta, doc, events = _load(session)
+    meta, doc, events = load_recording(session)
     name = opt.name or draft.choose_name(doc)
     skill_dir = Path(opt.out_dir) / name
     if _inside(session, skill_dir):
@@ -222,6 +225,9 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
             agents.cleanup(skill_dir)
 
     res.problems, res.info = validate_skill(skill_dir)
+    md = skill_dir / "SKILL.md"
+    if md.is_file():
+        res.info["coverage"] = coverage.check(md.read_text(encoding="utf-8"), doc, events).to_dict()
     if res.ok and target is not None:
         install_mod.install(skill_dir, target, opt.force)
     elif target is not None:

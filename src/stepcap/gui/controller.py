@@ -84,6 +84,10 @@ TEXTS = {
         "chat. Restart the tool if the skill does not show up.",
         "installed_other": "Added to {agent}: {path}",
         "export_all": "Export guide + skill (to share)",
+        "coverage": "Checked against the recording: {found} of {total} items mentioned.",
+        "coverage_missing": "Not mentioned any more (check that the skill still covers them): "
+        "{items}",
+        "list_sep": ", ",
     },
     "ja": {
         "subtitle": "作業を 1 回見せるだけで、AI エージェントが同じ作業をできる"
@@ -147,6 +151,9 @@ TEXTS = {
         "表示されない場合は各ツールを再起動してください。",
         "installed_other": "{agent} に追加しました: {path}",
         "export_all": "手順書とスキルを書き出す（共有用）",
+        "coverage": "記録との照合: {total} 項目中 {found} 項目がスキルに書かれています。",
+        "coverage_missing": "書かれていない項目（スキルで扱えているか確認してください）: {items}",
+        "list_sep": "、",
     },
 }
 
@@ -249,6 +256,20 @@ def agent_label(agent: str) -> str:
         return registry.get(agent).label
     except registry.RegistryError:
         return agent
+
+
+def coverage_note(res: Any, t: dict[str, str], limit: int = 6) -> str:
+    """One or two lines about what a rewritten skill no longer mentions."""
+    cov = (getattr(res, "info", None) or {}).get("coverage") or {}
+    if not cov.get("total"):
+        return ""
+    text = t["coverage"].format(found=cov["found"], total=cov["total"])
+    missing = [i for i in cov["items"] if not i["found"]]
+    if missing:
+        names = t["list_sep"].join(i["value"][:40] for i in missing[:limit])
+        more = f" (+{len(missing) - limit})" if len(missing) > limit else ""
+        text += "\n" + t["coverage_missing"].format(items=names) + more
+    return text
 
 
 def custom_installers() -> list[tuple[str, str]]:

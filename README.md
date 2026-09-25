@@ -290,7 +290,7 @@ stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|ge
               [--dry-run] [--json]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
-stepcap check-skill SKILL_DIR [--json]
+stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--json]
 stepcap schema [session|event|steps|terminal] [--path]
 stepcap agents [--json]                                    # agents you can --install / --agent
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
@@ -390,6 +390,12 @@ stepcap check-skill skills/<name>                    # validate after editing by
 - **Always validated**: Agent Skills frontmatter rules, name = folder name, < 500 lines,
   ~5000 tokens, every `references/` link exists, and no secret patterns (GitHub / AWS /
   OpenAI / Anthropic keys, JWTs, passwords in URLs, card numbers). Exit code 1 if not.
+- **Checked against the recording**: after a rewrite (by you or `--agent`), stepcap lists
+  what the recording showed but SKILL.md no longer mentions: apps, clicked buttons and
+  fields, `{{inputs}}`, URL hosts, terminal commands and F7 notes. It is a review hint
+  (a skill may rightly replace clicks with a CLI call), shown after `--agent` runs, in the
+  window, and by `stepcap check-skill SKILL_DIR --session SESSION_DIR` (`--min-coverage 0.8`
+  makes it fail below 80 %).
 - **Terminal steps**: run `stepcap shell my-guide` in a second terminal while recording.
   Commands typed there (not their output) are added with their exit status, secrets
   masked, and show up as "Ran in a terminal: `...`" in the skill. bash and zsh on macOS /
