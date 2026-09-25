@@ -62,6 +62,25 @@ While recording: **F9** stop · **F8** pause/resume · **F7** add a manual step 
 Prefer a single binary? Each [release](https://github.com/kajisho5/stepcap/releases)
 ships `stepcap` executables for Windows, macOS and Linux (PyInstaller, no Python needed).
 
+### No terminal? Use the window
+
+```bash
+stepcap app          # or double-click the release binary
+```
+
+Pick where to save, press **Start recording**, do the task, press **Stop** on the small
+always-on-top bar (F9 / F8 / F7 keep working). Clicks on the bar itself are never steps.
+Then **Edit steps** or **Export guide + skill** (written next to the recording as
+`<name>-export/guide/` and `<name>-export/skill/<name>/`). The window follows the system
+language (English / 日本語).
+
+![stepcap app: start, recording bar, done](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/app.png)
+
+The release binaries are not code-signed yet. Windows may show "Windows protected your PC"
+(click **More info → Run anyway**); macOS may block the download (System Settings →
+Privacy & Security → **Open Anyway**). The recording bar is visible in screenshots; blur it
+in `stepcap edit` if needed.
+
 ## Demo
 
 **One recording → a guide for people (left) and a SKILL.md for agents (right):**
@@ -259,6 +278,7 @@ stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
 stepcap check-skill SKILL_DIR [--json]
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
+stepcap app [--lang en|ja]                                 # window: start / stop / edit / export
 stepcap doctor [--json]
 ```
 

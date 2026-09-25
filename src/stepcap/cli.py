@@ -59,11 +59,16 @@ def cmd_record(args: argparse.Namespace) -> int:
         record_clipboard=args.record_clipboard,
         dry_run=args.dry_run,
         as_json=args.json,
+        control=args.control,
     )
     try:
         result = record(opts)
     except (RecorderError, SessionError) as exc:
         _err(str(exc))
+        if args.control:
+            from stepcap.capture.recorder import emit_status
+
+            emit_status("error", message=str(exc))
         return EXIT_FAIL
     if args.json:
         _print_json(result)
@@ -279,6 +284,19 @@ def cmd_check_skill(args: argparse.Namespace) -> int:
     return EXIT_FAIL if problems else EXIT_OK
 
 
+# ---------------------------------------------------------------------------- app
+def cmd_app(args: argparse.Namespace) -> int:
+    try:
+        from stepcap.gui.app import main as app_main
+    except ImportError as exc:  # tkinter is optional on some Linux Pythons
+        _err(
+            f"the window needs tkinter ({exc}). Install it (e.g. sudo apt install python3-tk) "
+            "or use the release binary; the command line works without it."
+        )
+        return EXIT_FAIL
+    return app_main(args.lang)
+
+
 # ---------------------------------------------------------------------------- doctor
 def cmd_doctor(args: argparse.Namespace) -> int:
     from stepcap import doctor
@@ -391,6 +409,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--dry-run", action="store_true", help="check permissions/hooks and exit without recording"
     )
     r.add_argument("--json", action="store_true", help="print a JSON summary when done")
+    r.add_argument(
+        "--control",
+        action="store_true",
+        help=argparse.SUPPRESS,  # JSON-lines protocol used by `stepcap app`
+    )
     r.set_defaults(func=cmd_record)
 
     b = sub.add_parser("build", help="generate guide.md / guide.html / steps.json")
@@ -532,6 +555,10 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--json", action="store_true")
     c.set_defaults(func=cmd_check_skill)
 
+    a = sub.add_parser("app", help="open the stepcap window: start / stop recordings, edit, export")
+    a.add_argument("--lang", choices=("en", "ja"), help="window language (default: system)")
+    a.set_defaults(func=cmd_app)
+
     d = sub.add_parser("doctor", help="check permissions, hooks and screen capture")
     d.add_argument("--json", action="store_true")
     d.set_defaults(func=cmd_doctor)
@@ -546,7 +573,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if not getattr(args, "func", None):
+        if argv is None and getattr(sys, "frozen", False) and len(sys.argv) == 1:
+            # the release binary was double-clicked: open the window
+            return cmd_app(argparse.Namespace(lang=None))
         parser.print_help()
+        print("\nTip: `stepcap app` opens a window to record without the terminal.")
         return EXIT_USAGE
     try:
         return int(args.func(args))

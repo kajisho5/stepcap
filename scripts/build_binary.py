@@ -58,8 +58,6 @@ def main() -> int:
         "stepcap",  # edit/ui.html
         "--collect-submodules",
         "mss",
-        "--exclude-module",
-        "tkinter",
         "--distpath",
         str(ROOT / "dist"),
         "--workpath",
