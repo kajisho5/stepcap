@@ -38,6 +38,7 @@ SIZES = {  # name: (points, bold)
 }
 
 _registered: bool | None = None
+register_error = ""  # why the font could not be registered (shown by tests / debugging)
 
 # line breaking: a Latin word stays whole, Japanese may break between any two characters,
 # but never before closing punctuation or after an opening bracket (kinsoku)
@@ -56,6 +57,7 @@ class Theme:
     green: str
     fonts: dict[str, tuple] = field(default_factory=dict)
     sv_ttk: bool = False
+    font_note: str = ""  # why the system font is used instead, if it is
 
 
 def font_dir() -> Path:
@@ -64,13 +66,20 @@ def font_dir() -> Path:
 
 def register_fonts() -> bool:
     """Make Noto Sans JP available to this process (once). False if the OS refused."""
-    global _registered
+    global _registered, register_error
     if _registered is None:
         _registered = False
         paths = [font_dir() / name for name in FONT_FILES]
-        if all(p.is_file() for p in paths):
-            with contextlib.suppress(Exception):
-                _registered = all(_register(p) for p in paths)
+        if not all(p.is_file() for p in paths):
+            register_error = f"font files missing in {font_dir()}"
+            return False
+        try:
+            failed = [p.name for p in paths if not _register(p)]
+        except Exception as exc:
+            register_error = f"{type(exc).__name__}: {exc}"
+            return False
+        _registered = not failed
+        register_error = f"the OS refused {', '.join(failed)}" if failed else ""
     return _registered
 
 
@@ -79,6 +88,16 @@ def _register(path: Path) -> bool:
         fr_private = 0x10
         return ctypes.windll.gdi32.AddFontResourceExW(str(path), fr_private, 0) > 0  # type: ignore[attr-defined]
     if sys.platform == "darwin":
+        with contextlib.suppress(ImportError):  # pyobjc (installed with the Vision OCR dependency)
+            import CoreText
+            from Foundation import NSURL
+
+            ok, err = CoreText.CTFontManagerRegisterFontsForURL(
+                NSURL.fileURLWithPath_(str(path)), CoreText.kCTFontManagerScopeProcess, None
+            )
+            if not ok:
+                raise OSError(str(err))
+            return True
         cf = ctypes.CDLL(ctypes.util.find_library("CoreFoundation"))
         ct = ctypes.CDLL(ctypes.util.find_library("CoreText"))
         cf.CFURLCreateFromFileSystemRepresentation.restype = ctypes.c_void_p
@@ -202,7 +221,18 @@ def apply(root: tk.Tk, dark: bool | None = None) -> Theme:
         used_sv = True
     if not used_sv:
         dark = False  # Tk's default themes are light
-    family = FAMILY if register_fonts() and FAMILY in tkfont.families(root) else ""
+    family, note = "", ""
+    if not register_fonts():
+        note = register_error
+    elif FAMILY in tkfont.families(root):
+        family = FAMILY
+    else:
+        root.update()  # macOS announces newly registered fonts through the event loop
+        if FAMILY in tkfont.families(root):
+            family = FAMILY
+        else:
+            similar = [f for f in tkfont.families(root) if "noto" in f.lower()]
+            note = f"registered, but Tk does not list {FAMILY!r} (similar: {similar[:8]})"
     if family:
         for name in tkfont.names(root):  # sv-ttk's fonts included; not TkFixedFont
             if name != "TkFixedFont":
@@ -222,6 +252,7 @@ def apply(root: tk.Tk, dark: bool | None = None) -> Theme:
         green="#3fb950" if dark else "#1a7f37",
         fonts=fonts,
         sv_ttk=used_sv,
+        font_note=note,
     )
     if not used_sv:
         theme.bg = ttk.Style(root).lookup(".", "background") or "#f0f0f0"

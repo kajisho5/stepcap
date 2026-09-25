@@ -360,7 +360,7 @@ def test_window_views(tmp_path, monkeypatch):
         assert [(i.width(), i.height()) for i in app.icons] == [(256, 256), (32, 32)]
         assert app.theme.dark == app.theme.sv_ttk  # dark needs sv-ttk; without it: light
         # the bundled font, registered for this process only (Windows / macOS / fontconfig)
-        assert app.theme.family == "Noto Sans JP"
+        assert app.theme.family == "Noto Sans JP", app.theme.font_note
 
         # tick two recordings: combine and compare; a third: combine only
         assert app.combine_btn.instate(["disabled"]) and app.compare_btn.instate(["disabled"])
