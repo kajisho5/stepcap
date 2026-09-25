@@ -245,24 +245,37 @@ def build_server(tools: Tools):
 
     @server.tool()
     def list_sessions() -> dict[str, Any]:
-        """List stepcap recordings in the allowed folders (newest first)."""
+        """List stepcap recordings in the allowed folders (--root), newest first. Looks at
+        each allowed folder and its direct subfolders only, not deeper. Returns the allowed
+        folders and, per recording: session (the folder path the other tools take), title,
+        started, steps, has_guide and voice_notes. Call this first when you do not know a
+        recording's folder path."""
         return guard(tools.list_sessions)
 
     @server.tool()
     def get_steps(session: str) -> dict[str, Any]:
         """Steps of a recording: number, kind, title, description, app, window, clicked
-        element, typed input variable, and context (URLs, terminal commands, narration)."""
+        element, typed input variable, and context (URLs, terminal commands, narration).
+        session: a folder path from list_sessions (absolute, or relative to the first allowed
+        folder). Typed text is present only if the person recorded it; secrets are already
+        masked. has_image tells whether step_image can show the step."""
         return guard(tools.get_steps, session)
 
     @server.tool()
     def step_image(session: str, step: int) -> Image:
-        """Annotated screenshot (PNG) of one step (1-based), as in the guide."""
+        """Annotated screenshot (PNG, 1280 px wide) of one step, as in the guide: a numbered
+        frame or ring marks the clicked element, arrows mark drags and scrolls. session: a
+        folder path from list_sessions (absolute, or relative to the first allowed folder).
+        step: the 1-based number from get_steps; a step with has_image false returns an
+        error."""
         return Image(data=guard(tools.step_image, session, step), format="png")
 
     @server.tool()
     def build_guide(session: str, lang: str | None = None) -> dict[str, Any]:
-        """Build guide.html, guide.md and checklist.html in the recording folder (keeps
-        edits in steps.json). lang: en or ja."""
+        """Build guide.html, guide.md and checklist.html in the recording folder, replacing
+        the previous build; text edits in steps.json are kept. session: a folder path from
+        list_sessions (absolute, or relative to the first allowed folder). lang: en or ja
+        (default: the recording's language)."""
         return guard(tools.build_guide, session, lang)
 
     @server.tool()
@@ -287,7 +300,10 @@ def build_server(tools: Tools):
     @server.tool()
     def compare_recordings(reference: str, other: str) -> dict[str, Any]:
         """Compare two recordings of the same task: steps missing in other, extra steps,
-        matched steps whose screen or typed value differs, and differing URLs / commands."""
+        matched steps whose screen or typed value differs, and differing URLs / commands.
+        reference and other: folder paths from list_sessions (absolute, or relative to the
+        first allowed folder). Different screens and values are normal when the runs used
+        different data; the missing steps are the ones to check."""
         return guard(tools.compare_recordings, reference, other)
 
     @server.tool()
