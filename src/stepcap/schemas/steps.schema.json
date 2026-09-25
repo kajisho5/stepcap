@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kajisho5/stepcap/schemas/steps.schema.json",
+  "title": "stepcap steps.json",
+  "description": "The editable guide: order, titles and descriptions of the steps (SESSION_DIR/steps.json). `stepcap build` creates it once and then keeps your edits. Unknown keys are allowed.",
+  "type": "object",
+  "required": ["format", "steps"],
+  "properties": {
+    "format": {"type": "integer", "minimum": 1, "description": "2; format 1 files are migrated on load"},
+    "generator": {"type": "string"},
+    "lang": {"type": "string"},
+    "title": {"type": "string"},
+    "auto_title": {"type": ["string", "null"], "description": "set when title is the automatic default"},
+    "marker": {"enum": ["box", "ring"]},
+    "spotlight": {"type": "boolean"},
+    "auto_arrows": {"type": "boolean"},
+    "steps": {"type": "array", "items": {"$ref": "#/$defs/step"}}
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "required": ["id", "kind", "title"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "description": "stable id, s0001 for the step from event 1"},
+        "event_id": {"type": ["integer", "null"], "description": "id of the event in events.jsonl (null for steps added in the editor)"},
+        "kind": {"enum": ["click", "drag", "scroll", "type", "key", "manual"]},
+        "title": {"type": "string"},
+        "description": {"type": "string"},
+        "auto": {
+          "type": "object",
+          "description": "the generated title/description; a rebuild only replaces text you did not change",
+          "properties": {"title": {"type": "string"}, "description": {"type": "string"}}
+        },
+        "screenshot": {"type": ["string", "null"], "description": "screenshot id (e.g. 0003); may point at an earlier identical screenshot"},
+        "own_screenshot": {"type": ["string", "null"]},
+        "image": {"type": ["string", "null"]},
+        "rendered": {"type": ["string", "null"]},
+        "rendered_full": {"type": ["string", "null"]},
+        "point": {"$ref": "#/$defs/point"},
+        "from": {"$ref": "#/$defs/point"},
+        "to": {"$ref": "#/$defs/point"},
+        "image_size": {"$ref": "event.schema.json#/$defs/size"},
+        "window_title": {"type": ["string", "null"]},
+        "app_name": {"type": ["string", "null"]},
+        "click_type": {"type": "string"},
+        "keys": {"type": "string"},
+        "direction": {"type": "string"},
+        "box": {"type": ["array", "null"], "items": {"type": "number"}, "minItems": 4, "maxItems": 4,
+                "description": "x, y, w, h of the frame in screenshot pixels; null = no frame (decided by box_source)"},
+        "box_source": {"enum": ["auto", "a11y", "manual"], "description": "who decided the frame: auto (image detection), a11y (OS accessibility rectangle) or manual (stepcap edit)"},
+        "arrows": {"type": "array", "items": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+                   "description": "hand-drawn arrows [x1, y1, x2, y2] (tail, head) in screenshot pixels"},
+        "element": {
+          "type": "object",
+          "properties": {"name": {"type": "string"}, "role": {"type": "string"}}
+        },
+        "input": {
+          "type": "object",
+          "description": "type steps: the value becomes {{name}} in the skill unless variable is false",
+          "required": ["name"],
+          "properties": {
+            "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,39}$"},
+            "variable": {"type": "boolean"}
+          }
+        }
+      }
+    },
+    "point": {
+      "type": ["object", "null"],
+      "properties": {"x": {"type": "number"}, "y": {"type": "number"}}
+    }
+  }
+}

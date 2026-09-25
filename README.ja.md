@@ -225,6 +225,7 @@ stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
 stepcap check-skill SKILL_DIR [--json]
+stepcap schema [session|event|steps|terminal] [--path]
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap app [--lang en|ja]                                 # ウィンドウ: 開始 / 停止 / 編集 / 書き出し
@@ -232,6 +233,8 @@ stepcap doctor [--json]
 ```
 
 失敗時はすべて非ゼロで終了します。`--json` で機械可読な出力になります。既存の空でないセッションフォルダは上書きせず、`build` は `raw/` に一切触れません。
+
+セッションフォルダ内のファイル形式（`session.json`・`events.jsonl`・`steps.json`・`terminal.jsonl`）は JSON Schema（draft 2020-12）として同梱しています。`stepcap schema steps` で表示、`stepcap schema --path` で保存場所を表示します（[ソース](src/stepcap/schemas/)）。他のツールから記録を読み込んだり検証したりするのに使えます。新しいバージョンで項目を追加できるよう、未知のキーは許可しています。
 
 ## 権限
 

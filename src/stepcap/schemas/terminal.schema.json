@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kajisho5/stepcap/schemas/terminal.schema.json",
+  "title": "stepcap terminal.jsonl line",
+  "description": "One command from `stepcap shell`, as written (secrets masked). When a session is loaded these become `terminal` context events (event.schema.json) placed by time using session.json t0_epoch.",
+  "type": "object",
+  "required": ["kind", "time", "command"],
+  "properties": {
+    "kind": {"const": "terminal"},
+    "time": {"type": "number", "description": "Unix time the command finished"},
+    "command": {"type": "string"},
+    "cwd": {"type": "string"},
+    "exit": {"type": "integer"}
+  }
+}

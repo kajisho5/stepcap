@@ -285,6 +285,20 @@ def cmd_check_skill(args: argparse.Namespace) -> int:
     return EXIT_FAIL if problems else EXIT_OK
 
 
+def cmd_schema(args: argparse.Namespace) -> int:
+    from stepcap import schemas
+
+    if args.path:
+        print(schemas.path(args.name) if args.name else schemas.DIR)
+        return EXIT_OK
+    names = [args.name] if args.name else list(schemas.NAMES)
+    if len(names) == 1:
+        _print_json(schemas.load(names[0]))
+    else:
+        _print_json({n: schemas.load(n) for n in names})
+    return EXIT_OK
+
+
 # ---------------------------------------------------------------------------- app
 def cmd_app(args: argparse.Namespace) -> int:
     try:
@@ -562,6 +576,14 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("skill_dir", metavar="SKILL_DIR")
     c.add_argument("--json", action="store_true")
     c.set_defaults(func=cmd_check_skill)
+
+    j = sub.add_parser(
+        "schema",
+        help="print the JSON Schema of session.json, events.jsonl, steps.json or terminal.jsonl",
+    )
+    j.add_argument("name", nargs="?", choices=("session", "event", "steps", "terminal"))
+    j.add_argument("--path", action="store_true", help="print the schema file path instead")
+    j.set_defaults(func=cmd_schema)
 
     a = sub.add_parser("app", help="open the stepcap window: start / stop recordings, edit, export")
     a.add_argument("--lang", choices=("en", "ja"), help="window language (default: system)")

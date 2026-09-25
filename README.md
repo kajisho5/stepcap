@@ -291,6 +291,7 @@ stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
 stepcap check-skill SKILL_DIR [--json]
+stepcap schema [session|event|steps|terminal] [--path]
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap app [--lang en|ja]                                 # window: start / stop / edit / export
@@ -313,6 +314,11 @@ SESSION_DIR/
   steps.json      canonical steps (titles, descriptions, image paths, coordinates)
   guide.md, images/, guide.html
 ```
+
+The formats are documented as JSON Schemas (draft 2020-12) shipped with stepcap:
+`stepcap schema steps` prints one, `stepcap schema --path` shows where they are
+([source](src/stepcap/schemas/)). Other tools can read and validate sessions with them;
+unknown keys are allowed so newer versions can add fields.
 
 ## Permissions
 

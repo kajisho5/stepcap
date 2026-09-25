@@ -53,7 +53,7 @@ issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-
 | RM-043 | planned | edit | Keyboard shortcuts and accessibility audit of the editor |
 | RM-044 | planned | agents | MCP server exposing sessions, steps and build to agents |
 | RM-045 | planned | agents | `stepcap describe` prompt pack for local LLMs (Ollama) — opt-in |
-| RM-046 | planned | agents | JSON Schema for steps.json and events.jsonl |
+| RM-046 | done | agents | JSON Schemas for session.json, events.jsonl, steps.json, terminal.jsonl (`stepcap schema`) |
 | RM-047 | planned | dist | Signed and notarised macOS binary; signed Windows binary |
 | RM-048 | planned | dist | Homebrew, Scoop and winget packages |
 | RM-049 | planned | dist | Linux arm64 and macOS x64 binaries |
