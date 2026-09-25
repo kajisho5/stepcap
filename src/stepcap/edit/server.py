@@ -283,6 +283,10 @@ def _ui_html() -> bytes:
     return resources.files("stepcap.edit").joinpath("ui.html").read_bytes()
 
 
+def _favicon() -> bytes:
+    return (resources.files("stepcap") / "assets" / "icon-32.png").read_bytes()
+
+
 def make_handler(app: EditApp, allowed_hosts: set[str] | None):
     class Handler(BaseHTTPRequestHandler):
         server_version = "stepcap-edit"
@@ -353,7 +357,7 @@ def make_handler(app: EditApp, allowed_hosts: set[str] | None):
                 if path in ("/", "/index.html"):
                     return self._send(200, _ui_html(), "text/html; charset=utf-8")
                 if path == "/favicon.ico":
-                    return self._send(204, b"", "image/x-icon")
+                    return self._send(200, _favicon(), "image/png")
                 if path == "/api/steps":
                     return self._json(200, app.get_steps())
                 if path.startswith("/api/image/"):

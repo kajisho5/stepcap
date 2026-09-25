@@ -14,11 +14,14 @@ Slow work (building, the agent CLI) runs on a thread; its result comes back thro
 
 from __future__ import annotations
 
+import base64
+import contextlib
 import queue
 import threading
 import time
 import tkinter as tk
 from collections.abc import Callable
+from importlib import resources
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 from typing import Any
@@ -26,7 +29,20 @@ from typing import Any
 from stepcap.gui import controller as ctl
 
 POLL_MS = 100
+ICONS = ("icon-256.png", "icon-32.png")  # stepcap/assets, largest first
 BAR_MARGIN = 6  # extra pixels around the bar that also do not count as steps
+
+
+def set_icon(root: tk.Misc) -> list[tk.PhotoImage]:
+    """Window / taskbar icon. Without the files (or with an old Tk) only the icon is lost."""
+    icons: list[tk.PhotoImage] = []
+    with contextlib.suppress(Exception):
+        base = resources.files("stepcap") / "assets"
+        for name in ICONS:
+            data = base64.b64encode((base / name).read_bytes()).decode("ascii")
+            icons.append(tk.PhotoImage(master=root, data=data))
+        root.iconphoto(True, *icons)  # type: ignore[attr-defined]
+    return icons  # keep a reference: Tk forgets images Python garbage-collects
 
 
 class App:
@@ -42,6 +58,7 @@ class App:
         self.paused_at: float | None = None
         self.last_exclude: tuple[int, int, int, int] | None = None
         root.title("stepcap")
+        self.icons = set_icon(root)
         root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root_dir = tk.StringVar(value=str(ctl.default_root()))
         self.name = tk.StringVar(value=ctl.new_session_name())

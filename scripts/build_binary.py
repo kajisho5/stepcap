@@ -24,6 +24,17 @@ BACKENDS = {
 }
 
 
+def windows_icon() -> Path:
+    """build/stepcap.ico (16-256 px) from the packaged icon, with Pillow."""
+    from PIL import Image
+
+    out = ROOT / "build" / "stepcap.ico"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    img = Image.open(ROOT / "src" / "stepcap" / "assets" / "icon-256.png")
+    img.save(out, sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
+    return out
+
+
 def _uia_modules() -> list[str]:
     """Generate the UI Automation wrappers now, so the frozen binary does not have to."""
     try:
@@ -100,6 +111,8 @@ def main() -> int:
     ]
     for mod in hidden_imports():
         cmd += ["--hidden-import", mod]
+    if sys.platform == "win32":  # the .exe icon; macOS / Linux single files have none
+        cmd += ["--icon", str(windows_icon())]
     if args.voice:
         # faster_whisper ships the VAD model as package data; ctranslate2 / onnxruntime /
         # av load native libraries that PyInstaller's contrib hooks collect

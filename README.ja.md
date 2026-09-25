@@ -1,4 +1,9 @@
-# stepcap
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/brand/banner-dark.png">
+    <img alt="stepcap" src="https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/brand/banner-light.png" width="640">
+  </picture>
+</h1>
 
 **1 回の記録から、人向けの手順書と、どのエージェントでも使える SKILL.md の両方を。ローカル完結・アカウント不要・Copilot 不要。**
 
