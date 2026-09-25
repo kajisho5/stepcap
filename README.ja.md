@@ -315,7 +315,7 @@ stepcap diff my-guide agent-run -o report.html --fail-on missing
 
 ### MCP でエージェントから使う: `stepcap mcp`
 
-エージェントが記録を直接扱えるようにします。`stepcap mcp` は MCP サーバー（stdio）で、6 つのツールを提供します: `list_sessions`（記録の一覧）、`get_steps`（タイトル・クリックした部品・入力値・URL・コマンド・ナレーション）、`step_image`（注釈付きのステップ画像）、`build_guide`（手順書の作成）、`make_skill`（スキルの作成と任意でインストール）、`check_skill`（検証と記録との照合）。記録の開始はツールにしていません（画面の記録を始めるかどうかは人が決めるべきため）。エージェントが扱えるのは `--root` 以下のフォルダだけです（既定: ウィンドウの保存先 `~/Documents/stepcap` と現在のフォルダ）。
+エージェントが記録を直接扱えるようにします。`stepcap mcp` は MCP サーバー（stdio）で、7 つのツールを提供します: `list_sessions`（記録の一覧）、`get_steps`（タイトル・クリックした部品・入力値・URL・コマンド・ナレーション）、`step_image`（注釈付きのステップ画像）、`build_guide`（手順書の作成）、`make_skill`（スキルの作成と任意でインストール。複数の録画からも可）、`check_skill`（検証と記録との照合）、`compare_recordings`（`stepcap diff` と同じ比較）。記録の開始はツールにしていません（画面の記録を始めるかどうかは人が決めるべきため）。エージェントが扱えるのは `--root` 以下のフォルダだけです（既定: ウィンドウの保存先 `~/Documents/stepcap` と現在のフォルダ）。
 
 ```bash
 pip install "stepcap[mcp]"

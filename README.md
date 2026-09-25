@@ -470,11 +470,12 @@ stepcap diff my-guide agent-run -o report.html --fail-on missing
 
 ### For agents over MCP: `stepcap mcp`
 
-Let an agent use your recordings directly. `stepcap mcp` is an MCP server (stdio) with six
+Let an agent use your recordings directly. `stepcap mcp` is an MCP server (stdio) with seven
 tools: `list_sessions`, `get_steps` (titles, clicked elements, inputs, URLs, commands,
 narration), `step_image` (the annotated screenshot of a step, as an image),
-`build_guide`, `make_skill` (write and optionally install a skill) and `check_skill`
-(validate + compare with the recording). Starting a recording is not a tool: capturing your
+`build_guide`, `make_skill` (write and optionally install a skill, from one or several
+recordings), `check_skill` (validate + compare with the recording) and `compare_recordings`
+(what `stepcap diff` reports). Starting a recording is not a tool: capturing your
 screen stays your decision. The agent can only use folders under `--root` (default:
 `~/Documents/stepcap`, where the window saves, and the current folder).
 
