@@ -46,8 +46,9 @@ def test_windows_asks_only_browsers(monkeypatch):
     assert window.browser_url(WindowInfo("Inbox - Outlook", "OUTLOOK")) is None
     assert window.browser_url(WindowInfo("Example - Google Chrome", "chrome")) == "u"
     assert window.browser_url(WindowInfo("x", "msedge")) == "u"
+    assert window.browser_url(WindowInfo("x", "firefox")) is None  # not supported
     assert window.browser_url(WindowInfo("x", None)) is None
-    assert len(calls) == 2
+    assert len(calls) == 2  # chrome, msedge
 
 
 def test_windows_url_never_raises_elsewhere():
@@ -65,7 +66,6 @@ BROWSERS = {
         r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
         r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
     ],
-    "firefox": [r"C:\Program Files\Mozilla Firefox\firefox.exe"],
 }
 
 
@@ -144,18 +144,15 @@ def test_real_browser_address_bar(browser):
     page = Path(profile) / "stepcap-url-test.html"
     marker = f"stepcap URL test {browser}"
     page.write_text(f"<title>{marker}</title><h1>{marker}</h1>", encoding="utf-8")
-    if browser == "firefox":
-        args = [exe, "-no-remote", "-profile", profile, "-new-window", page.as_uri()]
-    else:
-        args = [
-            exe,
-            f"--user-data-dir={profile}",
-            "--no-first-run",
-            "--no-default-browser-check",
-            "--disable-features=Translate",
-            "--new-window",
-            page.as_uri(),
-        ]
+    args = [
+        exe,
+        f"--user-data-dir={profile}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-features=Translate",
+        "--new-window",
+        page.as_uri(),
+    ]
     proc = subprocess.Popen(args)
     try:
         hwnd = _find_window(marker)

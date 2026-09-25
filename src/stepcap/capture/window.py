@@ -201,7 +201,9 @@ def get_active_window() -> WindowInfo:
 # macOS: AppleScript. The first call per browser makes macOS ask for the
 # "Automation" permission; if it is refused we stop asking that browser.
 # Windows: UI Automation reads the address bar (the first edit field in the
-# browser window) of Chrome, Edge, Firefox, Brave, Vivaldi and Opera.
+# browser window) of Chrome and Edge (tested in CI) and the Chromium-based Brave,
+# Vivaldi and Opera. Firefox does not expose its toolbar to UI Automation by default
+# (only the window frame), so it is not supported.
 # Linux: not supported yet (RM-070).
 _MAC_URL_SCRIPTS = {
     "Safari": 'tell application "Safari" to get URL of front document',
@@ -212,7 +214,7 @@ _MAC_URL_SCRIPTS = {
 _url_denied: set[str] = set()
 
 
-_WIN_BROWSERS = {"chrome", "msedge", "firefox", "brave", "vivaldi", "opera", "chromium"}
+_WIN_BROWSERS = {"chrome", "msedge", "brave", "vivaldi", "opera", "chromium"}
 _UIA_EDIT = 50004  # UIA_EditControlTypeId
 _UIA_CONTROL_TYPE = 30003  # UIA_ControlTypePropertyId
 _UIA_VALUE_PATTERN = 10002  # UIA_ValuePatternId

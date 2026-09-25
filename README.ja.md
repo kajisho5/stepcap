@@ -173,7 +173,7 @@ $ cat demo/terminal.jsonl
 - **クリックした部品を枠で囲む**: ボタン・入力欄・チェックボックス・カードをスクリーンショットから検出して囲みます。自信がないときは丸にします
 - **矢印とスポットライト**: 小さい部品には自動で矢印を付けます。`--spotlight` で対象以外を暗くでき、編集 UI では矢印を手描きで追加できます
 - **ローカル編集 UI**（`stepcap edit`）: ドラッグで並べ替え、削除、タイトル / 説明の編集、枠の描き直し / 削除、矢印の追加、枠・自動矢印・スポットライトの切り替え、矩形ぼかし（`work/` のコピーに適用し、原本 `raw/` は変更しません）、再ビルド
-- **エージェント向けの文脈**: アプリ / ウィンドウの切り替えは常に記録します。`--record-urls` で前面のブラウザタブの URL（Windows: Chrome・Edge・Firefox・Brave・Vivaldi・Opera を UI Automation で。macOS: Safari・Chrome・Edge・Arc。`--keep-query` なしではクエリ文字列を除去）、`--record-clipboard` でコピーした文字列（文字数と先頭 80 文字）も記録します。これらはステップにはならず、`stepcap skill` が「Browser at …」「Then: copied …」として使います
+- **エージェント向けの文脈**: アプリ / ウィンドウの切り替えは常に記録します。`--record-urls` で前面のブラウザタブの URL（Windows: Chrome・Edge などの Chromium 系を UI Automation で。Firefox は非対応。macOS: Safari・Chrome・Edge・Arc。`--keep-query` なしではクエリ文字列を除去）、`--record-clipboard` でコピーした文字列（文字数と先頭 80 文字）も記録します。これらはステップにはならず、`stepcap skill` が「Browser at …」「Then: copied …」として使います
 - **音声メモ**（`--voice`、既定はオフ）: 記録しながら「何をしているか・なぜか」を声で話せます。停止時にマイクの音声を**この PC 上で**文字起こし（faster-whisper、CPU）し、各ステップの説明と、スキルの「Narration: …」（最初のクリック前に話した内容は Goal）に入れます。`audio.wav` は文字起こし後に削除します（`--keep-audio` で保持）。一時停止中に話した内容は残りません。`pip install "stepcap[voice]"` または単体実行ファイルの音声版が必要です。音声モデル（`--voice-model base` で約 150 MB。日本語は `small` の方が精度が上がります）は初回だけ Hugging Face からダウンロードし、以降はオフラインで動きます
 - **プライバシー重視の初期設定**: `--record-typing` を付けない限り入力内容は保存しません。パスワード / ログイン画面では常にマスクします。`--exclude-app` を指定したアプリが前面の間は記録もスクショもしません。通信は一切行いません（`--voice` の音声モデルの初回ダウンロードを除く）
 

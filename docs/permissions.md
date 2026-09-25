@@ -46,8 +46,9 @@ No permission dialog is needed. Two limitations:
   captured (by design of Windows).
 - `record --voice`: Settings › Privacy & security › Microphone › "Let desktop apps
   access your microphone" must be on.
-- `record --record-urls` reads the address bar of Chrome, Edge, Firefox, Brave, Vivaldi
-  and Opera with UI Automation (no prompt). What the bar shows is recorded: Chrome and
+- `record --record-urls` reads the address bar of Chrome and Edge (and the Chromium-based
+  Brave, Vivaldi, Opera) with UI Automation (no prompt). Firefox is not supported: by
+  default it exposes only its window frame to UI Automation, not the address bar. What the bar shows is recorded: Chrome and
   Edge hide `https://`, which stepcap adds back; text you are typing into the bar (a
   search) is ignored.
 - stepcap makes itself per-monitor DPI aware so click positions match screenshots on

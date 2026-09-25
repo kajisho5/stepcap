@@ -209,8 +209,8 @@ MAC_URL_NOTE = (
     "the app that runs stepcap to control it (Privacy & Security > Automation)"
 )
 WIN_URL_NOTE = (
-    "Chrome, Edge, Firefox, Brave, Vivaldi and Opera: the address bar is read with UI "
-    "Automation (no permission needed)"
+    "Chrome and Edge (and Chromium-based Brave, Vivaldi, Opera): the address bar is read "
+    "with UI Automation, no permission needed. Firefox is not supported"
 )
 X11_FIX = "Run stepcap inside a graphical X11 session (DISPLAY must be set, e.g. DISPLAY=:0)."
 SESSION_FIX = "Run stepcap in an interactive desktop session (not a service or SSH session)."
