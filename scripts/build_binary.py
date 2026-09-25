@@ -99,7 +99,9 @@ def main() -> int:
         "--name",
         args.name,
         "--collect-data",
-        "stepcap",  # edit/ui.html
+        "stepcap",  # edit/ui.html, assets (icons, fonts)
+        "--collect-data",
+        "sv_ttk",  # the app's theme: Tcl files and images
         "--collect-submodules",
         "mss",
         "--distpath",

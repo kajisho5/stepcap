@@ -8,8 +8,8 @@ version = "0.1.7"
 description = "Record once: a step-by-step guide for people (Markdown / single-file HTML / checklist) and an Agent Skill (SKILL.md) for any agent. Fully local, works offline, no account."
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "MIT AND OFL-1.1"  # OFL: the bundled Noto Sans JP font (stepcap app)
+license-files = ["LICENSE", "src/stepcap/assets/fonts/LICENSE-OFL.txt"]
 authors = [{ name = "kajisho5" }]
 keywords = ["screenshot", "documentation", "how-to", "step-by-step", "guide", "recorder", "manual", "sop"]
 classifiers = [
@@ -33,6 +33,7 @@ dependencies = [
   "pynput>=1.7.7",
   "comtypes>=1.4; sys_platform == 'win32'",  # UI Automation: names of clicked elements
   "cryptography>=42",  # stepcap share: AES-GCM password-protected guides
+  "sv-ttk>=2.6",  # stepcap app: Sun Valley ttk theme (light / dark)
   # build: name unnamed clicked elements with the OS's built-in OCR (build/ocr.py)
   "winrt-Windows.Media.Ocr>=2.0; sys_platform == 'win32'",
   "winrt-Windows.Graphics.Imaging>=2.0; sys_platform == 'win32'",
