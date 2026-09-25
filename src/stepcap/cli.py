@@ -393,6 +393,17 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_mcp(args: argparse.Namespace) -> int:
+    from stepcap.mcp_server import ToolError, serve
+
+    try:
+        serve([Path(r) for r in args.root] if args.root else None)
+    except ToolError as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    return EXIT_OK
+
+
 def cmd_schema(args: argparse.Namespace) -> int:
     from stepcap import schemas
 
@@ -739,6 +750,19 @@ def build_parser() -> argparse.ArgumentParser:
     t.add_argument("--keep-audio", action="store_true", help="keep audio.wav afterwards")
     t.add_argument("--json", action="store_true")
     t.set_defaults(func=cmd_transcribe)
+
+    m = sub.add_parser(
+        "mcp",
+        help="run an MCP server (stdio) so agents can read recordings and write skills",
+    )
+    m.add_argument(
+        "--root",
+        action="append",
+        metavar="DIR",
+        help="folder the agent may use (repeatable; default: ~/Documents/stepcap and the "
+        "current folder)",
+    )
+    m.set_defaults(func=cmd_mcp)
 
     g = sub.add_parser(
         "agents",

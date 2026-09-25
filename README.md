@@ -307,6 +307,7 @@ stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--js
 stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
 stepcap schema [session|event|steps|terminal|voice] [--path]
 stepcap agents [--json]                                    # agents you can --install / --agent
+stepcap mcp [--root DIR ...]                               # MCP server for agents (stdio)
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap app [--lang en|ja]                                 # window: start / stop / edit / export
@@ -417,6 +418,32 @@ stepcap check-skill skills/<name>                    # validate after editing by
   out (when your shell ignores such commands in history).
 - **Press F7 while recording** to add notes like "why": they become the skill's Goal and are
   the most useful thing you can give an agent.
+
+### For agents over MCP: `stepcap mcp`
+
+Let an agent use your recordings directly. `stepcap mcp` is an MCP server (stdio) with six
+tools: `list_sessions`, `get_steps` (titles, clicked elements, inputs, URLs, commands,
+narration), `step_image` (the annotated screenshot of a step, as an image),
+`build_guide`, `make_skill` (write and optionally install a skill) and `check_skill`
+(validate + compare with the recording). Starting a recording is not a tool: capturing your
+screen stays your decision. The agent can only use folders under `--root` (default:
+`~/Documents/stepcap`, where the window saves, and the current folder).
+
+```bash
+pip install "stepcap[mcp]"
+claude mcp add stepcap -- stepcap mcp                      # Claude Code
+codex mcp add stepcap -- stepcap mcp                       # Codex
+gemini mcp add stepcap stepcap mcp                         # Gemini CLI
+# Cursor: ~/.cursor/mcp.json -> {"mcpServers": {"stepcap": {"command": "stepcap", "args": ["mcp"]}}}
+```
+
+Then ask, for example: *"Look at my latest stepcap recording and turn it into a skill that
+uses the CLI where possible."* Commands from each tool's MCP docs
+([Claude Code](https://code.claude.com/docs/en/mcp),
+[Codex](https://learn.chatgpt.com/docs/extend/mcp?surface=cli),
+[Gemini CLI](https://geminicli.com/docs/tools/mcp-server/),
+[Cursor](https://cursor.com/docs/context/mcp), checked 2026-09-25). Verified with Claude
+Code: it listed the recordings, read the steps and described step 2 from `step_image`.
 
 ## Let your coding agent write the guide text
 

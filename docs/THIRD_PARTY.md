@@ -36,6 +36,12 @@ licensed and are downloaded at first use, not shipped. `tests/fixtures/jfk.wav` 
 John F. Kennedy's 1961 inaugural address, a U.S. government work in the public domain) is
 the 16 kHz sample from whisper.cpp's repository and is used only by the tests.
 
+### MCP server (extra `mcp`, not in the binaries)
+
+| Package | Why | License |
+|---|---|---|
+| [mcp](https://github.com/modelcontextprotocol/python-sdk) ≥ 2.2 | `stepcap mcp`: the official MCP Python SDK (stdio server) | MIT |
+
 ### LGPL note (pynput, python-xlib)
 
 stepcap uses pynput and python-xlib as unmodified, separately installed Python

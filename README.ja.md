@@ -231,6 +231,7 @@ stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--js
 stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
 stepcap schema [session|event|steps|terminal|voice] [--path]
 stepcap agents [--json]                                    # agents you can --install / --agent
+stepcap mcp [--root DIR ...]                               # MCP server for agents (stdio)
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap app [--lang en|ja]                                 # ウィンドウ: 開始 / 停止 / 編集 / 書き出し
@@ -288,6 +289,20 @@ stepcap check-skill skills/<名前>                     # 手で直した後の�
 - **記録との照合**: スキルを書き直した後（手作業でも `--agent` でも）、記録にはあったのに SKILL.md に書かれていないもの（アプリ、クリックしたボタンや入力欄、`{{入力値}}`、URL のホスト名、ターミナルのコマンド、F7 のメモ）を一覧にします。レビュー用のヒントです（クリック操作を CLI に置き換えるなど、正しく書き換えた結果として消えることもあります）。`--agent` 実行後とウィンドウには自動で表示され、`stepcap check-skill SKILL_DIR --session SESSION_DIR` でも確認できます（`--min-coverage 0.8` で 80 % 未満なら失敗）
 - **ターミナルでの操作**: 記録中に別のターミナルで `stepcap shell my-guide` を開くと、そこで打ったコマンド（出力は含まない）が終了コード付き・秘密情報マスク済みで追加され、スキルに「Ran in a terminal: `...`」として載ります。macOS / Linux の bash と zsh に対応し、Windows の PowerShell は未対応です。先頭にスペースを付けたコマンドは記録されません（シェルが履歴から除外する設定の場合）
 - **記録中に F7 で「なぜ」をメモ**してください。スキルの Goal になり、エージェントにとって最も役立つ情報です
+
+### MCP でエージェントから使う: `stepcap mcp`
+
+エージェントが記録を直接扱えるようにします。`stepcap mcp` は MCP サーバー（stdio）で、6 つのツールを提供します: `list_sessions`（記録の一覧）、`get_steps`（タイトル・クリックした部品・入力値・URL・コマンド・ナレーション）、`step_image`（注釈付きのステップ画像）、`build_guide`（手順書の作成）、`make_skill`（スキルの作成と任意でインストール）、`check_skill`（検証と記録との照合）。記録の開始はツールにしていません（画面の記録を始めるかどうかは人が決めるべきため）。エージェントが扱えるのは `--root` 以下のフォルダだけです（既定: ウィンドウの保存先 `~/Documents/stepcap` と現在のフォルダ）。
+
+```bash
+pip install "stepcap[mcp]"
+claude mcp add stepcap -- stepcap mcp                      # Claude Code
+codex mcp add stepcap -- stepcap mcp                       # Codex
+gemini mcp add stepcap stepcap mcp                         # Gemini CLI
+# Cursor: ~/.cursor/mcp.json -> {"mcpServers": {"stepcap": {"command": "stepcap", "args": ["mcp"]}}}
+```
+
+依頼例:「最新の stepcap の記録を見て、できるところは CLI を使うスキルにして」。登録コマンドは各ツールの MCP ドキュメントに基づきます（[Claude Code](https://code.claude.com/docs/en/mcp)・[Codex](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)・[Gemini CLI](https://geminicli.com/docs/tools/mcp-server/)・[Cursor](https://cursor.com/docs/context/mcp)、2026-09-25 確認）。Claude Code で実際に接続し、記録の一覧取得・ステップの読み込み・`step_image` の画像からステップ 2 の内容を説明できることを確認済みです。
 
 ## 手順書の文章をコーディングエージェントに書かせる
 

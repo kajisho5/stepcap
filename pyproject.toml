@@ -39,6 +39,8 @@ dev = ["pytest>=8", "ruff>=0.6", "jsonschema>=4.18"]
 demo = ["playwright>=1.45"]
 # voice notes (record --voice): microphone + local speech-to-text
 voice = ["sounddevice>=0.4", "faster-whisper>=1.0"]
+# stepcap mcp: MCP server for agents
+mcp = ["mcp>=2.2"]
 
 [project.scripts]
 stepcap = "stepcap.cli:main"

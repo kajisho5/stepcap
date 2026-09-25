@@ -51,7 +51,7 @@ issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-
 | RM-041 | planned | edit | Merge / split steps in the editor |
 | RM-042 | planned | edit | Replace a step's screenshot / add a screenshot from file |
 | RM-043 | planned | edit | Keyboard shortcuts and accessibility audit of the editor |
-| RM-044 | planned | agents | MCP server exposing sessions, steps and build to agents |
+| RM-044 | done | agents | `stepcap mcp`: MCP server (list_sessions, get_steps, step_image, build_guide, make_skill, check_skill) |
 | RM-045 | planned | agents | `stepcap describe` prompt pack for local LLMs (Ollama) — opt-in |
 | RM-046 | done | agents | JSON Schemas for session.json, events.jsonl, steps.json, terminal.jsonl (`stepcap schema`) |
 | RM-047 | planned | dist | Signed and notarised macOS binary; signed Windows binary |
