@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageStat
 
 from stepcap.capture.events import Monitor, Shot, pick_monitor
 from stepcap.session import RAW_DIR
@@ -28,6 +28,56 @@ def mss_monitors(sct) -> tuple[Monitor, list[Monitor]]:
         Monitor(i, m["left"], m["top"], m["width"], m["height"]) for i, m in enumerate(mons) if i
     ]
     return virtual, physical or [virtual]
+
+
+def mask_rects(
+    img: Image.Image, mon: Monitor, rects: list[tuple[float, float, float, float]]
+) -> Image.Image:
+    """Paint over screen rectangles (stepcap's own recording bar) in a screenshot.
+
+    ``rects`` are in screen coordinates like the monitor; the image may have more
+    pixels than the monitor has points (Retina), so they are scaled. Each area is
+    filled with the average colour of a thin ring around it (what the bar covers is
+    usually the same window), so nothing of the bar stays readable and the patch
+    blends in; at the screen edge only the sides that exist are used.
+    """
+    if not rects or not mon.width or not mon.height:
+        return img
+    sx, sy = img.width / mon.width, img.height / mon.height
+    draw = None
+    for rx, ry, rw, rh in rects:
+        box = (
+            max(0, round((rx - mon.left) * sx)),
+            max(0, round((ry - mon.top) * sy)),
+            min(img.width, round((rx + rw - mon.left) * sx)),
+            min(img.height, round((ry + rh - mon.top) * sy)),
+        )
+        if box[2] <= box[0] or box[3] <= box[1]:
+            continue  # the bar is on another monitor
+        fill = _ring_colour(img, box, max(2, round(4 * sx)))
+        draw = draw or ImageDraw.Draw(img)
+        draw.rectangle((box[0], box[1], box[2] - 1, box[3] - 1), fill=fill)
+    return img
+
+
+def _ring_colour(img: Image.Image, box: tuple[int, int, int, int], ring: int) -> tuple:
+    x0, y0, x1, y1 = box
+    sides = [
+        (x0, max(0, y0 - ring), x1, y0),  # above
+        (x0, y1, x1, min(img.height, y1 + ring)),  # below
+        (max(0, x0 - ring), y0, x0, y1),  # left
+        (x1, y0, min(img.width, x1 + ring), y1),  # right
+    ]
+    total, count = [0.0, 0.0, 0.0], 0
+    for side in sides:
+        n = (side[2] - side[0]) * (side[3] - side[1])
+        if n > 0:
+            mean = ImageStat.Stat(img.crop(side)).mean
+            total = [t + m * n for t, m in zip(total, mean[:3], strict=False)]
+            count += n
+    if not count:  # the bar covers the whole image
+        return tuple(round(v) for v in ImageStat.Stat(img.crop(box)).mean[:3])
+    return tuple(round(t / count) for t in total)
 
 
 class ScreenGrabber:

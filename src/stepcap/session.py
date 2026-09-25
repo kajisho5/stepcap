@@ -139,6 +139,9 @@ def load_session(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
                 print(
                     f"warning: {EVENTS_FILE}:{n}: skipped unreadable line ({exc})", file=sys.stderr
                 )
+    undone = {ev.get("target") for ev in events if ev.get("kind") == "undo"}
+    if undone:  # normally removed when the recording ends; still marked after a crash
+        events = [ev for ev in events if ev.get("kind") != "undo" and ev.get("id") not in undone]
     events += _terminal_events(path, meta, events) + _voice_events(path, events)
     return meta, events
 
