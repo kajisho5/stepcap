@@ -19,6 +19,29 @@ them is AGPL. Versions are minimums from `pyproject.toml`.
 | evdev | Linux | BSD-3-Clause |
 | pyobjc-framework-Quartz / -ApplicationServices (+ pyobjc-core, -Cocoa) | macOS | MIT |
 
+### Voice notes (extra `voice`, and the `stepcap-voice-*` binaries only)
+
+| Package | Why | License |
+|---|---|---|
+| [sounddevice](https://github.com/spatialaudio/python-sounddevice) ≥ 0.4 | microphone (PortAudio; Windows / macOS wheels bundle PortAudio, MIT-style) | MIT |
+| [faster-whisper](https://github.com/SYSTRAN/faster-whisper) ≥ 1.0 | local speech-to-text | MIT |
+| ctranslate2 | inference engine of faster-whisper | MIT |
+| onnxruntime | voice activity detection (Silero VAD model shipped with faster-whisper, MIT) | MIT |
+| tokenizers / huggingface-hub / hf-xet | model tokenizer, one-time model download | Apache-2.0 |
+| av (PyAV) | imported by faster-whisper; its wheels contain FFmpeg shared libraries | BSD-3-Clause; FFmpeg **LGPL-2.1+** |
+| numpy, certifi, tqdm, httpx, … | transitive | BSD / MIT / MPL-2.0 / Apache-2.0 (full list in the voice binaries' license file) |
+
+The Whisper models (`Systran/faster-whisper-*`, converted from OpenAI Whisper) are MIT
+licensed and are downloaded at first use, not shipped. `tests/fixtures/jfk.wav` (11 s of
+John F. Kennedy's 1961 inaugural address, a U.S. government work in the public domain) is
+the 16 kHz sample from whisper.cpp's repository and is used only by the tests.
+
+### MCP server (extra `mcp`, not in the binaries)
+
+| Package | Why | License |
+|---|---|---|
+| [mcp](https://github.com/modelcontextprotocol/python-sdk) ≥ 2.2 | `stepcap mcp`: the official MCP Python SDK (stdio server) | MIT |
+
 ### LGPL note (pynput, python-xlib)
 
 stepcap uses pynput and python-xlib as unmodified, separately installed Python
@@ -36,6 +59,7 @@ without bundled LGPL code, install from PyPI instead.
 | Package | Why | License |
 |---|---|---|
 | pytest | tests | MIT |
+| jsonschema (extra `dev`) | schema tests | MIT |
 | ruff | lint / format | MIT |
 | playwright (extra `demo`) | screenshots of the edit UI for the README | Apache-2.0 |
 | PyInstaller (CI only) | single-file binaries | GPL-2.0 with bootloader exception (bundled apps may use any license) |

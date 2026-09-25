@@ -1,13 +1,15 @@
-"""Let the user's own coding agent rewrite the draft (``--agent claude|codex``).
+"""Let the user's own coding agent rewrite the draft (``--agent claude|codex|gemini|...``).
 
 stepcap itself sends nothing anywhere: it runs the agent CLI that is already
 installed on this machine, in the skill folder, after showing exactly which
 files the agent will be able to read. Where the agent sends them is up to the
-agent's own configuration.
+agent's own configuration. The commands come from ``registry`` (built-ins plus
+the user's agents.toml).
 
-Non-interactive invocations (checked 2026-09-24):
+Non-interactive invocations (checked 2026-09-24 / 2026-09-25):
   claude -p PROMPT --permission-mode acceptEdits --allowedTools Read,Edit,Write
-  codex exec --sandbox workspace-write --skip-git-repo-check -C DIR [--image a,b] PROMPT
+  codex exec --sandbox workspace-write --skip-git-repo-check -C DIR [--image=a,b] PROMPT
+  gemini -p PROMPT --approval-mode auto_edit
 """
 
 from __future__ import annotations
@@ -20,13 +22,12 @@ from pathlib import Path
 from typing import Any
 
 from stepcap.redact import redact_obj
-from stepcap.skill import frontmatter
+from stepcap.skill import frontmatter, registry
 
-AGENTS = ("claude", "codex")
 CONTEXT_DIR = "_context"
 INSTRUCTIONS = "INSTRUCTIONS.md"
 CONTEXT_FILES = (INSTRUCTIONS, "steps.json", "events.jsonl")
-MAX_IMAGES = 20  # images attached to codex exec (it also reads files in its sandbox)
+MAX_IMAGES = 20  # images passed as {images} (codex --image); agents also read the folder
 SHORT_PROMPT = (
     f"Read {CONTEXT_DIR}/{INSTRUCTIONS} in the current folder and follow it: rewrite SKILL.md "
     "into a reusable skill. Edit only SKILL.md."
@@ -50,15 +51,23 @@ class AgentError(Exception):
     pass
 
 
+def refiners() -> list[str]:
+    """Names of the agents that can rewrite a draft (built-in first, then configured)."""
+    return [n for n, spec in registry.load().items() if spec.can_refine]
+
+
 def find_cli(agent: str) -> str | None:
-    return shutil.which(agent)
+    try:
+        return registry.get(agent).executable()
+    except registry.RegistryError:
+        return None
 
 
 def missing_cli_message(agent: str) -> str:
-    product = {"claude": "Claude Code", "codex": "the Codex CLI"}[agent]
+    spec = registry.get(agent)
     return (
-        f"the {agent!r} command was not found on PATH. Install {product} and log in, "
-        "or run with --agent none to write the draft without an agent."
+        f"the {spec.refine[0]!r} command for {spec.label} was not found on PATH. Install it and "
+        "log in, or run with --agent none to write the draft without an agent."
     )
 
 
@@ -90,24 +99,14 @@ def shared_files(skill_dir: Path) -> list[Path]:
 
 
 def command(agent: str, exe: str, skill_dir: Path) -> list[str]:
-    if agent == "claude":
-        return [
-            exe,
-            "-p",
-            SHORT_PROMPT,
-            "--permission-mode",
-            "acceptEdits",
-            "--allowedTools",
-            "Read,Edit,Write",
-        ]
-    if agent == "codex":
-        cmd = [exe, "exec", "--sandbox", "workspace-write", "--skip-git-repo-check"]
-        cmd += ["-C", str(skill_dir)]
-        images = sorted((skill_dir / "references").glob("*.png"))[:MAX_IMAGES]
-        if images:
-            cmd += ["--image", ",".join(str(p) for p in images)]
-        return [*cmd, SHORT_PROMPT]
-    raise AgentError(f"unknown agent {agent!r}; use none, claude or codex")
+    try:
+        spec = registry.get(agent)
+    except registry.RegistryError as exc:
+        raise AgentError(str(exc)) from exc
+    if not spec.can_refine:
+        raise AgentError(f"{spec.label} ({agent}) has no refine command; see `stepcap agents`")
+    images = sorted((skill_dir / "references").glob("*.png"))[:MAX_IMAGES]
+    return registry.expand(spec, exe, SHORT_PROMPT, skill_dir, images)
 
 
 def run(cmd: list[str], skill_dir: Path) -> None:

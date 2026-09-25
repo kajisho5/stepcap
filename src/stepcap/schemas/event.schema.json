@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kajisho5/stepcap/schemas/event.schema.json",
+  "title": "stepcap event (one line of events.jsonl)",
+  "description": "Step events carry an integer id (1, 2, ...) and usually a screenshot; context events carry seq (the id the next step will get) instead, so step ids never shift. ts is seconds since the start of the recording. Secrets are masked before a line is written. Unknown keys are allowed.",
+  "type": "object",
+  "required": ["kind", "ts"],
+  "properties": {
+    "id": {"type": "integer", "minimum": 1},
+    "seq": {"type": "integer", "minimum": 1},
+    "ts": {"type": ["number", "null"], "description": "seconds since the start; null only for a terminal command from a session without t0_epoch"},
+    "kind": {"enum": ["click", "drag", "scroll", "type", "key", "manual", "app_switch", "url", "clipboard", "terminal", "voice"]},
+    "window_title": {"type": ["string", "null"]},
+    "app_name": {"type": ["string", "null"]},
+    "screenshot": {"type": ["string", "null"], "description": "path relative to the session, e.g. raw/0001.png"},
+    "monitor": {"$ref": "session.schema.json#/$defs/monitor"},
+    "image_size": {"$ref": "#/$defs/size"},
+    "x": {"type": "number"}, "y": {"type": "number"},
+    "rel_x": {"type": "number"}, "rel_y": {"type": "number"},
+    "img_x": {"type": "number"}, "img_y": {"type": "number"},
+    "element": {"$ref": "#/$defs/element"}
+  },
+  "oneOf": [
+    {"required": ["id"], "not": {"required": ["seq"]}},
+    {"required": ["seq"], "not": {"required": ["id"]}}
+  ],
+  "allOf": [
+    {"if": {"properties": {"kind": {"enum": ["click", "drag", "scroll", "type", "key", "manual"]}}},
+     "then": {"required": ["id"]},
+     "else": {"required": ["seq"]}},
+    {"if": {"properties": {"kind": {"const": "click"}}},
+     "then": {"required": ["button", "click_type"],
+              "properties": {"button": {"type": "string"},
+                             "click_type": {"enum": ["single", "double", "right", "middle"]}}}},
+    {"if": {"properties": {"kind": {"const": "drag"}}},
+     "then": {"required": ["from", "to"],
+              "properties": {"from": {"$ref": "#/$defs/point"}, "to": {"$ref": "#/$defs/point"}}}},
+    {"if": {"properties": {"kind": {"const": "scroll"}}},
+     "then": {"required": ["direction"],
+              "properties": {"direction": {"enum": ["up", "down", "left", "right"]}, "amount": {"type": "number"}}}},
+    {"if": {"properties": {"kind": {"const": "type"}}},
+     "then": {"required": ["chars", "masked"],
+              "properties": {"chars": {"type": "integer", "minimum": 0}, "enter": {"type": "boolean"},
+                             "masked": {"type": "boolean"},
+                             "text": {"type": "string", "description": "only with --record-typing and not masked"}}}},
+    {"if": {"properties": {"kind": {"const": "key"}}},
+     "then": {"required": ["keys"], "properties": {"keys": {"type": "string"}}}},
+    {"if": {"properties": {"kind": {"const": "manual"}}},
+     "then": {"required": ["note"], "properties": {"note": {"type": "string"}}}},
+    {"if": {"properties": {"kind": {"const": "url"}}},
+     "then": {"required": ["url"], "properties": {"url": {"type": "string"}}}},
+    {"if": {"properties": {"kind": {"const": "clipboard"}}},
+     "then": {"required": ["chars"],
+              "properties": {"chars": {"type": "integer", "minimum": 0}, "masked": {"type": "boolean"},
+                             "preview": {"type": "string", "maxLength": 80}}}},
+    {"if": {"properties": {"kind": {"const": "terminal"}}},
+     "then": {"required": ["command"],
+              "properties": {"command": {"type": "string"}, "exit": {"type": "integer"}, "cwd": {"type": "string"},
+                             "time": {"type": "number", "description": "Unix time (terminal.jsonl)"}}}},
+    {"if": {"properties": {"kind": {"const": "voice"}}},
+     "then": {"required": ["text"],
+              "properties": {"text": {"type": "string"}, "end": {"type": "number"}, "lang": {"type": "string"}}}}
+  ],
+  "$defs": {
+    "size": {"type": "array", "items": {"type": "integer", "minimum": 0}, "minItems": 2, "maxItems": 2},
+    "point": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {"x": {"type": "number"}, "y": {"type": "number"}}
+    },
+    "element": {
+      "type": "object",
+      "description": "the UI element under the pointer (UI Automation / Accessibility); password fields never have a name",
+      "properties": {
+        "name": {"type": "string"},
+        "role": {"type": "string"},
+        "rect": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+        "box": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4}
+      }
+    }
+  }
+}

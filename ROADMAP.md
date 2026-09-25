@@ -1,10 +1,10 @@
 # Roadmap
 
-Status: `done` · `in-progress` · `planned`. Every `planned` item has a GitHub issue
-labelled [`roadmap`](https://github.com/kajisho5/stepcap/issues?q=label%3Aroadmap).
-Numbers are stable; new ideas get the next free number. RM-013 … RM-054 are
-issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-24;
-`scripts/roadmap_to_issues.py` adds new rows).
+Status: `done` · `in-progress` · `planned`. The plan is this table; a GitHub issue is
+opened only when an item is being discussed or worked on. The earlier one-issue-per-row
+[`roadmap`](https://github.com/kajisho5/stepcap/issues?q=label%3Aroadmap) issues (#2 … #43,
+#59 … #63) were closed on 2026-09-25 so that open issues mean bugs and questions; reopen
+one to discuss it. Numbers are stable; new ideas get the next free number.
 
 | ID | Status | Area | Item |
 |---|---|---|---|
@@ -51,9 +51,9 @@ issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-
 | RM-041 | planned | edit | Merge / split steps in the editor |
 | RM-042 | planned | edit | Replace a step's screenshot / add a screenshot from file |
 | RM-043 | planned | edit | Keyboard shortcuts and accessibility audit of the editor |
-| RM-044 | planned | agents | MCP server exposing sessions, steps and build to agents |
+| RM-044 | done | agents | `stepcap mcp`: MCP server (list_sessions, get_steps, step_image, build_guide, make_skill, check_skill) |
 | RM-045 | planned | agents | `stepcap describe` prompt pack for local LLMs (Ollama) — opt-in |
-| RM-046 | planned | agents | JSON Schema for steps.json and events.jsonl |
+| RM-046 | done | agents | JSON Schemas for session.json, events.jsonl, steps.json, terminal.jsonl (`stepcap schema`) |
 | RM-047 | planned | dist | Signed and notarised macOS binary; signed Windows binary |
 | RM-048 | planned | dist | Homebrew, Scoop and winget packages |
 | RM-049 | planned | dist | Linux arm64 and macOS x64 binaries |
@@ -71,9 +71,10 @@ issues #2 … #43 and RM-064 … RM-068 are issues #59 … #63 (created 2026-09-
 | RM-061 | done | record | Context events: app switches, `--record-urls` (macOS Safari / Chrome / Edge / Arc), `--record-clipboard` |
 | RM-062 | done | privacy | Secret masking (GitHub / AWS / OpenAI / Anthropic keys, JWT, URL passwords, card numbers) before anything is written |
 | RM-063 | done | record | `stepcap shell`: bash / zsh commands with exit status as terminal events (macOS / Linux) |
-| RM-064 | planned | record | Browser URL on Windows (UI Automation address bar) and Linux for `--record-urls` |
+| RM-064 | done | record | Browser URL on Windows for `--record-urls` (UI Automation address bar: Chrome, Edge and other Chromium browsers; not Firefox) |
 | RM-065 | planned | record | `stepcap shell` for Windows PowerShell |
-| RM-066 | planned | record | Voice notes while recording (local speech-to-text, off by default) |
-| RM-067 | planned | agents | Check a generated skill against its recording (step coverage / dry-run report) |
+| RM-066 | done | record | Voice notes: `record --voice`, local speech-to-text (faster-whisper), narration in guide + skill, voice edition binaries |
+| RM-067 | done | agents | Check a skill against its recording: apps, elements, inputs, URLs, commands, notes still mentioned (`check-skill --session`) |
 | RM-068 | planned | agents | One skill from several recordings of the same task (merge variants, detect inputs) |
 | RM-069 | planned | record | Element names on Linux via AT-SPI |
+| RM-070 | planned | record | Browser URL on Linux for `--record-urls` (AT-SPI address bar) |

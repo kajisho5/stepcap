@@ -29,6 +29,9 @@ Notes
   <browser>" once per browser (Privacy & Security › Automation). Denying it only
   means no URLs are recorded for that browser; stepcap stops asking it.
 - `record --record-clipboard` reads the clipboard with `pbpaste` (no prompt).
+- `record --voice` records the microphone: macOS asks once for **Microphone**
+  access for the app that runs stepcap (Privacy & Security › Microphone). Without it
+  the audio is silent and no voice notes are written.
 
 On Linux, `--record-clipboard` needs `xclip` or `xsel` (`sudo apt install xclip`).
 
@@ -41,6 +44,13 @@ No permission dialog is needed. Two limitations:
   stepcap from an elevated terminal too.
 - **Secure desktop**: UAC prompts, the lock screen and Ctrl+Alt+Del are never
   captured (by design of Windows).
+- `record --voice`: Settings › Privacy & security › Microphone › "Let desktop apps
+  access your microphone" must be on.
+- `record --record-urls` reads the address bar of Chrome and Edge (and the Chromium-based
+  Brave, Vivaldi, Opera) with UI Automation (no prompt). Firefox is not supported: by
+  default it exposes only its window frame to UI Automation, not the address bar. What the bar shows is recorded: Chrome and
+  Edge hide `https://`, which stepcap adds back; text you are typing into the bar (a
+  search) is ignored.
 - stepcap makes itself per-monitor DPI aware so click positions match screenshots on
   scaled (125 %, 150 %…) and mixed-DPI multi-monitor setups.
 
@@ -56,6 +66,8 @@ No permission dialog is needed. Two limitations:
   window names; without it stepcap uses python-xlib.
 - Installing from source on Linux compiles `evdev` (a pynput dependency): you may need
   `sudo apt install python3-dev gcc`. The release binaries don't need this.
+- `record --voice` uses PortAudio for the microphone: `sudo apt install libportaudio2`
+  (also for the voice edition binary).
 
 ## Privacy defaults
 
@@ -68,3 +80,8 @@ No permission dialog is needed. Two limitations:
   name contains NAME is in front.
 - Nothing leaves your machine: no network calls, no telemetry, no account.
   Screenshots are stored in `SESSION_DIR/raw/` — treat that folder as sensitive.
+- `--voice` is off by default. The microphone is recorded to `SESSION_DIR/audio.wav`,
+  transcribed on this computer and then deleted (`--keep-audio` keeps it); while
+  recording is paused silence is written instead. The only network access is the
+  one-time download of the speech model from Hugging Face (cached afterwards, e.g. in
+  `~/.cache/huggingface`); the audio itself is never uploaded.

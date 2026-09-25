@@ -124,8 +124,10 @@ def test_texts_have_the_same_keys():
     for lang in ("en", "ja"):  # every placeholder the window fills in exists in both languages
         t = ctl.TEXTS[lang]
         t["installed_claude"].format(path="p", name="n")
-        t["installed_codex"].format(path="p", name="n")
-        assert "$n" in t["installed_codex"].format(path="p", name="n")
+        t["installed_agents"].format(path="p", name="n")
+        assert "$n" in t["installed_agents"].format(path="p", name="n")
+        assert "A" in t["installed_other"].format(path="p", name="n", agent="A")
+        assert "A" in t["add_to"].format(agent="A")
         assert "/n" in t["installed_claude"].format(path="p", name="n")
         t["exists"].format(name="n", path="p")
         t["refine"].format(agent="a")
@@ -280,6 +282,10 @@ def test_window_views(tmp_path, monkeypatch):
         app.handle({"event": "paused"})
         app.toggle_pause()
         assert sent[-1] == "resume"
+        app.handle({"event": "transcribing"})
+        root.update()
+        assert app.bar_label.cget("text") == app.t["transcribing"]
+        assert app.stop_btn.instate(["disabled"])
         app.handle({"event": "done", "ok": True, "events": 3, "session": str(app.session)})
         root.update()
         assert app.rec is None
@@ -290,7 +296,7 @@ def test_window_views(tmp_path, monkeypatch):
             "checklist",
             "for_agents",
             "add_claude",
-            "add_codex",
+            "add_agents",
             "make_skill",
         ):
             assert app.t[key] in labels, key

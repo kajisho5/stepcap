@@ -4,6 +4,11 @@
 
 *Record once. Get a how-to guide for humans and a SKILL.md for any agent. Local, no account, no Copilot.*
 
+- デスクトップアプリでもブラウザでも、作業を 1 回すると、人向けの手順書（`guide.html`）と AI エージェントが従える `SKILL.md` ができます。
+- 自分の PC だけで動き、アカウントは不要です（ブラウザ拡張型ツールの無料プランはブラウザ内しか記録できません。[他ツールとの比較](#他ツールとの比較)）。
+- デモ画像は合成です。「Acme Tasks」というアプリは [`demos/build.py`](demos/build.py) が描いたもので、実データは含みません。
+- 今後の予定は [ROADMAP.md](ROADMAP.md) にあります。Issue は不具合と質問用です。
+
 `完全ローカル · オフライン動作 · アカウント不要 · ブラウザもデスクトップアプリも記録 · Windows / macOS / Linux`
 
 [![tests](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml)
@@ -46,7 +51,7 @@ stepcap export my-guide --format both -o dist --lang ja
 
 記録中のキー: **F9** 停止 · **F8** 一時停止 / 再開 · **F7** メモ付きの手動ステップ（`--hotkey-stop ctrl+alt+s` のように変更可能）
 
-Python を入れたくない場合は、[Releases](https://github.com/kajisho5/stepcap/releases) から Windows / macOS / Linux 用の単体実行ファイル（PyInstaller 製）を使えます。
+Python を入れたくない場合は、[Releases](https://github.com/kajisho5/stepcap/releases) から Windows / macOS / Linux 用の単体実行ファイル（PyInstaller 製）を使えます。音声メモを使う場合は `stepcap-voice-*`（音声版。約 100 MB 大きく、起動も少し遅くなります。Linux ではマイク用に `sudo apt install libportaudio2` も必要）を選んでください。
 
 ### ターミナルを使わない場合: ウィンドウで操作
 
@@ -56,7 +61,7 @@ stepcap app          # または Releases の単体実行ファイルをダブ�
 
 保存先を選んで **記録開始** を押し、作業をして、常に前面に出る小さなバーの **停止** を押します（F9 / F8 / F7 も使えます）。バー自体のクリックはステップになりません。停止すると、2 種類の成果物を選べます。
 
-- **AI エージェント向け：スキル（SKILL.md）**: **Claude Code に追加**（`~/.claude/skills/<名前>/` にコピー。Claude Code で `/<名前>` と入力するか、作業をそのまま頼む）、**Codex に追加**（`~/.agents/skills/<名前>/`。`$<名前>` または `/skills`）、または **SKILL.md を作る** だけ。`claude` / `codex` CLI が入っていれば「先に一般化する」にチェックすると、1 回分の記録から汎用的な手順に書き直させられます（実行前に確認します）。同じ名前のスキルが既にある場合は、確認してから置き換えます。
+- **AI エージェント向け：スキル（SKILL.md）**: **Claude Code に追加**（`~/.claude/skills/<名前>/` にコピー。Claude Code で `/<名前>` と入力するか、作業をそのまま頼む）、**Codex・Gemini CLI・Cursor に追加**（共通フォルダ `~/.agents/skills/<名前>/` にコピー）、または **SKILL.md を作る** だけ。`claude` / `codex` / `gemini` CLI が入っていれば「先に一般化する」にチェックすると、1 回分の記録から汎用的な手順に書き直させられます（実行前に確認します）。同じ名前のスキルが既にある場合は、確認してから置き換えます。
 - **人向け：手順書**: **手順書を開く**・**印刷用チェックリスト**・**手順を編集**。
 
 **手順書とスキルを書き出す（共有用）** は両方を記録の隣（`<名前>-export/`）に出力します。表示言語はシステムの言語（日本語 / English）に合わせます。
@@ -173,14 +178,15 @@ $ cat demo/terminal.jsonl
 - **クリックした部品を枠で囲む**: ボタン・入力欄・チェックボックス・カードをスクリーンショットから検出して囲みます。自信がないときは丸にします
 - **矢印とスポットライト**: 小さい部品には自動で矢印を付けます。`--spotlight` で対象以外を暗くでき、編集 UI では矢印を手描きで追加できます
 - **ローカル編集 UI**（`stepcap edit`）: ドラッグで並べ替え、削除、タイトル / 説明の編集、枠の描き直し / 削除、矢印の追加、枠・自動矢印・スポットライトの切り替え、矩形ぼかし（`work/` のコピーに適用し、原本 `raw/` は変更しません）、再ビルド
-- **エージェント向けの文脈**: アプリ / ウィンドウの切り替えは常に記録します。`--record-urls` で前面のブラウザタブの URL（macOS: Safari・Chrome・Edge・Arc。`--keep-query` なしではクエリ文字列を除去）、`--record-clipboard` でコピーした文字列（文字数と先頭 80 文字）も記録します。これらはステップにはならず、`stepcap skill` が「Browser at …」「Then: copied …」として使います
-- **プライバシー重視の初期設定**: `--record-typing` を付けない限り入力内容は保存しません。パスワード / ログイン画面では常にマスクします。`--exclude-app` を指定したアプリが前面の間は記録もスクショもしません。通信は一切行いません
+- **エージェント向けの文脈**: アプリ / ウィンドウの切り替えは常に記録します。`--record-urls` で前面のブラウザタブの URL（Windows: Chrome・Edge などの Chromium 系を UI Automation で。Firefox は非対応。macOS: Safari・Chrome・Edge・Arc。`--keep-query` なしではクエリ文字列を除去）、`--record-clipboard` でコピーした文字列（文字数と先頭 80 文字）も記録します。これらはステップにはならず、`stepcap skill` が「Browser at …」「Then: copied …」として使います
+- **音声メモ**（`--voice`、既定はオフ）: 記録しながら「何をしているか・なぜか」を声で話せます。停止時にマイクの音声を**この PC 上で**文字起こし（faster-whisper、CPU）し、各ステップの説明と、スキルの「Narration: …」（最初のクリック前に話した内容は Goal）に入れます。`audio.wav` は文字起こし後に削除します（`--keep-audio` で保持）。一時停止中に話した内容は残りません。`pip install "stepcap[voice]"` または単体実行ファイルの音声版が必要です。音声モデル（`--voice-model base` で約 150 MB。日本語は `small` の方が精度が上がります）は初回だけ Hugging Face からダウンロードし、以降はオフラインで動きます
+- **プライバシー重視の初期設定**: `--record-typing` を付けない限り入力内容は保存しません。パスワード / ログイン画面では常にマスクします。`--exclude-app` を指定したアプリが前面の間は記録もスクショもしません。通信は一切行いません（`--voice` の音声モデルの初回ダウンロードを除く）
 
 ### できないこと（v0.1）
 
 - **Wayland**（Linux）には非対応で、X11 のみです。Wayland では理由を表示して停止します
 - **OCR / AI による命名**はしません。部品名は OS のアクセシビリティ API（Windows / macOS）から取得し、画面の文字は読み取りません。文章として整えたい場合は同梱のエージェント用スキルか、`stepcap skill --agent claude|codex` を使ってください。Linux（AT-SPI）は未対応です
-- **動画**、ナレーション、クラウド共有、チーム管理
+- **動画**、クラウド共有、チーム管理
 - PDF の直接出力（`guide.html` をブラウザで印刷 → PDF）
 
 ## なぜ作ったか
@@ -213,18 +219,24 @@ Scribe（Basic）と Tango の無料プランはブラウザ内の Web アプリ
 stepcap record [-o SESSION_DIR] [--monitor all|active] [--record-typing]
                [--exclude-app NAME ...] [--hotkey-stop F9] [--hotkey-pause F8]
                [--hotkey-manual F7] [--note-prompt auto|gui|terminal|none]
-               [--record-urls] [--keep-query] [--record-clipboard] [--dry-run] [--json]
+               [--record-urls] [--keep-query] [--record-clipboard]
+               [--voice [--voice-model base] [--voice-language ja] [--keep-audio]]
+               [--dry-run] [--json]
 stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--lang en|ja]
               [--title "..."] [--marker box|ring] [--[no-]spotlight] [--[no-]auto-arrows]
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
 stepcap edit SESSION_DIR [--port 8765] [--host 127.0.0.1] [--no-browser]
-stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex]
-              [--install none|claude|codex] [--scope user|project] [--yes] [--force]
+stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|gemini|AGENT]
+              [--install none|claude|agents|codex|gemini|cursor|AGENT] [--scope user|project] [--yes] [--force]
               [--dry-run] [--json]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
-               [--agent none|claude|codex] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
-stepcap check-skill SKILL_DIR [--json]
+               [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
+stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--json]
+stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
+stepcap schema [session|event|steps|terminal|voice] [--path]
+stepcap agents [--json]                                    # agents you can --install / --agent
+stepcap mcp [--root DIR ...]                               # MCP server for agents (stdio)
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap app [--lang en|ja]                                 # ウィンドウ: 開始 / 停止 / 編集 / 書き出し
@@ -232,6 +244,8 @@ stepcap doctor [--json]
 ```
 
 失敗時はすべて非ゼロで終了します。`--json` で機械可読な出力になります。既存の空でないセッションフォルダは上書きせず、`build` は `raw/` に一切触れません。
+
+セッションフォルダ内のファイル形式（`session.json`・`events.jsonl`・`steps.json`・`terminal.jsonl`）は JSON Schema（draft 2020-12）として同梱しています。`stepcap schema steps` で表示、`stepcap schema --path` で保存場所を表示します（[ソース](src/stepcap/schemas/)）。他のツールから記録を読み込んだり検証したりするのに使えます。新しいバージョンで項目を追加できるよう、未知のキーは許可しています。
 
 ## 権限
 
@@ -249,15 +263,51 @@ stepcap doctor [--json]
 stepcap skill my-guide -o skills                     # 下書き（LLM 不要）: skills/<名前>/SKILL.md
 stepcap skill my-guide -o skills --agent claude      # 手元の Claude Code CLI に一般化させる
 stepcap skill my-guide -o skills --install claude --scope project   # .claude/skills/<名前>/ にも配置
+stepcap skill my-guide -o skills --install agents    # ~/.agents/skills/ にも配置（Codex・Gemini CLI・Cursor）
 stepcap check-skill skills/<名前>                     # 手で直した後の検証
 ```
 
 - **下書き（`--agent none`、既定）**: 決まった手順で作り、オフラインで動きます。frontmatter（`name`・`description`）、`## Goal`（F7 のメモ。なければ `TODO`）、`## Inputs`（入力した値は入力欄の名前から `{{project_name}}` のような変数に。名前が取れない場合は `{{input_N}}`。名前の変更や「固定値」への切り替えは `stepcap edit` で）、番号付きの `## Steps`（アプリ・ウィンドウ名・`references/step-NN.png`。注釈付きでぼかし適用済み）、`## Notes for the agent`（クリックより CLI / API を優先、削除・送信・支払いの前は確認）
-- **清書（`--agent claude|codex`）**: スキルフォルダで `claude -p` または `codex exec` を実行し、[`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md) の指示で一般化させます。実行前に、エージェントが読めるファイルを一覧表示して `y/N` を確認します（`--yes` で省略、`--dry-run` は一覧表示のみ）。stepcap 自体は通信しません。エージェントがどこへ送るかはエージェント側の設定次第です
-- **配置（`--install claude|codex`）**: `~/.claude/skills/` または `./.claude/skills/`（Claude Code）、`~/.agents/skills/` または `./.agents/skills/`（Codex）にコピーします。同名のスキルがあれば `--force` なしでは上書きしません
+- **清書（`--agent claude|codex|gemini`）**: スキルフォルダで `claude -p`・`codex exec`・`gemini -p` のいずれかを実行し、[`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md) の指示で一般化させます。実行前に、エージェントが読めるファイルを一覧表示して `y/N` を確認します（`--yes` で省略、`--dry-run` は一覧表示のみ）。stepcap 自体は通信しません。エージェントがどこへ送るかはエージェント側の設定次第です
+- **配置（`--install ...`）**: エージェントがスキルを読み込むフォルダにコピーします（`--scope user` はホームフォルダ、`project` は今いるフォルダ）。同名のスキルがあれば `--force` なしでは上書きしません
+
+  | `--install` | フォルダ | 読み込むツール |
+  |---|---|---|
+  | `claude` | `.claude/skills/` | Claude Code（Cursor も読みます） |
+  | `agents`（= `codex`） | `.agents/skills/` | Codex・Gemini CLI・Cursor |
+  | `gemini` | `.gemini/skills/` | Gemini CLI |
+  | `cursor` | `.cursor/skills/` | Cursor |
+
+  フォルダは各ツールの公式ドキュメントに基づきます（[Claude Code](https://code.claude.com/docs/en/skills)・[Codex](https://learn.chatgpt.com/docs/build-skills)・[Gemini CLI](https://geminicli.com/docs/cli/skills/)・[Cursor](https://cursor.com/docs/skills)、2026-09-25 確認）。
+- **その他のエージェント（`agents.toml`）**: stepcap を変更せずに、エージェントを追加したり組み込みのコマンドを変えたりできます。`stepcap agents` で一覧とファイルの置き場所（`~/.config/stepcap/agents.toml`、Windows は `%APPDATA%\stepcap\agents.toml`、または `$STEPCAP_AGENTS_FILE`）を表示します。
+
+  ```toml
+  [agents.myagent]
+  label = "My agent"
+  user_dir = "~/.myagent/skills"          # --install myagent
+  project_dir = ".myagent/skills"         # --install myagent --scope project
+  refine = ["myagent", "run", "{prompt}"] # --agent myagent（任意）
+  ```
+
+  `{prompt}` はエージェントに `_context/INSTRUCTIONS.md` を読ませる短い指示です。ほかに `{skill_dir}` と `{images}`（注釈付きスクリーンショットをカンマ区切りで。無い場合はその引数ごと省略）が使えます。このファイルで追加したエージェントは、`stepcap app` の完了画面に「… に追加」ボタンが出ます。
 - **必ず検証**: Agent Skills の frontmatter 規則、名前 = フォルダ名、500 行未満、約 5000 トークン以内、`references/` のリンク切れなし、秘密情報のパターン（GitHub / AWS / OpenAI / Anthropic のキー、JWT、URL 内のパスワード、カード番号）なし。満たさなければ終了コード 1
+- **記録との照合**: スキルを書き直した後（手作業でも `--agent` でも）、記録にはあったのに SKILL.md に書かれていないもの（アプリ、クリックしたボタンや入力欄、`{{入力値}}`、URL のホスト名、ターミナルのコマンド、F7 のメモ）を一覧にします。レビュー用のヒントです（クリック操作を CLI に置き換えるなど、正しく書き換えた結果として消えることもあります）。`--agent` 実行後とウィンドウには自動で表示され、`stepcap check-skill SKILL_DIR --session SESSION_DIR` でも確認できます（`--min-coverage 0.8` で 80 % 未満なら失敗）
 - **ターミナルでの操作**: 記録中に別のターミナルで `stepcap shell my-guide` を開くと、そこで打ったコマンド（出力は含まない）が終了コード付き・秘密情報マスク済みで追加され、スキルに「Ran in a terminal: `...`」として載ります。macOS / Linux の bash と zsh に対応し、Windows の PowerShell は未対応です。先頭にスペースを付けたコマンドは記録されません（シェルが履歴から除外する設定の場合）
 - **記録中に F7 で「なぜ」をメモ**してください。スキルの Goal になり、エージェントにとって最も役立つ情報です
+
+### MCP でエージェントから使う: `stepcap mcp`
+
+エージェントが記録を直接扱えるようにします。`stepcap mcp` は MCP サーバー（stdio）で、6 つのツールを提供します: `list_sessions`（記録の一覧）、`get_steps`（タイトル・クリックした部品・入力値・URL・コマンド・ナレーション）、`step_image`（注釈付きのステップ画像）、`build_guide`（手順書の作成）、`make_skill`（スキルの作成と任意でインストール）、`check_skill`（検証と記録との照合）。記録の開始はツールにしていません（画面の記録を始めるかどうかは人が決めるべきため）。エージェントが扱えるのは `--root` 以下のフォルダだけです（既定: ウィンドウの保存先 `~/Documents/stepcap` と現在のフォルダ）。
+
+```bash
+pip install "stepcap[mcp]"
+claude mcp add stepcap -- stepcap mcp                      # Claude Code
+codex mcp add stepcap -- stepcap mcp                       # Codex
+gemini mcp add stepcap stepcap mcp                         # Gemini CLI
+# Cursor: ~/.cursor/mcp.json -> {"mcpServers": {"stepcap": {"command": "stepcap", "args": ["mcp"]}}}
+```
+
+依頼例:「最新の stepcap の記録を見て、できるところは CLI を使うスキルにして」。登録コマンドは各ツールの MCP ドキュメントに基づきます（[Claude Code](https://code.claude.com/docs/en/mcp)・[Codex](https://learn.chatgpt.com/docs/extend/mcp?surface=cli)・[Gemini CLI](https://geminicli.com/docs/tools/mcp-server/)・[Cursor](https://cursor.com/docs/context/mcp)、2026-09-25 確認）。Claude Code で実際に接続し、記録の一覧取得・ステップの読み込み・`step_image` の画像からステップ 2 の内容を説明できることを確認済みです。
 
 ## 手順書の文章をコーディングエージェントに書かせる
 

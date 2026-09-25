@@ -11,9 +11,11 @@ goes on (steps are then titled "Click" instead of 'Click in "…"').
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
+import threading
 from collections.abc import Callable
 
 from stepcap.capture.events import WindowInfo
@@ -196,8 +198,13 @@ def get_active_window() -> WindowInfo:
 
 
 # --------------------------------------------------------------------- browser URL
-# macOS only (AppleScript). The first call per browser makes macOS ask for the
+# macOS: AppleScript. The first call per browser makes macOS ask for the
 # "Automation" permission; if it is refused we stop asking that browser.
+# Windows: UI Automation reads the address bar (the first edit field in the
+# browser window) of Chrome and Edge (tested in CI) and the Chromium-based Brave,
+# Vivaldi and Opera. Firefox does not expose its toolbar to UI Automation by default
+# (only the window frame), so it is not supported.
+# Linux: not supported yet (RM-070).
 _MAC_URL_SCRIPTS = {
     "Safari": 'tell application "Safari" to get URL of front document',
     "Google Chrome": 'tell application "Google Chrome" to get URL of active tab of front window',
@@ -207,8 +214,79 @@ _MAC_URL_SCRIPTS = {
 _url_denied: set[str] = set()
 
 
+_WIN_BROWSERS = {"chrome", "msedge", "brave", "vivaldi", "opera", "chromium"}
+_UIA_EDIT = 50004  # UIA_EditControlTypeId
+_UIA_CONTROL_TYPE = 30003  # UIA_ControlTypePropertyId
+_UIA_VALUE_PATTERN = 10002  # UIA_ValuePatternId
+_UIA_DESCENDANTS = 4  # TreeScope_Descendants
+_DOMAIN = re.compile(r"^(localhost|[\w-]+(\.[\w-]+)+|\[[0-9a-f:]+\])(:\d+)?([/?#].*)?$", re.I)
+
+
+def address_to_url(text: str | None) -> str | None:
+    """What an address bar shows -> a URL; None for search text or an empty bar.
+
+    Chrome and Edge hide ``https://`` (and sometimes ``www.``) while the bar is
+    not being edited, so a bare host gets ``https://`` back.
+    """
+    if not text:
+        return None
+    text = text.strip()
+    if not text or any(c.isspace() for c in text):
+        return None
+    if re.match(r"^([a-z][a-z0-9+.-]*://|(about|mailto|data|view-source):)", text, re.I):
+        return text
+    if re.match(r"^[a-z]:[\\/]", text, re.I):  # Chrome / Edge show a local file as C:/dir/x.html
+        return "file:///" + text.replace("\\", "/")
+    if text.startswith("\\\\"):  # \\server\share\x.html
+        return "file:" + text.replace("\\", "/")
+    return f"https://{text}" if _DOMAIN.match(text) else None
+
+
+_url_fields = threading.local()  # hwnd -> the address bar element, per thread
+
+
+def windows_browser_url(hwnd: int | None = None) -> str | None:
+    """Address bar of the (foreground) browser window via UI Automation; never raises."""
+    try:
+        import ctypes
+
+        from stepcap.capture.element import _uia_client
+
+        hwnd = hwnd or ctypes.windll.user32.GetForegroundWindow()
+        if not hwnd:
+            return None
+        UIA, uia = _uia_client()
+        cache = getattr(_url_fields, "cache", None)
+        if cache is None:
+            cache = _url_fields.cache = {}
+        for attempt in range(2):
+            field = cache.get(hwnd)
+            if field is None:
+                root = uia.ElementFromHandle(hwnd)
+                cond = uia.CreatePropertyCondition(_UIA_CONTROL_TYPE, _UIA_EDIT)
+                field = root.FindFirst(_UIA_DESCENDANTS, cond)  # toolbar comes before the page
+                if not field:
+                    return None
+                if len(cache) > 32:
+                    cache.clear()
+                cache[hwnd] = field
+            try:
+                pattern = field.GetCurrentPattern(_UIA_VALUE_PATTERN)
+                value = pattern.QueryInterface(UIA.IUIAutomationValuePattern).CurrentValue
+                return address_to_url(value)
+            except Exception:
+                cache.pop(hwnd, None)  # the element went away (tab/window closed): find it again
+                if attempt:
+                    raise
+    except Exception:
+        return None
+    return None
+
+
 def browser_url(win: WindowInfo) -> str | None:
     """URL of the front browser tab, or None (other OS, other app, no permission)."""
+    if sys.platform == "win32":
+        return windows_browser_url() if (win.app or "").lower() in _WIN_BROWSERS else None
     if sys.platform != "darwin" or not win.app:
         return None
     script = _MAC_URL_SCRIPTS.get(win.app)

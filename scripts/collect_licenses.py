@@ -1,6 +1,6 @@
 """Write the license texts of every distribution bundled into the binaries.
 
-    python scripts/collect_licenses.py out/THIRD_PARTY_LICENSES.txt
+    python scripts/collect_licenses.py out/THIRD_PARTY_LICENSES.txt [--extra voice]
 
 Uses the installed dist-info metadata of stepcap's runtime dependency tree, so it
 matches exactly what PyInstaller bundled on this OS.
@@ -44,9 +44,20 @@ def _marker_ok(marker: str) -> bool:
         return 'python_version=="2.7"' not in m
 
 
-def walk(root: str) -> list[metadata.Distribution]:
+def extra_names(dist: metadata.Distribution, extra: str) -> list[str]:
+    """Requirements that only the ``extra`` (e.g. voice) adds."""
+    names = []
+    for req in dist.requires or []:
+        if ";" in req and re.search(rf"extra\s*==\s*['\"]{re.escape(extra)}['\"]", req):
+            names.append(re.split(r"[\s;<>=!~\[(]", req, maxsplit=1)[0])
+    return names
+
+
+def walk(root: str, extras: tuple[str, ...] = ()) -> list[metadata.Distribution]:
     seen: dict[str, metadata.Distribution] = {}
     todo = [root]
+    for extra in extras:
+        todo += extra_names(metadata.distribution(root), extra)
     while todo:
         name = todo.pop()
         key = name.lower().replace("_", "-")
@@ -62,13 +73,25 @@ def walk(root: str) -> list[metadata.Distribution]:
 
 
 def main() -> int:
-    out = Path(sys.argv[1] if len(sys.argv) > 1 else "THIRD_PARTY_LICENSES.txt")
+    args = sys.argv[1:]
+    extras: tuple[str, ...] = ()
+    if "--extra" in args:
+        i = args.index("--extra")
+        extras = (args[i + 1],)
+        del args[i : i + 2]
+    out = Path(args[0] if args else "THIRD_PARTY_LICENSES.txt")
     parts = [
         "Third-party software bundled in the stepcap binary.\n"
         "LGPL components (pynput, python-xlib) are included unmodified; their source is\n"
         "available on PyPI. You may replace them by installing stepcap from PyPI instead.\n"
     ]
-    for dist in walk("stepcap"):
+    if "voice" in extras:
+        parts.append(
+            "The voice edition also bundles PyAV, whose wheels contain FFmpeg libraries\n"
+            "(LGPL-2.1-or-later, shipped as shared libraries in av.libs / av/.dylibs); the\n"
+            "FFmpeg source is available from https://ffmpeg.org and the PyAV project.\n"
+        )
+    for dist in walk("stepcap", extras):
         name, version = dist.metadata["Name"], dist.version
         lic = dist.metadata.get("License-Expression") or dist.metadata.get("License") or ""
         lic = lic.splitlines()[0] if lic else "see text below"

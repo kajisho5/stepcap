@@ -86,13 +86,17 @@ SESSION_DIR/
      saying what the skill does and when to use it; under 500 lines.
 4. Validate your edit and fix every reported problem:
    ```bash
-   stepcap check-skill OUT_DIR/<name>
+   stepcap check-skill OUT_DIR/<name> --session SESSION_DIR
    ```
    It checks the frontmatter, the 500-line / ~5000-token limits, every `references/...` link
-   and secret patterns. Also make sure no e-mail address or customer name is in the text.
+   and secret patterns, and lists what the recording showed but your text no longer mentions
+   (apps, buttons / fields, inputs, URLs, commands, notes). Put back anything that was lost by
+   mistake; items you generalised on purpose can stay out. Also make sure no e-mail address
+   or customer name is in the text.
 5. Tell the user where the skill folder is. To install it: copy the folder to
    `.claude/skills/` (Claude Code) or `.agents/skills/` (Codex), or regenerate with
-   `--install claude|codex --scope project|user`.
+   `--install claude|agents|gemini|cursor --scope project|user` (`agents` = the shared
+   `.agents/skills` folder read by Codex, Gemini CLI and Cursor; `stepcap agents` lists all).
 
 The user can also let their own agent do step 3 in one go:
 `stepcap skill SESSION_DIR -o OUT_DIR --agent claude` (or `codex`). stepcap shows the files the

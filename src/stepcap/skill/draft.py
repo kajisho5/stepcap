@@ -20,7 +20,7 @@ from stepcap.skill import frontmatter
 from stepcap.skill.validate import MAX_DESCRIPTION, MAX_NAME
 
 DEFAULT_NAME = "recorded-procedure"
-CONTEXT_KINDS = ("app_switch", "url", "clipboard", "terminal")
+CONTEXT_KINDS = ("app_switch", "url", "clipboard", "terminal", "voice")
 NOTES_FOR_AGENT = (
     "Prefer tools over replaying clicks: if a CLI, an API or a file edit gives the same result, "
     "use it. The screenshots show the intent of each step, not the only way to do it.",
@@ -118,6 +118,8 @@ def _context_line(ev: dict[str, Any]) -> str | None:
         preview = _one_line(ev.get("preview"))
         n = ev.get("chars", len(preview))
         return f"Copied {n} characters" + (f": `{preview}`" if preview else "")
+    if kind == "voice" and ev.get("text"):
+        return f"Narration: \u201c{_one_line(ev['text'])}\u201d"
     if kind == "terminal" and ev.get("command"):
         code = ev.get("exit")
         status = f" (exit status {code})" if isinstance(code, int) and code != 0 else ""
@@ -185,8 +187,16 @@ def render(
         "## Goal",
         "",
     ]
+    first_step = min((s.get("event_id") or 0 for s in steps), default=0)
+    intro = [
+        _one_line(ev.get("text"))
+        for ev in events
+        if ev.get("kind") == "voice" and isinstance(ev.get("seq"), int) and ev["seq"] <= first_step
+    ]
     if notes:
         out += [f"- {n}" for n in notes]
+    elif intro:  # what was said before the first step usually states the goal
+        out += [f"- From the narration: \u201c{' '.join(intro)}\u201d"]
     else:
         out.append(
             "TODO: say what this procedure achieves and when to use it "

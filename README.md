@@ -2,6 +2,14 @@
 
 **Record once. Get a how-to guide for humans and a SKILL.md for any agent. Local, no account, no Copilot.**
 
+- Do a task once, in a desktop app or a browser: you get a guide for people (`guide.html`)
+  and a `SKILL.md` your AI agent can follow.
+- Runs on your computer only, no account. (The free plans of browser-extension recorders
+  capture the browser only; see [How it compares](#how-it-compares).)
+- The demo images are synthetic: the "Acme Tasks" app is drawn by
+  [`demos/build.py`](demos/build.py), no real data.
+- Planned work lives in [ROADMAP.md](ROADMAP.md); issues are for bugs and questions.
+
 `Fully local · Works offline · No account · Any app, browsers included · Windows, macOS, Linux`
 
 [![tests](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml/badge.svg)](https://github.com/kajisho5/stepcap/actions/workflows/tests.yml)
@@ -61,6 +69,8 @@ While recording: **F9** stop · **F8** pause/resume · **F7** add a manual step 
 
 Prefer a single binary? Each [release](https://github.com/kajisho5/stepcap/releases)
 ships `stepcap` executables for Windows, macOS and Linux (PyInstaller, no Python needed).
+The `stepcap-voice-*` editions add voice notes (about 100 MB larger and slower to start);
+on Linux they also need `sudo apt install libportaudio2` for the microphone.
 
 ### No terminal? Use the window
 
@@ -74,8 +84,8 @@ When you stop, the window offers the two results:
 
 - **For AI agents: skill (SKILL.md)**: **Add to Claude Code** (copies it to
   `~/.claude/skills/<name>/`; then type `/<name>` or just ask for the task),
-  **Add to Codex** (`~/.agents/skills/<name>/`; `$<name>` or `/skills`), or
-  **Create SKILL.md** only. If the `claude` or `codex` CLI is installed, tick
+  **Add to Codex / Gemini CLI / Cursor** (the shared `~/.agents/skills/<name>/`), or
+  **Create SKILL.md** only. If the `claude`, `codex` or `gemini` CLI is installed, tick
   *Generalise first* to let it rewrite the one-run draft into a general procedure (asks
   before running). An installed skill with the same name is only replaced after you confirm.
 - **For people: guide**: **Open guide**, **Printable checklist**, **Edit steps**.
@@ -227,12 +237,21 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   remove highlight frames, draw arrows, toggle frames / auto arrows / spotlight, blur
   rectangles (applied to `work/` copies — `raw/` originals stay untouched), rebuild.
 - **Context for agents**: app / window switches are always logged; with `--record-urls` the
-  front browser tab's URL (macOS: Safari, Chrome, Edge, Arc; query strings dropped unless
-  `--keep-query`), with `--record-clipboard` copied text (length + first 80 characters).
+  front browser tab's URL (Windows: Chrome, Edge and other Chromium browsers via UI
+  Automation, not Firefox; macOS: Safari, Chrome, Edge, Arc; query strings dropped unless `--keep-query`), with `--record-clipboard` copied text (length + first 80 characters).
   These never become steps; `stepcap skill` uses them ("Browser at ...", "Then: copied ...").
+- **Voice notes** (`--voice`, off by default): say what you are doing and why while you
+  record. The microphone is transcribed **on this computer** (faster-whisper, CPU) when
+  you stop; the text lands in each step's description and in the skill ("Narration: ...",
+  and the Goal when you explained it before the first click). `audio.wav` is deleted after
+  transcription unless `--keep-audio`; nothing said while paused is kept. Needs
+  `pip install "stepcap[voice]"` or the voice edition of the binary; the speech model
+  (`--voice-model base`, ~150 MB; `small` is better for Japanese) is downloaded once from
+  Hugging Face and then works offline.
 - **Private by default**: typed text is *not* stored unless `--record-typing`;
   always masked in password/login windows; `--exclude-app` skips apps entirely
-  (no screenshot). No network access at all.
+  (no screenshot). No network access at all (except the one-time speech model download
+  with `--voice`).
 
 ### What it doesn't do (v0.1)
 
@@ -240,7 +259,7 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
 - **OCR / AI naming** — names come from the OS accessibility APIs (Windows / macOS), not
   from reading pixels; for full sentences use the bundled agent skill or
   `stepcap skill --agent claude|codex`. Linux (AT-SPI) is not supported yet.
-- **Video**, narration, cloud sharing, team workspaces.
+- **Video**, cloud sharing, team workspaces.
 - Direct PDF export — print `guide.html` to PDF from any browser.
 
 ## Why
@@ -279,18 +298,24 @@ export; paid plans start at $25 / $22 per user per month (yearly).
 stepcap record [-o SESSION_DIR] [--monitor all|active] [--record-typing]
                [--exclude-app NAME ...] [--hotkey-stop F9] [--hotkey-pause F8]
                [--hotkey-manual F7] [--note-prompt auto|gui|terminal|none]
-               [--record-urls] [--keep-query] [--record-clipboard] [--dry-run] [--json]
+               [--record-urls] [--keep-query] [--record-clipboard]
+               [--voice [--voice-model base] [--voice-language ja] [--keep-audio]]
+               [--dry-run] [--json]
 stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--lang en|ja]
               [--title "..."] [--marker box|ring] [--[no-]spotlight] [--[no-]auto-arrows]
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
 stepcap edit SESSION_DIR [--port 8765] [--host 127.0.0.1] [--no-browser]
-stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex]
-              [--install none|claude|codex] [--scope user|project] [--yes] [--force]
+stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|gemini|AGENT]
+              [--install none|claude|agents|codex|gemini|cursor|AGENT] [--scope user|project] [--yes] [--force]
               [--dry-run] [--json]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
-               [--agent none|claude|codex] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
-stepcap check-skill SKILL_DIR [--json]
+               [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
+stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--json]
+stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
+stepcap schema [session|event|steps|terminal|voice] [--path]
+stepcap agents [--json]                                    # agents you can --install / --agent
+stepcap mcp [--root DIR ...]                               # MCP server for agents (stdio)
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux
 stepcap simulate EVENTS.json -o SESSION_DIR [--record-typing] [--json]
 stepcap app [--lang en|ja]                                 # window: start / stop / edit / export
@@ -314,6 +339,11 @@ SESSION_DIR/
   guide.md, images/, guide.html
 ```
 
+The formats are documented as JSON Schemas (draft 2020-12) shipped with stepcap:
+`stepcap schema steps` prints one, `stepcap schema --path` shows where they are
+([source](src/stepcap/schemas/)). Other tools can read and validate sessions with them;
+unknown keys are allowed so newer versions can add fields.
+
 ## Permissions
 
 `stepcap doctor` tells you exactly what is missing. Short version:
@@ -333,6 +363,7 @@ Details: [docs/permissions.md](docs/permissions.md).
 stepcap skill my-guide -o skills                     # draft, no LLM: skills/<name>/SKILL.md
 stepcap skill my-guide -o skills --agent claude      # let your Claude Code CLI generalise it
 stepcap skill my-guide -o skills --install claude --scope project   # + .claude/skills/<name>/
+stepcap skill my-guide -o skills --install agents    # + ~/.agents/skills/ (Codex, Gemini CLI, Cursor)
 stepcap check-skill skills/<name>                    # validate after editing by hand
 ```
 
@@ -343,17 +374,51 @@ stepcap check-skill skills/<name>                    # validate after editing by
   numbered `## Steps` with app, window and `references/step-NN.png` (annotated, blur applied),
   and `## Notes for the agent` (prefer CLI/API over clicks; confirm before deleting, sending,
   paying).
-- **Refine (`--agent claude|codex`)**: runs `claude -p` or `codex exec` in the skill folder
-  with [`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md). Before it runs,
-  stepcap lists every file the agent can read and asks `y/N` (`--yes` skips, `--dry-run` only
-  lists). stepcap makes no network request itself; where your agent sends data depends on
-  your agent's settings.
-- **Install (`--install claude|codex`)**: copies the folder to `~/.claude/skills/` or
-  `./.claude/skills/` (Claude Code), `~/.agents/skills/` or `./.agents/skills/` (Codex).
-  Never overwrites an existing skill without `--force`.
+- **Refine (`--agent claude|codex|gemini`)**: runs `claude -p`, `codex exec` or `gemini -p`
+  in the skill folder with [`prompts/skill_refine.md`](src/stepcap/prompts/skill_refine.md).
+  Before it runs, stepcap lists every file the agent can read and asks `y/N` (`--yes` skips,
+  `--dry-run` only lists). stepcap makes no network request itself; where your agent sends
+  data depends on your agent's settings.
+- **Install (`--install ...`)**: copies the folder to where the agent loads skills from
+  (`--scope user` = your home folder, `project` = the current folder). Never overwrites an
+  existing skill without `--force`.
+
+  | `--install` | Folder | Loaded by |
+  |---|---|---|
+  | `claude` | `.claude/skills/` | Claude Code (Cursor reads it too) |
+  | `agents` (= `codex`) | `.agents/skills/` | Codex, Gemini CLI, Cursor |
+  | `gemini` | `.gemini/skills/` | Gemini CLI |
+  | `cursor` | `.cursor/skills/` | Cursor |
+
+  Folders as documented by [Claude Code](https://code.claude.com/docs/en/skills),
+  [Codex](https://learn.chatgpt.com/docs/build-skills),
+  [Gemini CLI](https://geminicli.com/docs/cli/skills/) and
+  [Cursor](https://cursor.com/docs/skills) (checked 2026-09-25).
+- **Other agents (`agents.toml`)**: add your own, or change a built-in command, without
+  touching stepcap. `stepcap agents` lists them and prints where the file goes
+  (`~/.config/stepcap/agents.toml`, `%APPDATA%\stepcap\agents.toml` on Windows, or
+  `$STEPCAP_AGENTS_FILE`):
+
+  ```toml
+  [agents.myagent]
+  label = "My agent"
+  user_dir = "~/.myagent/skills"          # --install myagent
+  project_dir = ".myagent/skills"         # --install myagent --scope project
+  refine = ["myagent", "run", "{prompt}"] # --agent myagent (optional)
+  ```
+
+  `{prompt}` points the agent at `_context/INSTRUCTIONS.md`; `{skill_dir}` and `{images}`
+  (comma-separated annotated screenshots; the argument is dropped when there are none) are
+  also available. Agents from this file get their own "Add to …" button in `stepcap app`.
 - **Always validated**: Agent Skills frontmatter rules, name = folder name, < 500 lines,
   ~5000 tokens, every `references/` link exists, and no secret patterns (GitHub / AWS /
   OpenAI / Anthropic keys, JWTs, passwords in URLs, card numbers). Exit code 1 if not.
+- **Checked against the recording**: after a rewrite (by you or `--agent`), stepcap lists
+  what the recording showed but SKILL.md no longer mentions: apps, clicked buttons and
+  fields, `{{inputs}}`, URL hosts, terminal commands and F7 notes. It is a review hint
+  (a skill may rightly replace clicks with a CLI call), shown after `--agent` runs, in the
+  window, and by `stepcap check-skill SKILL_DIR --session SESSION_DIR` (`--min-coverage 0.8`
+  makes it fail below 80 %).
 - **Terminal steps**: run `stepcap shell my-guide` in a second terminal while recording.
   Commands typed there (not their output) are added with their exit status, secrets
   masked, and show up as "Ran in a terminal: `...`" in the skill. bash and zsh on macOS /
@@ -361,6 +426,32 @@ stepcap check-skill skills/<name>                    # validate after editing by
   out (when your shell ignores such commands in history).
 - **Press F7 while recording** to add notes like "why": they become the skill's Goal and are
   the most useful thing you can give an agent.
+
+### For agents over MCP: `stepcap mcp`
+
+Let an agent use your recordings directly. `stepcap mcp` is an MCP server (stdio) with six
+tools: `list_sessions`, `get_steps` (titles, clicked elements, inputs, URLs, commands,
+narration), `step_image` (the annotated screenshot of a step, as an image),
+`build_guide`, `make_skill` (write and optionally install a skill) and `check_skill`
+(validate + compare with the recording). Starting a recording is not a tool: capturing your
+screen stays your decision. The agent can only use folders under `--root` (default:
+`~/Documents/stepcap`, where the window saves, and the current folder).
+
+```bash
+pip install "stepcap[mcp]"
+claude mcp add stepcap -- stepcap mcp                      # Claude Code
+codex mcp add stepcap -- stepcap mcp                       # Codex
+gemini mcp add stepcap stepcap mcp                         # Gemini CLI
+# Cursor: ~/.cursor/mcp.json -> {"mcpServers": {"stepcap": {"command": "stepcap", "args": ["mcp"]}}}
+```
+
+Then ask, for example: *"Look at my latest stepcap recording and turn it into a skill that
+uses the CLI where possible."* Commands from each tool's MCP docs
+([Claude Code](https://code.claude.com/docs/en/mcp),
+[Codex](https://learn.chatgpt.com/docs/extend/mcp?surface=cli),
+[Gemini CLI](https://geminicli.com/docs/tools/mcp-server/),
+[Cursor](https://cursor.com/docs/context/mcp), checked 2026-09-25). Verified with Claude
+Code: it listed the recordings, read the steps and described step 2 from `step_image`.
 
 ## Let your coding agent write the guide text
 

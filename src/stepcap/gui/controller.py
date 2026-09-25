@@ -30,8 +30,11 @@ TEXTS = {
         "change": "Change…",
         "name": "Name",
         "opt_typing": "Also record typed text (passwords are always masked)",
-        "opt_urls": "Record browser URLs (macOS)",
+        "opt_urls": "Record browser URLs (Windows, macOS)",
         "opt_clip": "Record copied text",
+        "opt_voice": "Voice notes: record the microphone and transcribe on this PC",
+        "voice_missing": "(not installed: {hint})",
+        "transcribing": "Transcribing voice notes on this PC…",
         "guide_lang": "Guide language",
         "start": "●  Start recording",
         "check": "Check setup",
@@ -65,7 +68,8 @@ TEXTS = {
         "agents_hint": "Add the skill and your agent can do this task for you.",
         "make_skill": "Create SKILL.md",
         "add_claude": "Add to Claude Code",
-        "add_codex": "Add to Codex",
+        "add_agents": "Add to Codex / Gemini CLI / Cursor",
+        "add_to": "Add to {agent}",
         "refine": "Generalise with {agent} first (optional, may take a few minutes)",
         "refine_confirm": "{agent} will read the draft SKILL.md, the annotated screenshots and "
         "the step list (secrets already masked) and rewrite them into a general procedure.\n\n"
@@ -78,9 +82,15 @@ TEXTS = {
         "exists": "A skill named “{name}” is already installed:\n{path}\n\nReplace it?",
         "installed_claude": "Added to Claude Code: {path}\nIn Claude Code type /{name}, or just "
         "ask for the task in your own words. If it does not show up, restart Claude Code.",
-        "installed_codex": "Added to Codex: {path}\nIn Codex type ${name} or /skills. If it does "
-        "not show up, restart Codex.",
+        "installed_agents": "Added to the shared skills folder: {path}\nCodex: type ${name} or "
+        "/skills. Gemini CLI: /skills (run /skills reload if it is open). Cursor: type / in Agent "
+        "chat. Restart the tool if the skill does not show up.",
+        "installed_other": "Added to {agent}: {path}",
         "export_all": "Export guide + skill (to share)",
+        "coverage": "Checked against the recording: {found} of {total} items mentioned.",
+        "coverage_missing": "Not mentioned any more (check that the skill still covers them): "
+        "{items}",
+        "list_sep": ", ",
     },
     "ja": {
         "subtitle": "作業を 1 回見せるだけで、AI エージェントが同じ作業をできる"
@@ -89,8 +99,11 @@ TEXTS = {
         "change": "変更…",
         "name": "名前",
         "opt_typing": "入力した文字も記録する（パスワードは常に伏せ字）",
-        "opt_urls": "ブラウザの URL を記録する（macOS）",
+        "opt_urls": "ブラウザの URL を記録する（Windows・macOS）",
         "opt_clip": "コピーした文字を記録する",
+        "opt_voice": "声でメモする（マイクを録音し、この PC で文字起こし）",
+        "voice_missing": "（未インストール: {hint}）",
+        "transcribing": "音声メモをこの PC で文字起こし中…",
         "guide_lang": "手順書の言語",
         "start": "●  記録開始",
         "check": "環境チェック",
@@ -124,7 +137,8 @@ TEXTS = {
         "agents_hint": "スキルを追加すると、エージェントがこの作業を代わりに行えます。",
         "make_skill": "SKILL.md を作る",
         "add_claude": "Claude Code に追加",
-        "add_codex": "Codex に追加",
+        "add_agents": "Codex・Gemini CLI・Cursor に追加",
+        "add_to": "{agent} に追加",
         "refine": "先に {agent} で一般化する（任意・数分かかることがあります）",
         "refine_confirm": "{agent} が SKILL.md の下書き・注釈付きスクリーンショット・手順一覧"
         "（秘密情報は伏せ字済み）を読み、汎用的な手順に書き直します。\n\n{agent} を実行しますか？",
@@ -137,9 +151,15 @@ TEXTS = {
         "installed_claude": "Claude Code に追加しました: {path}\n"
         "Claude Code で /{name} と入力するか、やりたい作業をそのまま頼んでください。"
         "表示されない場合は Claude Code を再起動してください。",
-        "installed_codex": "Codex に追加しました: {path}\nCodex で ${name} または /skills から"
-        "使えます。表示されない場合は Codex を再起動してください。",
+        "installed_agents": "共通のスキルフォルダに追加しました: {path}\nCodex は ${name} または "
+        "/skills、Gemini CLI は /skills（起動中なら /skills reload）、"
+        "Cursor はチャットで / を入力して使えます。"
+        "表示されない場合は各ツールを再起動してください。",
+        "installed_other": "{agent} に追加しました: {path}",
         "export_all": "手順書とスキルを書き出す（共有用）",
+        "coverage": "記録との照合: {total} 項目中 {found} 項目がスキルに書かれています。",
+        "coverage_missing": "書かれていない項目（スキルで扱えているか確認してください）: {items}",
+        "list_sep": "、",
     },
 }
 
@@ -197,7 +217,16 @@ def recent_sessions(root: Path, limit: int = 20) -> list[Path]:
     return found[:limit]
 
 
-def record_argv(out: Path, typing: bool, urls: bool, clipboard: bool) -> list[str]:
+def voice_hint() -> str | None:
+    """None when voice notes can be recorded here, else how to enable them."""
+    from stepcap import voice
+
+    return voice.install_hint() if voice.missing() else None
+
+
+def record_argv(
+    out: Path, typing: bool, urls: bool, clipboard: bool, voice: bool = False
+) -> list[str]:
     argv = [*self_command(), "record", "-o", str(out), "--control"]
     if typing:
         argv.append("--record-typing")
@@ -205,6 +234,8 @@ def record_argv(out: Path, typing: bool, urls: bool, clipboard: bool) -> list[st
         argv.append("--record-urls")
     if clipboard:
         argv.append("--record-clipboard")
+    if voice:
+        argv.append("--voice")
     return argv
 
 
@@ -226,13 +257,47 @@ def step_count(session: Path) -> int:
 
 def refine_agent() -> str | None:
     """The agent CLI that can generalise a skill here (claude first), or None."""
-    from stepcap.skill import agents
+    from stepcap.skill import agents, registry
 
-    return next((a for a in agents.AGENTS if agents.find_cli(a)), None)
+    try:
+        names = agents.refiners()
+    except registry.RegistryError:
+        return None
+    return next((a for a in names if agents.find_cli(a)), None)
 
 
 def agent_label(agent: str) -> str:
-    return {"claude": "Claude Code", "codex": "Codex"}.get(agent, agent)
+    from stepcap.skill import registry
+
+    try:
+        return registry.get(agent).label
+    except registry.RegistryError:
+        return agent
+
+
+def coverage_note(res: Any, t: dict[str, str], limit: int = 6) -> str:
+    """One or two lines about what a rewritten skill no longer mentions."""
+    cov = (getattr(res, "info", None) or {}).get("coverage") or {}
+    if not cov.get("total"):
+        return ""
+    text = t["coverage"].format(found=cov["found"], total=cov["total"])
+    missing = [i for i in cov["items"] if not i["found"]]
+    if missing:
+        names = t["list_sep"].join(i["value"][:40] for i in missing[:limit])
+        more = f" (+{len(missing) - limit})" if len(missing) > limit else ""
+        text += "\n" + t["coverage_missing"].format(items=names) + more
+    return text
+
+
+def custom_installers() -> list[tuple[str, str]]:
+    """(name, label) of agents from the user's agents.toml that have a skills folder."""
+    from stepcap.skill import registry
+
+    try:
+        specs = registry.load()
+    except registry.RegistryError:
+        return []
+    return [(n, s.label) for n, s in specs.items() if n not in registry.BUILTIN and s.can_install]
 
 
 def build_guide(session: Path, lang: str | None) -> dict[str, Path]:

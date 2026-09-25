@@ -180,6 +180,9 @@ def collect_probes(include_hooks: bool = True) -> dict[str, Any]:
     from stepcap.capture import element
 
     p["element"] = element.backend()
+    from stepcap import voice
+
+    p["voice"] = voice.probe()
     return p
 
 
@@ -204,6 +207,10 @@ WAYLAND_FIX = (
 MAC_URL_NOTE = (
     "Safari, Chrome, Edge and Arc are supported; macOS asks once per browser to allow "
     "the app that runs stepcap to control it (Privacy & Security > Automation)"
+)
+WIN_URL_NOTE = (
+    "Chrome and Edge (and Chromium-based Brave, Vivaldi, Opera): the address bar is read "
+    "with UI Automation, no permission needed. Firefox is not supported"
 )
 X11_FIX = "Run stepcap inside a graphical X11 session (DISPLAY must be set, e.g. DISPLAY=:0)."
 SESSION_FIX = "Run stepcap in an interactive desktop session (not a service or SSH session)."
@@ -363,6 +370,8 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
             checks.append(Check("element", INFO, "Element names", "unavailable", fix))
     if plat == "darwin":
         checks.append(Check("urls", INFO, "Browser URLs (--record-urls)", MAC_URL_NOTE, ""))
+    elif plat == "win32":
+        checks.append(Check("urls", INFO, "Browser URLs (--record-urls)", WIN_URL_NOTE, ""))
     clip = p.get("clipboard")
     if clip:
         checks.append(Check("clipboard", OK, "Clipboard reader (--record-clipboard)", clip))
@@ -376,6 +385,25 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
                 "sudo apt install xclip (or xsel)",
             )
         )
+    v = p.get("voice")
+    if isinstance(v, dict):
+        label = "Voice notes (--voice)"
+        if v.get("missing"):
+            from stepcap.voice import install_hint
+
+            detail = f"not installed ({', '.join(v['missing'])}); only needed with --voice"
+            fix = install_hint()
+            if "sounddevice" in v["missing"] and plat.startswith("linux"):
+                fix += "; on Linux also: sudo apt install libportaudio2"
+            checks.append(Check("voice", INFO, label, detail, fix))
+        elif v.get("microphone"):
+            checks.append(Check("voice", OK, label, f"microphone: {v['microphone']}"))
+        else:
+            err = v.get("microphone_error", "no input device")
+            fix = "Connect or enable a microphone"
+            if plat == "darwin":
+                fix += " and allow it in System Settings > Privacy & Security > Microphone"
+            checks.append(Check("voice", WARN, label, err, fix))
     return checks
 
 

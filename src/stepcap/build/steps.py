@@ -71,9 +71,29 @@ def _point(d: dict[str, Any] | None) -> dict[str, Any] | None:
     return {k: d[k] for k in POINT_KEYS if k in d}
 
 
-def step_from_event(ev: dict[str, Any], lang: str) -> dict[str, Any]:
-    title = naming.auto_title(ev, lang)
+def narration_by_event(events: list[dict[str, Any]]) -> dict[int, str]:
+    """Voice notes (record --voice) joined per step: event id -> what was said before it."""
+    said: dict[int, list[str]] = {}
+    for ev in events:
+        if ev.get("kind") == "voice" and isinstance(ev.get("seq"), int) and ev.get("text"):
+            said.setdefault(ev["seq"], []).append(str(ev["text"]).strip())
+    return {k: " ".join(v) for k, v in said.items()}
+
+
+def auto_description(ev: dict[str, Any], lang: str, narration: dict[int, str]) -> str:
+    """The template description, followed by what was said before the step (if anything)."""
     desc = naming.auto_description(ev, lang)
+    said = narration.get(ev.get("id"))
+    if said:
+        return f"{desc} {said}".strip() if desc else said
+    return desc
+
+
+def step_from_event(
+    ev: dict[str, Any], lang: str, narration: dict[int, str] | None = None
+) -> dict[str, Any]:
+    title = naming.auto_title(ev, lang)
+    desc = auto_description(ev, lang, narration or {})
     sid = shot_id(ev.get("screenshot"))
     step: dict[str, Any] = {
         "id": f"s{int(ev['id']):04d}",
@@ -119,7 +139,8 @@ def create_steps(
     lang: str,
     dedupe_threshold: float = dedupe.DEFAULT_THRESHOLD,
 ) -> dict[str, Any]:
-    steps = [step_from_event(ev, lang) for ev in events if ev.get("kind") in STEP_KINDS]
+    said = narration_by_event(events)
+    steps = [step_from_event(ev, lang, said) for ev in events if ev.get("kind") in STEP_KINDS]
     assign_inputs(steps)
 
     cache: dict[str, Image.Image | None] = {}
@@ -229,13 +250,14 @@ def refresh_auto_texts(
 ) -> dict[str, Any]:
     """Regenerate untouched auto texts for ``lang``; keep every human edit."""
     by_id = {ev.get("id"): ev for ev in events}
+    said = narration_by_event(events)
     for s in doc.get("steps", []):
         ev = by_id.get(s.get("event_id"))
         if ev is None:
             continue
         auto = s.setdefault("auto", {})
         new_title = naming.auto_title(ev, lang)
-        new_desc = naming.auto_description(ev, lang)
+        new_desc = auto_description(ev, lang, said)
         if s.get("title") == auto.get("title"):
             s["title"] = new_title
         if (s.get("description") or "") == (auto.get("description") or ""):

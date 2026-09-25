@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kajisho5/stepcap/schemas/voice.schema.json",
+  "title": "stepcap voice.jsonl line",
+  "description": "One spoken segment from `record --voice`, transcribed on the computer (secrets masked). ts / end are seconds on the same timeline as events.jsonl. When a session is loaded these become `voice` context events (event.schema.json) placed before the next step.",
+  "type": "object",
+  "required": ["kind", "ts", "text"],
+  "properties": {
+    "kind": {"const": "voice"},
+    "ts": {"type": "number"},
+    "end": {"type": "number"},
+    "text": {"type": "string", "minLength": 1},
+    "lang": {"type": "string"}
+  }
+}

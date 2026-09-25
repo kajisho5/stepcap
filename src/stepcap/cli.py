@@ -61,7 +61,23 @@ def cmd_record(args: argparse.Namespace) -> int:
         as_json=args.json,
         control=args.control,
         element_names=not args.no_element_names,
+        voice=args.voice,
+        voice_model=args.voice_model,
+        voice_language=args.voice_language,
+        keep_audio=args.keep_audio,
     )
+    if args.voice:
+        from stepcap import voice
+
+        gone = voice.missing()
+        if "sounddevice" in gone:
+            _err(f"--voice needs the microphone library: {voice.install_hint()}")
+            return EXIT_FAIL
+        if gone:
+            _err(
+                f"warning: speech-to-text is not installed ({', '.join(gone)}); the audio is kept "
+                f"and can be transcribed later with `stepcap transcribe`. {voice.install_hint()}"
+            )
     try:
         result = record(opts)
     except (RecorderError, SessionError) as exc:
@@ -204,6 +220,8 @@ def _print_skill(res: dict[str, Any], prefix: str = "") -> None:
     )
     for problem in res["problems"]:
         print(f"{prefix}  INVALID: {problem}", file=sys.stderr)
+    if res["agent"] != "none":  # the draft always covers the recording; a rewrite may not
+        _print_coverage(info.get("coverage") or {}, prefix)
     if res["installed_to"]:
         print(f"{prefix}  installed to {res['installed_to']}")
     elif res["ok"]:
@@ -268,12 +286,38 @@ def cmd_shell(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _print_coverage(cov: dict[str, Any], prefix: str = "") -> None:
+    if not cov.get("total"):
+        return
+    print(
+        f"{prefix}  recording coverage: {cov['found']}/{cov['total']} "
+        f"({cov['score']:.0%} of apps, elements, inputs, URLs, commands and notes mentioned)"
+    )
+    for item in cov["items"]:
+        if not item["found"]:
+            where = f" (step {', '.join(map(str, item['steps']))})" if item["steps"] else ""
+            print(f"{prefix}    not mentioned: {item['kind']} {item['value']!r}{where}")
+
+
 def cmd_check_skill(args: argparse.Namespace) -> int:
+    from stepcap.skill import coverage
     from stepcap.skill.validate import validate_skill
 
     problems, info = validate_skill(Path(args.skill_dir))
+    cov = None
+    if args.session and not problems:
+        try:
+            cov = coverage.check_dir(Path(args.skill_dir), Path(args.session)).to_dict()
+        except (SessionError, OSError, ValueError) as exc:
+            _err(str(exc))
+            return EXIT_FAIL
+    low = cov is not None and args.min_coverage is not None and cov["score"] < args.min_coverage
     if args.json:
-        _print_json({"skill_dir": args.skill_dir, "ok": not problems, "problems": problems, **info})
+        data = {"skill_dir": args.skill_dir, "ok": not problems and not low, "problems": problems}
+        data.update(info)
+        if cov is not None:
+            data["coverage"] = cov
+        _print_json(data)
     elif problems:
         for problem in problems:
             print(f"INVALID: {problem}", file=sys.stderr)
@@ -282,7 +326,96 @@ def cmd_check_skill(args: argparse.Namespace) -> int:
             f"{args.skill_dir}: valid ({info.get('lines')} lines, ~{info.get('tokens')} tokens, "
             f"{info.get('links')} local links)"
         )
-    return EXIT_FAIL if problems else EXIT_OK
+        if cov is not None:
+            _print_coverage(cov)
+        if low:
+            print(
+                f"coverage {cov['score']:.0%} is below --min-coverage {args.min_coverage:.0%}",
+                file=sys.stderr,
+            )
+    return EXIT_FAIL if problems or low else EXIT_OK
+
+
+def cmd_agents(args: argparse.Namespace) -> int:
+    from stepcap.skill import registry
+
+    path = registry.config_path()
+    try:
+        specs = registry.load()
+    except registry.RegistryError as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    rows = []
+    for spec in specs.values():
+        rows.append(
+            {
+                "name": spec.name,
+                "label": spec.label,
+                "user_dir": spec.user_dir,
+                "project_dir": spec.project_dir,
+                "also_read_by": list(spec.readers),
+                "refine": list(spec.refine),
+                "refine_cli_found": spec.executable() if spec.can_refine else None,
+                "source": spec.source,
+            }
+        )
+    if args.json:
+        _print_json({"config": str(path), "config_exists": path.is_file(), "agents": rows})
+        return EXIT_OK
+    for r in rows:
+        where = r["user_dir"] or "-"
+        readers = f" (also {', '.join(r['also_read_by'])})" if r["also_read_by"] else ""
+        if r["refine"]:
+            found = "found" if r["refine_cli_found"] else "not installed"
+            refine = f"--agent {r['name']}: {r['refine'][0]} {found}"
+        else:
+            refine = "install only"
+        print(f"{r['name']:<8} {r['label']:<28} {where}{readers}; {refine}")
+    state = "" if path.is_file() else " (not present; create it to add agents)"
+    print(f"\nConfig: {path}{state}")
+    return EXIT_OK
+
+
+def cmd_transcribe(args: argparse.Namespace) -> int:
+    from stepcap.voice import VoiceError, transcribe_session
+
+    try:
+        res = transcribe_session(Path(args.session), args.model, args.language, args.keep_audio)
+    except (VoiceError, SessionError, OSError, RuntimeError, ValueError) as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    if args.json:
+        _print_json(res)
+    else:
+        print(f"{res['segments']} voice notes ({res['language'] or '?'}) -> {args.session}")
+        for line in res["lines"]:
+            print(f"  {line['ts']:>7.1f}s  {line['text']}")
+    return EXIT_OK
+
+
+def cmd_mcp(args: argparse.Namespace) -> int:
+    from stepcap.mcp_server import ToolError, serve
+
+    try:
+        serve([Path(r) for r in args.root] if args.root else None)
+    except ToolError as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    return EXIT_OK
+
+
+def cmd_schema(args: argparse.Namespace) -> int:
+    from stepcap import schemas
+
+    if args.path:
+        print(schemas.path(args.name) if args.name else schemas.DIR)
+        return EXIT_OK
+    names = [args.name] if args.name else list(schemas.NAMES)
+    if len(names) == 1:
+        _print_json(schemas.load(names[0]))
+    else:
+        _print_json({n: schemas.load(n) for n in names})
+    return EXIT_OK
 
 
 # ---------------------------------------------------------------------------- app
@@ -313,6 +446,16 @@ def _positive_int(v: str) -> int:
     return n
 
 
+def _fraction(value: str) -> float:
+    try:
+        f = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("must be a number between 0 and 1") from None
+    if not 0 <= f <= 1:
+        raise argparse.ArgumentTypeError("must be a number between 0 and 1")
+    return f
+
+
 def _skill_args(k: argparse.ArgumentParser) -> None:
     k.add_argument(
         "--name",
@@ -320,11 +463,11 @@ def _skill_args(k: argparse.ArgumentParser) -> None:
     )
     k.add_argument(
         "--agent",
-        choices=("none", "claude", "codex"),
         default="none",
-        help="none: deterministic draft, no LLM (default). claude / codex: let your own "
-        "agent CLI rewrite the draft into a general skill (asks first; stepcap itself "
-        "sends nothing)",
+        metavar="AGENT",
+        help="none: deterministic draft, no LLM (default). claude / codex / gemini or an agent "
+        "from agents.toml: let your own agent CLI rewrite the draft into a general skill (asks "
+        "first; stepcap itself sends nothing). See `stepcap agents`",
     )
     k.add_argument("--yes", action="store_true", help="do not ask before running the agent")
     k.add_argument("--force", action="store_true", help="replace existing output folders")
@@ -392,8 +535,9 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument(
         "--record-urls",
         action="store_true",
-        help="record the front browser tab's URL when it changes (macOS: Safari, Chrome, Edge, "
-        "Arc; asks for the Automation permission). Query strings are dropped.",
+        help="record the front browser tab's URL when it changes (Windows: Chrome, Edge, "
+        "Brave, Vivaldi, Opera via UI Automation, not Firefox; macOS: Safari, Chrome, Edge, Arc, "
+        "asks for the Automation permission; not on Linux yet). Query strings are dropped.",
     )
     r.add_argument(
         "--keep-query",
@@ -405,6 +549,24 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="record copied text: length and the first 80 characters, secrets masked; "
         "nothing while a password/login window or an --exclude-app is in front",
+    )
+    r.add_argument(
+        "--voice",
+        action="store_true",
+        help="record the microphone for voice notes and transcribe them on this computer "
+        '(needs pip install "stepcap[voice]"; the speech model is downloaded once)',
+    )
+    r.add_argument(
+        "--voice-model",
+        default="base",
+        choices=("tiny", "base", "small", "medium", "large-v3"),
+        help="speech model size (default base; small is better for Japanese, slower)",
+    )
+    r.add_argument("--voice-language", metavar="LANG", help="e.g. ja or en (default: detect)")
+    r.add_argument(
+        "--keep-audio",
+        action="store_true",
+        help="keep audio.wav after transcribing (deleted by default)",
     )
     r.add_argument(
         "--dry-run", action="store_true", help="check permissions/hooks and exit without recording"
@@ -520,10 +682,11 @@ def build_parser() -> argparse.ArgumentParser:
     _skill_args(k)
     k.add_argument(
         "--install",
-        choices=("none", "claude", "codex"),
         default="none",
-        help="also copy the skill to where Claude Code (.claude/skills) or Codex "
-        "(.agents/skills) loads skills from",
+        metavar="AGENT",
+        help="also copy the skill to where an agent loads skills from: claude (.claude/skills), "
+        "agents (.agents/skills: Codex, Gemini CLI, Cursor), codex, gemini, cursor or an agent "
+        "from agents.toml. See `stepcap agents`",
     )
     k.add_argument(
         "--scope",
@@ -560,8 +723,63 @@ def build_parser() -> argparse.ArgumentParser:
         help="validate a skill folder (Agent Skills spec, links, size, secret patterns)",
     )
     c.add_argument("skill_dir", metavar="SKILL_DIR")
+    c.add_argument(
+        "--session",
+        metavar="SESSION_DIR",
+        help="also list what the recording showed but SKILL.md no longer mentions (apps, "
+        "clicked elements, inputs, URLs, commands, notes)",
+    )
+    c.add_argument(
+        "--min-coverage",
+        type=_fraction,
+        metavar="0-1",
+        help="with --session: exit 1 if less than this share is mentioned (e.g. 0.8)",
+    )
     c.add_argument("--json", action="store_true")
     c.set_defaults(func=cmd_check_skill)
+
+    t = sub.add_parser(
+        "transcribe",
+        help="turn a session's recorded audio (record --voice) into voice notes, locally",
+    )
+    t.add_argument("session", metavar="SESSION_DIR")
+    t.add_argument(
+        "--model", default="base", choices=("tiny", "base", "small", "medium", "large-v3")
+    )
+    t.add_argument("--language", metavar="LANG", help="e.g. ja or en (default: detect)")
+    t.add_argument("--keep-audio", action="store_true", help="keep audio.wav afterwards")
+    t.add_argument("--json", action="store_true")
+    t.set_defaults(func=cmd_transcribe)
+
+    m = sub.add_parser(
+        "mcp",
+        help="run an MCP server (stdio) so agents can read recordings and write skills",
+    )
+    m.add_argument(
+        "--root",
+        action="append",
+        metavar="DIR",
+        help="folder the agent may use (repeatable; default: ~/Documents/stepcap and the "
+        "current folder)",
+    )
+    m.set_defaults(func=cmd_mcp)
+
+    g = sub.add_parser(
+        "agents",
+        help="list the agents stepcap can install skills for or run (built-in + agents.toml)",
+    )
+    g.add_argument("--json", action="store_true")
+    g.set_defaults(func=cmd_agents)
+
+    from stepcap.schemas import NAMES as schema_names
+
+    j = sub.add_parser(
+        "schema",
+        help="print the JSON Schema of a session file (session, event, steps, terminal, voice)",
+    )
+    j.add_argument("name", nargs="?", choices=schema_names)
+    j.add_argument("--path", action="store_true", help="print the schema file path instead")
+    j.set_defaults(func=cmd_schema)
 
     a = sub.add_parser("app", help="open the stepcap window: start / stop recordings, edit, export")
     a.add_argument("--lang", choices=("en", "ja"), help="window language (default: system)")

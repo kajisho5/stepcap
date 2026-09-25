@@ -41,6 +41,19 @@ jobs:
           - os: ubuntu-22.04  # older glibc = runs on more distributions
             asset: stepcap-linux-x64
             exe: dist/stepcap
+          # voice edition: + microphone and local speech-to-text (record --voice), ~100 MB larger
+          - os: windows-latest
+            asset: stepcap-voice-windows-x64.exe
+            exe: dist/stepcap.exe
+            voice: true
+          - os: macos-latest
+            asset: stepcap-voice-macos-arm64
+            exe: dist/stepcap
+            voice: true
+          - os: ubuntu-22.04
+            asset: stepcap-voice-linux-x64
+            exe: dist/stepcap
+            voice: true
     steps:
       - uses: actions/checkout@v7
         with:
@@ -49,9 +62,10 @@ jobs:
         with:
           python-version: "3.13"
       - name: Install
-        run: python -m pip install --upgrade pip && python -m pip install . pyinstaller
+        shell: bash
+        run: python -m pip install --upgrade pip && python -m pip install ".${{ matrix.voice && '[voice]' || '' }}" pyinstaller
       - name: Build
-        run: python scripts/build_binary.py
+        run: python scripts/build_binary.py ${{ matrix.voice && '--voice' || '' }}
       - name: Smoke test (simulate -> build with the binary)
         shell: bash
         run: |
@@ -60,14 +74,24 @@ jobs:
           ${{ matrix.exe }} simulate ev.json -o smoke
           ${{ matrix.exe }} build smoke -f md,html
           test -f smoke/guide.html
+          ${{ matrix.exe }} schema steps > schema.json
+          python -c "import json;assert json.load(open('schema.json'))['title']=='stepcap steps.json'"
           ${{ matrix.exe }} doctor --json > doctor.json || true
           python -c "import json;d=json.load(open('doctor.json'));print([c['id'] for c in d['checks'] if c['status']=='fail'])"
+      - name: Smoke test (voice edition transcribes speech)
+        if: matrix.voice
+        shell: bash
+        run: |
+          python -c "import json;p='smoke/session.json';m=json.load(open(p));m['audio']={'file':'audio.wav','offset':0.5};json.dump(m,open(p,'w'))"
+          cp tests/fixtures/jfk.wav smoke/audio.wav
+          ${{ matrix.exe }} transcribe smoke --model tiny --json > voice.json
+          python -c "import json;t=json.load(open('voice.json'))['lines'][0]['text'].lower();print(t);assert 'your country' in t"
       - name: Rename and checksum
         shell: bash
         run: |
           mkdir -p out
           cp "${{ matrix.exe }}" "out/${{ matrix.asset }}"
-          python scripts/collect_licenses.py "out/${{ matrix.asset }}.THIRD_PARTY_LICENSES.txt"
+          python scripts/collect_licenses.py "out/${{ matrix.asset }}.THIRD_PARTY_LICENSES.txt" ${{ matrix.voice && '--extra voice' || '' }}
           cd out && python -c "import hashlib,sys;n='${{ matrix.asset }}';print(hashlib.sha256(open(n,'rb').read()).hexdigest()+'  '+n)" > "${{ matrix.asset }}.sha256"
       - name: Attach to release
         if: inputs.tag != '' && github.event_name != 'pull_request'

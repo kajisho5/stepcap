@@ -39,7 +39,8 @@ EVENTS.json::
         {"kind": "key", "screen": "...", "keys": "ctrl+s"},
         {"kind": "manual", "screen": "...", "note": "Check the result"},
         {"kind": "copy", "screen": "...", "text": "copied text"},
-        {"kind": "terminal", "command": "git pull", "exit": 0}
+        {"kind": "terminal", "command": "git pull", "exit": 0},
+        {"kind": "say", "text": "Now create the project"}   (a voice note, as if transcribed)
       ]
     }
 
@@ -80,6 +81,7 @@ from stepcap.session import (
     prepare_new_session,
     write_json,
 )
+from stepcap.voice import Segment, write_voice
 
 TITLEBAR = 38
 C = {
@@ -458,10 +460,15 @@ def simulate(
     )
     proc.observe_clipboard(0.0, "", window())  # clipboard is empty when recording starts
     t = 0.0
+    spoken: list[Segment] = []
     try:
         for i, ev in enumerate(spec["events"], 1):
             if not isinstance(ev, dict) or "kind" not in ev:
                 raise SimulationError(f"EVENTS.json: event {i} needs a 'kind'")
+            if ev["kind"] == "say":  # spoken before the next event
+                start = float(ev["t"]) if "t" in ev else t + 0.3
+                spoken.append(Segment(start, start + 1.0, str(ev.get("text", ""))))
+                continue
             t = float(ev["t"]) if "t" in ev else t + 1.5
             screen = ev.get("screen", current["screen"])
             renderer.screen(screen)
@@ -472,6 +479,10 @@ def simulate(
         proc.flush()
     finally:
         writer.close()
+    if spoken:
+        lines = write_voice(out, spoken, 0.0, spec.get("voice_language"))
+        meta["audio"] = {"file": "audio.wav", "offset": 0.0, "transcribed": True, "deleted": True}
+        meta["audio"]["segments"] = len(lines)
     meta["ended"] = now_iso()
     meta["stats"] = {
         "events": writer.count - n_context,

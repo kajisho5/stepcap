@@ -64,6 +64,11 @@ def hidden_imports() -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", default="stepcap")
+    ap.add_argument(
+        "--voice",
+        action="store_true",
+        help="bundle voice notes (sounddevice + faster-whisper; install stepcap[voice] first)",
+    )
     args = ap.parse_args()
     import PyInstaller.__main__
 
@@ -87,6 +92,11 @@ def main() -> int:
     ]
     for mod in hidden_imports():
         cmd += ["--hidden-import", mod]
+    if args.voice:
+        # faster_whisper ships the VAD model as package data; ctranslate2 / onnxruntime /
+        # av load native libraries that PyInstaller's contrib hooks collect
+        cmd += ["--collect-all", "faster_whisper", "--collect-binaries", "ctranslate2"]
+        cmd += ["--hidden-import", "sounddevice", "--collect-data", "_sounddevice_data"]
     print("pyinstaller " + " ".join(cmd), flush=True)
     PyInstaller.__main__.run(cmd)
     return 0

@@ -48,6 +48,8 @@ class App:
         self.opt_typing = tk.BooleanVar(value=False)
         self.opt_urls = tk.BooleanVar(value=False)
         self.opt_clip = tk.BooleanVar(value=False)
+        self.opt_voice = tk.BooleanVar(value=False)
+        self.voice_hint = ctl.voice_hint()
         self.guide_lang = tk.StringVar(value=self.lang)
         self.status = tk.StringVar(value="")
         self.refine = tk.BooleanVar(value=False)
@@ -79,16 +81,22 @@ class App:
         ttk.Button(f, text=t["change"], command=self.choose_dir).grid(row=2, column=2, padx=4)
         ttk.Label(f, text=t["name"]).grid(row=3, column=0, sticky="w", pady=2)
         ttk.Entry(f, textvariable=self.name, width=30).grid(row=3, column=1, sticky="w")
-        for i, (var, key) in enumerate(
-            (
-                (self.opt_typing, "opt_typing"),
-                (self.opt_urls, "opt_urls"),
-                (self.opt_clip, "opt_clip"),
-            )
+        options = ttk.Frame(f)
+        options.grid(row=4, column=0, columnspan=3, sticky="w")
+        for var, key in (
+            (self.opt_typing, "opt_typing"),
+            (self.opt_urls, "opt_urls"),
+            (self.opt_clip, "opt_clip"),
+            (self.opt_voice, "opt_voice"),
         ):
-            ttk.Checkbutton(f, text=t[key], variable=var).grid(
-                row=4 + i, column=0, columnspan=3, sticky="w"
-            )
+            text = t[key]
+            if key == "opt_voice" and self.voice_hint:
+                text += " " + t["voice_missing"].format(hint=self.voice_hint)
+            cb = ttk.Checkbutton(options, text=text, variable=var)
+            cb.pack(anchor="w")
+            if key == "opt_voice" and self.voice_hint:
+                self.opt_voice.set(False)
+                cb.state(["disabled"])
         ttk.Label(f, text=t["guide_lang"]).grid(row=7, column=0, sticky="w", pady=2)
         ttk.Combobox(
             f, textvariable=self.guide_lang, values=("ja", "en"), width=6, state="readonly"
@@ -142,10 +150,12 @@ class App:
         self.bar_label.pack(side="left", padx=(2, 8))
         self.pause_btn = ttk.Button(f, text=t["pause"], command=self.toggle_pause)
         self.pause_btn.pack(side="left")
-        ttk.Button(f, text=t["note"], command=lambda: self.rec and self.rec.send("manual")).pack(
-            side="left", padx=4
+        self.note_btn = ttk.Button(
+            f, text=t["note"], command=lambda: self.rec and self.rec.send("manual")
         )
-        ttk.Button(f, text=t["stop"], command=self.stop).pack(side="left")
+        self.note_btn.pack(side="left", padx=4)
+        self.stop_btn = ttk.Button(f, text=t["stop"], command=self.stop)
+        self.stop_btn.pack(side="left")
         self.note_row: ttk.Frame | None = None
         self.place_bar()
         self.root.bind("<Configure>", lambda e: self.send_exclude())
@@ -204,12 +214,13 @@ class App:
             ttk.Label(agents, text=t["agents_hint"]).pack(anchor="w", pady=(0, 6))
             row = ttk.Frame(agents)
             row.pack(anchor="w")
-            for key, install in (
-                ("add_claude", "claude"),
-                ("add_codex", "codex"),
-                ("make_skill", "none"),
-            ):
-                b = ttk.Button(row, text=t[key], command=lambda i=install: self.skill(session, i))
+            targets = [(t["add_claude"], "claude"), (t["add_agents"], "agents")]
+            targets += [
+                (t["add_to"].format(agent=label), n) for n, label in ctl.custom_installers()
+            ]
+            targets.append((t["make_skill"], "none"))
+            for text, install in targets:
+                b = ttk.Button(row, text=text, command=lambda i=install: self.skill(session, i))
                 b.pack(side="left", padx=(0, 6))
                 self.action_buttons.append(b)
             self.refine_agent = ctl.refine_agent()
@@ -274,7 +285,11 @@ class App:
         self.status.set(self.t["starting"])
         self.root.update_idletasks()
         argv = ctl.record_argv(
-            self.session, self.opt_typing.get(), self.opt_urls.get(), self.opt_clip.get()
+            self.session,
+            self.opt_typing.get(),
+            self.opt_urls.get(),
+            self.opt_clip.get(),
+            self.opt_voice.get() and not self.voice_hint,
         )
         self.rec = ctl.RecorderProcess(argv)
         self.steps, self.paused_for, self.paused_at = 0, 0.0, None
@@ -375,11 +390,16 @@ class App:
                 ctl.open_path(skill_dir)
             elif install != "none" and res.installed_to:
                 self.status.set(
-                    t[f"installed_{install}"].format(path=res.installed_to, name=res.name)
+                    t.get(f"installed_{install}", t["installed_other"]).format(
+                        path=res.installed_to, name=res.name, agent=ctl.agent_label(install)
+                    )
                 )
             else:
                 self.status.set(t["skill_made"].format(path=skill_dir / "SKILL.md"))
                 ctl.open_path(skill_dir)
+            note = ctl.coverage_note(res, t) if agent != "none" else ""
+            if note and not res.problems:
+                self.status.set(self.status.get() + "\n\n" + note)
 
         self.run_job(
             message or t["working"],
@@ -458,6 +478,12 @@ class App:
             self.pause_btn.configure(text=self.t["pause"])
         elif kind == "note_request":
             self.show_note_entry()
+        elif kind == "transcribing":
+            self.started = 0.0  # stop the clock; the bar shows the transcription
+            self.bar_label.configure(text=self.t["transcribing"], width=0)
+            for b in (self.pause_btn, self.note_btn, self.stop_btn):
+                b.state(["disabled"])
+            self.place_bar()
         elif kind == "done":
             self.rec, self.started = None, 0.0
             self.show_finished(ev)

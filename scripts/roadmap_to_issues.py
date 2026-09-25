@@ -1,10 +1,12 @@
 """Create a GitHub issue (label `roadmap`) for every `planned` row in ROADMAP.md.
 
-Idempotent: rows whose "RM-NNN" already appears in an issue title are skipped.
-Needs the GitHub CLI (`gh auth login`).
+The plan is ROADMAP.md itself; issues are opened only for items under discussion, so
+by default this script only lists what it would create. `--create` really creates
+them (rows whose "RM-NNN" already appears in an issue title, open or closed, are
+skipped). Needs the GitHub CLI (`gh auth login`) for --create.
 
-    python scripts/roadmap_to_issues.py --dry-run
-    python scripts/roadmap_to_issues.py
+    python scripts/roadmap_to_issues.py              # list only (same as --dry-run)
+    python scripts/roadmap_to_issues.py --create     # create the missing issues
 """
 
 from __future__ import annotations
@@ -31,9 +33,11 @@ def planned_rows(path: Path) -> list[tuple[str, str, str]]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--dry-run", action="store_true", help="list only (the default)")
+    ap.add_argument("--create", action="store_true", help="really create the issues")
     ap.add_argument("--roadmap", default=str(Path(__file__).resolve().parents[1] / "ROADMAP.md"))
     args = ap.parse_args()
+    args.dry_run = args.dry_run or not args.create
     rows = planned_rows(Path(args.roadmap))
     existing = set()
     if not args.dry_run:
@@ -81,7 +85,7 @@ def main() -> int:
             f"Roadmap item **{rid}** (area: `{area}`) from {ROADMAP_URL}.\n\n"
             "Status: planned. Discuss scope and approach here before opening a PR."
         )
-        print(f"create {title}")
+        print(f"{'would create' if args.dry_run else 'create'} {title}")
         if not args.dry_run:
             subprocess.run(
                 [
@@ -97,6 +101,8 @@ def main() -> int:
                 ],
                 check=True,
             )
+    if args.dry_run:
+        print("(nothing created; pass --create to open these issues)")
     return 0
 
 

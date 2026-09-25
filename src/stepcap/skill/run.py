@@ -20,14 +20,12 @@ from stepcap.build.pipeline import (
     GUIDE_MD,
     IMAGES_DIR,
     BuildOptions,
-    BuildResult,
-    load_or_create_steps,
     run_build,
 )
-from stepcap.redact import redact_obj
-from stepcap.session import STEPS_FILE, SessionError, load_session, write_json
-from stepcap.skill import agents, draft
+from stepcap.session import SessionError
+from stepcap.skill import agents, coverage, draft, registry
 from stepcap.skill import install as install_mod
+from stepcap.skill.recording import load_recording
 from stepcap.skill.validate import MAX_NAME, NAME_RE, validate_skill
 
 REF_DIR = "references"
@@ -93,13 +91,6 @@ def _inside(child: Path, parent: Path) -> bool:
     return child == parent or parent in child.parents
 
 
-def _load(session: Path) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
-    meta, doc = load_or_create_steps(session, BuildOptions(), BuildResult("", 0))
-    write_json(session / STEPS_FILE, doc)  # keep migrations / first-time steps.json
-    _, events = load_session(session)
-    return meta, doc, [redact_obj(ev) for ev in events]
-
-
 def _references(session: Path, doc: dict[str, Any]) -> dict[str, tuple[str, dict[str, Any], int]]:
     """step id -> (relative path, step, number) for steps with a screenshot."""
     refs = {}
@@ -135,15 +126,24 @@ def _write_references(session: Path, doc: dict[str, Any], refs, skill_dir: Path)
 
 def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) -> SkillResult:
     session = Path(session)
-    if opt.agent not in ("none", *agents.AGENTS):
-        raise SkillError(f"unknown agent {opt.agent!r}; use none, claude or codex")
-    if opt.install not in ("none", *install_mod.AGENTS):
-        raise SkillError(f"unknown --install {opt.install!r}; use none, claude or codex")
+    try:
+        refiners, installers = agents.refiners(), install_mod.installers()
+    except registry.RegistryError as exc:
+        raise SkillError(str(exc)) from exc
+    if opt.agent not in ("none", *refiners):
+        raise SkillError(
+            f"unknown --agent {opt.agent!r}; use none or {', '.join(refiners)} (see stepcap agents)"
+        )
+    if opt.install not in ("none", *installers):
+        raise SkillError(
+            f"unknown --install {opt.install!r}; use none or {', '.join(installers)} "
+            "(see stepcap agents)"
+        )
     if opt.name is not None and (len(opt.name) > MAX_NAME or not NAME_RE.match(opt.name)):
         raise SkillError(
             f"--name {opt.name!r}: use 1-{MAX_NAME} characters of a-z, 0-9 and single hyphens"
         )
-    meta, doc, events = _load(session)
+    meta, doc, events = load_recording(session)
     name = opt.name or draft.choose_name(doc)
     skill_dir = Path(opt.out_dir) / name
     if _inside(session, skill_dir):
@@ -213,6 +213,9 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
             agents.cleanup(skill_dir)
 
     res.problems, res.info = validate_skill(skill_dir)
+    md = skill_dir / "SKILL.md"
+    if md.is_file():
+        res.info["coverage"] = coverage.check(md.read_text(encoding="utf-8"), doc, events).to_dict()
     if res.ok and target is not None:
         install_mod.install(skill_dir, target, opt.force)
     elif target is not None:

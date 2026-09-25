@@ -113,3 +113,15 @@ def test_old_python_and_missing_dep():
 def test_missing_window_name_on_linux_suggests_xdotool():
     p = probes(xdotool=None, window={"backend": "xlib", "title": None, "app": None})
     assert "xdotool" in by_id(doctor.evaluate(p))["window"].fix
+
+
+def test_voice_check():
+    checks = by_id(doctor.evaluate(probes(voice={"missing": ["sounddevice", "faster_whisper"]})))
+    v = checks["voice"]
+    assert v.status == doctor.INFO and "stepcap[voice]" in v.fix and "libportaudio2" in v.fix
+    assert doctor.exit_code(list(checks.values())) == 0  # optional: never blocks recording
+    checks = by_id(doctor.evaluate(probes(voice={"missing": [], "microphone": "USB Mic"})))
+    assert checks["voice"].status == doctor.OK and "USB Mic" in checks["voice"].detail
+    p = probes(platform="darwin", voice={"missing": [], "microphone_error": "no input device"})
+    checks = by_id(doctor.evaluate(p))
+    assert checks["voice"].status == doctor.WARN and "Microphone" in checks["voice"].fix

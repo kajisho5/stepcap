@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kajisho5/stepcap/schemas/session.schema.json",
+  "title": "stepcap session.json",
+  "description": "Metadata of one recording (SESSION_DIR/session.json). Unknown keys are allowed so newer versions can add fields.",
+  "type": "object",
+  "required": ["format", "stepcap_version", "started"],
+  "properties": {
+    "format": {"type": "integer", "minimum": 1, "description": "1 or 2 (2 adds context events and t0_epoch)"},
+    "stepcap_version": {"type": "string"},
+    "source": {"enum": ["record", "simulate"], "description": "absent in format 1 recordings"},
+    "started": {"type": "string", "description": "ISO 8601 with offset"},
+    "ended": {"type": "string"},
+    "t0_epoch": {"type": "number", "description": "Unix time of ts = 0; aligns terminal.jsonl"},
+    "os": {"type": "string"},
+    "platform": {"type": "string"},
+    "python": {"type": "string"},
+    "title": {"type": "string"},
+    "lang": {"type": "string"},
+    "monitors": {"type": "array", "items": {"$ref": "#/$defs/monitor"}},
+    "options": {"type": "object", "description": "record options that were in effect"},
+    "stats": {
+      "type": "object",
+      "properties": {
+        "events": {"type": "integer", "minimum": 0, "description": "step events (with an id)"},
+        "context_events": {"type": "integer", "minimum": 0},
+        "screenshots": {"type": "integer", "minimum": 0},
+        "excluded": {"type": "integer", "minimum": 0}
+      }
+    }
+  },
+  "$defs": {
+    "monitor": {
+      "type": "object",
+      "required": ["index", "left", "top", "width", "height"],
+      "properties": {
+        "index": {"type": "integer"},
+        "left": {"type": "number"},
+        "top": {"type": "number"},
+        "width": {"type": "number", "exclusiveMinimum": 0},
+        "height": {"type": "number", "exclusiveMinimum": 0},
+        "scale": {"type": "number", "exclusiveMinimum": 0}
+      }
+    }
+  }
+}
