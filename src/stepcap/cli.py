@@ -376,6 +376,38 @@ def cmd_agents(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _read_password(args: argparse.Namespace) -> str:
+    import getpass
+    import os
+
+    if args.password_stdin:
+        return sys.stdin.readline().rstrip("\r\n")
+    if os.environ.get("STEPCAP_PASSWORD"):
+        return os.environ["STEPCAP_PASSWORD"]
+    if not sys.stdin.isatty():
+        raise ValueError("no password: pass --password-stdin or set STEPCAP_PASSWORD")
+    first = getpass.getpass("Password: ")
+    if getpass.getpass("Again: ") != first:
+        raise ValueError("the passwords do not match")
+    return first
+
+
+def cmd_share(args: argparse.Namespace) -> int:
+    from stepcap.share import ShareError, share
+
+    try:
+        password = _read_password(args)
+        out = share(Path(args.session), Path(args.output), password, args.file, args.lang)
+    except (ShareError, SessionError, ValueError, OSError) as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    if args.json:
+        _print_json({"session": args.session, "output": str(out), "file": args.file})
+    else:
+        print(f"Protected {args.file} -> {out} (opens in any browser after the password)")
+    return EXIT_OK
+
+
 def cmd_transcribe(args: argparse.Namespace) -> int:
     from stepcap.voice import VoiceError, transcribe_session
 
@@ -737,6 +769,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     c.add_argument("--json", action="store_true")
     c.set_defaults(func=cmd_check_skill)
+
+    sh = sub.add_parser(
+        "share",
+        help="write a password-protected copy of guide.html / checklist.html (one HTML file)",
+    )
+    sh.add_argument("session", metavar="SESSION_DIR")
+    sh.add_argument("-o", "--output", required=True, metavar="FILE.html")
+    sh.add_argument("--file", choices=("guide", "checklist"), default="guide")
+    sh.add_argument("--lang", choices=("en", "ja"), help="language of the password page")
+    sh.add_argument(
+        "--password-stdin",
+        action="store_true",
+        help="read the password from the first line of stdin (else $STEPCAP_PASSWORD or a prompt)",
+    )
+    sh.add_argument("--json", action="store_true")
+    sh.set_defaults(func=cmd_share)
 
     t = sub.add_parser(
         "transcribe",

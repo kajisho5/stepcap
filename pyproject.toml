@@ -32,6 +32,7 @@ dependencies = [
   "mss>=9.0",
   "pynput>=1.7.7",
   "comtypes>=1.4; sys_platform == 'win32'",  # UI Automation: names of clicked elements
+  "cryptography>=42",  # stepcap share: AES-GCM password-protected guides
 ]
 
 [project.optional-dependencies]

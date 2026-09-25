@@ -238,6 +238,7 @@ class App:
                 ("open_guide", lambda: self.open_guide(session, "guide")),
                 ("checklist", lambda: self.open_guide(session, "checklist")),
                 ("edit", lambda: self.edit(session)),
+                ("share", lambda: self.share(session)),
             ):
                 b = ttk.Button(row, text=t[key], command=cmd)
                 b.pack(side="left", padx=(0, 6))
@@ -357,6 +358,35 @@ class App:
             ctl.open_path(paths[which])
 
         self.run_job(self.t["building"], lambda: ctl.build_guide(session, lang), done)
+
+    def share(self, session: Path) -> None:
+        """Password-protected copy of the guide, saved where the user chooses."""
+        from tkinter import simpledialog
+
+        t = self.t
+        pw = simpledialog.askstring("stepcap", t["share_pw"], show="*", parent=self.root)
+        if not pw:
+            return
+        if simpledialog.askstring("stepcap", t["share_pw2"], show="*", parent=self.root) != pw:
+            self.status.set(t["share_mismatch"])
+            return
+        out_dir = ctl.export_dir(session)
+        target = filedialog.asksaveasfilename(
+            parent=self.root,
+            initialdir=str(out_dir if out_dir.is_dir() else session.parent),
+            initialfile=f"{session.name}-protected.html",
+            defaultextension=".html",
+            filetypes=[("HTML", "*.html")],
+        )
+        if not target:
+            return
+        lang = self.guide_lang.get()
+
+        def done(path: Path) -> None:
+            self.status.set(t["shared"].format(path=path))
+            ctl.open_path(Path(path).parent)
+
+        self.run_job(t["working"], lambda: ctl.share_guide(session, Path(target), pw, lang), done)
 
     def skill(self, session: Path, install: str) -> None:
         t = self.t
