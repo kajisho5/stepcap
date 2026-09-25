@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.8](https://github.com/kajisho5/stepcap/compare/v0.1.7...v0.1.8) (2026-09-25)
+
+
+### Features
+
+* **app:** new look, bar painted out of screenshots, Undo, combine/compare recent recordings ([#76](https://github.com/kajisho5/stepcap/issues/76)) ([605c160](https://github.com/kajisho5/stepcap/commit/605c160fdd835daeda1def9fd31180c47a776ab2))
+
+
+### Documentation
+
+* **prompts:** agent-facing text matches the code; MCP tool contracts ([#74](https://github.com/kajisho5/stepcap/issues/74)) ([e25ff25](https://github.com/kajisho5/stepcap/commit/e25ff25de23b03fdc277a1046e6137dba200f648))
+
 ## [0.1.7](https://github.com/kajisho5/stepcap/compare/v0.1.6...v0.1.7) (2026-09-25)
 
 
