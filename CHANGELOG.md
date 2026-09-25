@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/kajisho5/stepcap/compare/v0.1.5...v0.1.6) (2026-09-25)
+
+
+### Features
+
+* **app:** put the agent skill first on the finished screen ([#67](https://github.com/kajisho5/stepcap/issues/67)) ([4c77cea](https://github.com/kajisho5/stepcap/commit/4c77cea022d20368b83f859de8ad58965c978fcb))
+
 ## [0.1.5](https://github.com/kajisho5/stepcap/compare/v0.1.4...v0.1.5) (2026-09-25)
 
 
