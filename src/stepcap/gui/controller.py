@@ -64,6 +64,12 @@ TEXTS = {
         "for_people": "For people: step-by-step guide",
         "open_guide": "Open guide",
         "checklist": "Printable checklist",
+        "share": "Share with a password…",
+        "share_pw": "Password for the shared guide (at least 8 characters):",
+        "share_pw2": "The same password again:",
+        "share_mismatch": "The passwords do not match; nothing was written.",
+        "shared": "Password-protected guide: {path}\nIt opens in any browser after the password. "
+        "Send the password separately.",
         "for_agents": "For AI agents: skill (SKILL.md)",
         "agents_hint": "Add the skill and your agent can do this task for you.",
         "make_skill": "Create SKILL.md",
@@ -133,6 +139,12 @@ TEXTS = {
         "for_people": "人向け：手順書",
         "open_guide": "手順書を開く",
         "checklist": "印刷用チェックリスト",
+        "share": "パスワード付きで共有…",
+        "share_pw": "共有用手順書のパスワード（8 文字以上）:",
+        "share_pw2": "確認のため、もう一度入力してください:",
+        "share_mismatch": "パスワードが一致しないため、書き出していません。",
+        "shared": "パスワード付きの手順書: {path}\nパスワードを入れるとどのブラウザでも開けます。"
+        "パスワードは別の手段で伝えてください。",
         "for_agents": "AI エージェント向け：スキル（SKILL.md）",
         "agents_hint": "スキルを追加すると、エージェントがこの作業を代わりに行えます。",
         "make_skill": "SKILL.md を作る",
@@ -306,6 +318,12 @@ def build_guide(session: Path, lang: str | None) -> dict[str, Path]:
 
     run_build(session, BuildOptions(lang=lang))
     return {"guide": session / GUIDE_HTML, "checklist": session / CHECKLIST_HTML}
+
+
+def share_guide(session: Path, out: Path, password: str, lang: str | None) -> Path:
+    from stepcap.share import share
+
+    return share(session, out, password, "guide", lang)
 
 
 def skill_out(session: Path) -> Path:

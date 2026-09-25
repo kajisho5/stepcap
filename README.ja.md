@@ -171,7 +171,7 @@ $ cat demo/terminal.jsonl
 
 - **デスクトップ全体を記録**（ブラウザに限定されません）: クリック（シングル / ダブル / 右）、ドラッグ、スクロール（連続操作は 1 ステップに集約）、文字入力、Enter / Esc、Ctrl+S などのショートカット、F7 の手動メモ。マルチモニタと HiDPI / Retina に対応
 - **ステップごとにスクリーンショット**: カーソルのあるモニタを撮影（`--monitor all` で全画面）。撮影は押下時なので、クリックで画面が変わる前の状態が残ります。保存は別スレッドで行い、クリック→保存の遅延を計測・記録します（目標 < 300 ms）
-- **クリックした部品名から自動タイトル**: Windows（UI Automation）と macOS（アクセシビリティ）では `ボタン「保存」をクリック`、`入力欄「プロジェクト名」に入力`、`メニュー「名前の変更」を選択` のように付け、部品の正確な位置で枠を描きます。Linux、部品名を公開しないアプリ、`--no-element-names` 指定時はウィンドウ名（`「設定」でクリック`）になります。パスワード欄は名前を取得せず、入力は常に伏せ字です（`--lang ja` / `en`）
+- **クリックした部品名から自動タイトル**: Windows（UI Automation）と macOS（アクセシビリティ）では `ボタン「保存」をクリック`、`入力欄「プロジェクト名」に入力`、`メニュー「名前の変更」を選択` のように付け、部品の正確な位置で枠を描きます。部品名を公開しないアプリや Linux では、`stepcap build` がスクリーンショットからクリックした部品の文字をこの PC 上で読み取り（Windows / macOS は OS 内蔵の OCR、Linux は `tesseract`）、`「Create」をクリック` のように付けます。入力欄はその上のラベルを使います。`build --no-ocr` で無効にでき、最後の手段としてウィンドウ名（`「設定」でクリック`）になります。パスワード欄は名前を取得せず、入力は常に伏せ字です（`--lang ja` / `en`）
 - **同じ画面は画像を再利用**: 連続するステップの画面が 98% 以上同じなら 1 枚を共有するので、ぼかしも 1 回で全ステップに反映されます
 - **出力**: `guide.md` + `images/`、単一ファイルの `guide.html`（目次・ライト / ダーク・印刷 CSS）、印刷用の A4 チェックリスト `checklist.html`（チェック欄・対象周辺の縮小画像・備考欄・実施日 / 実施者 / 確認者の記入欄）、編集用の正本 `steps.json`
 - **再ビルドしても編集を上書きしない**: 人・`stepcap edit`・AI エージェントが `steps.json` に加えた編集は保持されます（最初から作り直すときは `--reset`）
@@ -179,13 +179,15 @@ $ cat demo/terminal.jsonl
 - **矢印とスポットライト**: 小さい部品には自動で矢印を付けます。`--spotlight` で対象以外を暗くでき、編集 UI では矢印を手描きで追加できます
 - **ローカル編集 UI**（`stepcap edit`）: ドラッグで並べ替え、削除、タイトル / 説明の編集、枠の描き直し / 削除、矢印の追加、枠・自動矢印・スポットライトの切り替え、矩形ぼかし（`work/` のコピーに適用し、原本 `raw/` は変更しません）、再ビルド
 - **エージェント向けの文脈**: アプリ / ウィンドウの切り替えは常に記録します。`--record-urls` で前面のブラウザタブの URL（Windows: Chrome・Edge などの Chromium 系を UI Automation で。Firefox は非対応。macOS: Safari・Chrome・Edge・Arc。`--keep-query` なしではクエリ文字列を除去）、`--record-clipboard` でコピーした文字列（文字数と先頭 80 文字）も記録します。これらはステップにはならず、`stepcap skill` が「Browser at …」「Then: copied …」として使います
+- **パスワード付きで共有**（`stepcap share`、またはウィンドウの「パスワード付きで共有」）: 手順書を AES-256-GCM で暗号化した 1 つの HTML ファイルにします（鍵はパスワードから PBKDF2-SHA256・60 万回で生成）。パスワードを入れると、どのブラウザでもオフラインで開けます（ブラウザ標準の WebCrypto で復号）。期限の設定はありません（1 ファイルでは期限を強制できないため）
+- **2 つの録画を比較**（`stepcap diff A B -o report.html`）: 手順を順番に、何をしたか（部品名、なければアプリ＋ウィンドウ）で対応付けるので、ボタンの位置やタイトルの文言が変わっても対応が取れます。A にしかない手順、B にしかない手順、対応はするが画面の見た目が変わった手順や入力値が違う手順、違う URL・ターミナルのコマンドを一覧にします。HTML のレポートにはスクリーンショットが左右に並びます。アプリの画面が変わったとき（録り直して、直すべき手順を確認）や、エージェントが何をしたかの確認に使います
 - **音声メモ**（`--voice`、既定はオフ）: 記録しながら「何をしているか・なぜか」を声で話せます。停止時にマイクの音声を**この PC 上で**文字起こし（faster-whisper、CPU）し、各ステップの説明と、スキルの「Narration: …」（最初のクリック前に話した内容は Goal）に入れます。`audio.wav` は文字起こし後に削除します（`--keep-audio` で保持）。一時停止中に話した内容は残りません。`pip install "stepcap[voice]"` または単体実行ファイルの音声版が必要です。音声モデル（`--voice-model base` で約 150 MB。日本語は `small` の方が精度が上がります）は初回だけ Hugging Face からダウンロードし、以降はオフラインで動きます
 - **プライバシー重視の初期設定**: `--record-typing` を付けない限り入力内容は保存しません。パスワード / ログイン画面では常にマスクします。`--exclude-app` を指定したアプリが前面の間は記録もスクショもしません。通信は一切行いません（`--voice` の音声モデルの初回ダウンロードを除く）
 
 ### できないこと（v0.1）
 
 - **Wayland**（Linux）には非対応で、X11 のみです。Wayland では理由を表示して停止します
-- **OCR / AI による命名**はしません。部品名は OS のアクセシビリティ API（Windows / macOS）から取得し、画面の文字は読み取りません。文章として整えたい場合は同梱のエージェント用スキルか、`stepcap skill --agent claude|codex` を使ってください。Linux（AT-SPI）は未対応です
+- **AI による文章化**はしません。タイトルは部品名（アクセシビリティ API、なければクリックした部品の OCR）から作ります。文章として整えたい場合は同梱のエージェント用スキルか、`stepcap skill --agent claude|codex` を使ってください。Linux のアクセシビリティ（AT-SPI）による部品名は未対応です（OCR は対応）
 - **動画**、クラウド共有、チーム管理
 - PDF の直接出力（`guide.html` をブラウザで印刷 → PDF）
 
@@ -227,12 +229,14 @@ stepcap build SESSION_DIR [-f md,html,checklist] [--zoom 800] [--width 1600] [--
               [--image-format webp|jpeg|png] [--quality 85] [--reset]
               [--dry-run] [--json]
 stepcap edit SESSION_DIR [--port 8765] [--host 127.0.0.1] [--no-browser]
-stepcap skill SESSION_DIR -o OUT_DIR [--name NAME] [--agent none|claude|codex|gemini|AGENT]
+stepcap skill SESSION_DIR [SESSION_DIR ...] -o OUT_DIR [--name NAME] [--agent none|claude|codex|gemini|AGENT]
               [--install none|claude|agents|codex|gemini|cursor|AGENT] [--scope user|project] [--yes] [--force]
               [--dry-run] [--json]
 stepcap export SESSION_DIR --format guide|skill|both -o OUT_DIR [--name NAME]
                [--agent none|claude|codex|gemini|AGENT] [--lang en|ja] [--yes] [--force] [--dry-run] [--json]
+stepcap share SESSION_DIR -o FILE.html [--file guide|checklist] [--password-stdin]
 stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--json]
+stepcap diff SESSION_A SESSION_B [-o report.html] [--fail-on none|missing|any] [--json]
 stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
 stepcap schema [session|event|steps|terminal|voice] [--path]
 stepcap agents [--json]                                    # agents you can --install / --agent
@@ -294,10 +298,24 @@ stepcap check-skill skills/<名前>                     # 手で直した後の�
 - **記録との照合**: スキルを書き直した後（手作業でも `--agent` でも）、記録にはあったのに SKILL.md に書かれていないもの（アプリ、クリックしたボタンや入力欄、`{{入力値}}`、URL のホスト名、ターミナルのコマンド、F7 のメモ）を一覧にします。レビュー用のヒントです（クリック操作を CLI に置き換えるなど、正しく書き換えた結果として消えることもあります）。`--agent` 実行後とウィンドウには自動で表示され、`stepcap check-skill SKILL_DIR --session SESSION_DIR` でも確認できます（`--min-coverage 0.8` で 80 % 未満なら失敗）
 - **ターミナルでの操作**: 記録中に別のターミナルで `stepcap shell my-guide` を開くと、そこで打ったコマンド（出力は含まない）が終了コード付き・秘密情報マスク済みで追加され、スキルに「Ran in a terminal: `...`」として載ります。macOS / Linux の bash と zsh に対応し、Windows の PowerShell は未対応です。先頭にスペースを付けたコマンドは記録されません（シェルが履歴から除外する設定の場合）
 - **記録中に F7 で「なぜ」をメモ**してください。スキルの Goal になり、エージェントにとって最も役立つ情報です
+- **同じ作業の複数の録画から 1 つのスキル**: `stepcap skill run1 run2 run3 -o skills`。最初の録画が基準（手順とスクリーンショット）で、残りは `stepcap diff` と同じ方法で対応付けます。一部の回にしかない手順には「Optional: done in 2 of 3 recordings」、入力値には各回で入力された値（全回同じなら「the same in all 3 recordings」＝固定値かもしれないというヒント）が付き、基準にない手順は位置付きで「Differences between recordings」に載ります。記録との照合はすべての録画に対して行います。入力値が載るのは `--record-typing` で記録した場合だけです
+
+### エージェントが何をしたか確認する: `stepcap diff`
+
+エージェントが作業している間を記録し、スキルの元になった録画と比較します。
+
+```bash
+stepcap record -o agent-run            # エージェントの開始前に開始、終了後に停止（F9）
+stepcap shell agent-run                # 任意、macOS / Linux: エージェントが使うターミナル
+stepcap diff my-guide agent-run -o report.html --fail-on missing
+```
+
+- `stepcap record` は、エージェントの自動操作が送るマウス・キーボード入力も記録します（Linux の XTEST 入力で確認済み。Windows / macOS でエージェントを使った確認はしていません）。API や CLI で済ませるエージェントは、`stepcap shell` のコマンドとしてのみ現れ、「追加のコマンド」と「足りないクリック」として表示されます
+- `--fail-on missing` は、自分の録画にある手順が実行されなかったとき終了コード 1、`--fail-on any` は何か違いがあれば 1 です。別のデータで作業すれば画面や値が違うのは普通なので、「完全一致」を期待せずレポートを見てください
 
 ### MCP でエージェントから使う: `stepcap mcp`
 
-エージェントが記録を直接扱えるようにします。`stepcap mcp` は MCP サーバー（stdio）で、6 つのツールを提供します: `list_sessions`（記録の一覧）、`get_steps`（タイトル・クリックした部品・入力値・URL・コマンド・ナレーション）、`step_image`（注釈付きのステップ画像）、`build_guide`（手順書の作成）、`make_skill`（スキルの作成と任意でインストール）、`check_skill`（検証と記録との照合）。記録の開始はツールにしていません（画面の記録を始めるかどうかは人が決めるべきため）。エージェントが扱えるのは `--root` 以下のフォルダだけです（既定: ウィンドウの保存先 `~/Documents/stepcap` と現在のフォルダ）。
+エージェントが記録を直接扱えるようにします。`stepcap mcp` は MCP サーバー（stdio）で、7 つのツールを提供します: `list_sessions`（記録の一覧）、`get_steps`（タイトル・クリックした部品・入力値・URL・コマンド・ナレーション）、`step_image`（注釈付きのステップ画像）、`build_guide`（手順書の作成）、`make_skill`（スキルの作成と任意でインストール。複数の録画からも可）、`check_skill`（検証と記録との照合）、`compare_recordings`（`stepcap diff` と同じ比較）。記録の開始はツールにしていません（画面の記録を始めるかどうかは人が決めるべきため）。エージェントが扱えるのは `--root` 以下のフォルダだけです（既定: ウィンドウの保存先 `~/Documents/stepcap` と現在のフォルダ）。
 
 ```bash
 pip install "stepcap[mcp]"
@@ -337,7 +355,7 @@ mkdir -p ~/.claude/skills && cp -r skills/stepcap ~/.claude/skills/
 
 ## ロードマップ
 
-[ROADMAP.md](ROADMAP.md) を参照してください（OCR による命名、PDF 出力、portal 経由の Wayland 対応、マスキングプリセット、多言語化など）。予定の項目は `roadmap` ラベル付きの GitHub Issue で管理しています。
+[ROADMAP.md](ROADMAP.md) を参照してください（PDF 出力、portal 経由の Wayland 対応、マスキングプリセット、多言語化など）。Issue は議論が始まった項目だけ作ります。
 
 ## クレジット
 

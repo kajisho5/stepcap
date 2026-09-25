@@ -36,6 +36,7 @@ class BuildOptions:
     marker: str | None = None  # box | ring; None = keep the value saved in steps.json
     spotlight: bool | None = None  # dim around the target; None = keep saved value
     auto_arrows: bool | None = None  # arrow to small targets; None = keep saved value
+    ocr: bool = True  # name unnamed clicked elements from the screenshot text (build/ocr.py)
 
 
 @dataclass
@@ -50,6 +51,7 @@ class BuildResult:
     steps_json: str = "created"  # created | kept | reset
     image_format: str = "webp"
     warnings: list[str] = field(default_factory=list)
+    ocr_named: int = 0  # steps named from the screenshot text in this build
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self.__dict__)
@@ -96,6 +98,8 @@ def load_or_create_steps(session: Path, opt: BuildOptions, res: BuildResult):
         doc = steps_mod.create_steps(session, meta, events, lang)
         res.steps_json = "reset" if opt.reset else "created"
     steps_mod.detect_boxes(session, doc["steps"])  # older steps.json files have no boxes yet
+    if opt.ocr:
+        res.ocr_named = steps_mod.ocr_names(session, doc["steps"], doc["lang"])
     marker = opt.marker or doc.get("marker") or "box"
     if marker not in annotate.MARKERS:
         raise ValueError(f"unknown marker {marker!r}; use box or ring")

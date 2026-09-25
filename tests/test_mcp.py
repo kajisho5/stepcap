@@ -4,6 +4,7 @@ import asyncio
 import io
 import json
 import sys
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -59,6 +60,27 @@ def test_tools_directly(root, tmp_path):
     checked = t.check_skill(res["skill_dir"], "demo")
     assert checked["ok"] and checked["coverage"]["total"] > 0
 
+    same = t.compare_recordings("demo", str(root / "demo"))
+    assert same["identical"] and same["summary"]["same"] == 12
+    with pytest.raises(ToolError, match="given twice"):
+        t.make_skill("demo", name="twice", more_sessions=["demo"])
+
+
+def test_compare_and_skill_from_two_recordings(root, spec):
+    spec = json.loads(json.dumps(spec))
+    spec["accessibility"] = True
+    del spec["events"][3]  # the second run skips "Private project"
+    simulate(spec, root / "run2")
+    t = Tools([root])
+    d = t.compare_recordings("demo", "run2")
+    assert d["summary"]["missing"] == 1 and not d["identical"]
+    res = t.make_skill("demo", name="merged", more_sessions=["run2"])
+    assert res["ok"] and res["recordings"] == [str(root / "demo"), str(root / "run2")]
+    text = Path(res["skill_md"]).read_text(encoding="utf-8")
+    assert "Optional: done in 1 of 2 recordings" in text
+    with pytest.raises(ToolError, match="outside"):
+        t.make_skill("demo", name="x", more_sessions=["/"])
+
 
 def test_paths_outside_roots_are_refused(root, tmp_path):
     t = Tools([root / "demo"])
@@ -105,6 +127,7 @@ def test_over_stdio_with_the_sdk_client(root):
                 "build_guide",
                 "make_skill",
                 "check_skill",
+                "compare_recordings",
             }
             listed = (await c.call_tool("list_sessions", {})).structured_content
             session = listed["sessions"][0]["session"]

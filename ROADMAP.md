@@ -27,7 +27,7 @@ one to discuss it. Numbers are stable; new ideas get the next free number.
 | RM-017 | planned | build | Custom HTML templates / themes (logo, colours, fonts) |
 | RM-018 | planned | build | Configurable marker style (colour, size, shape, spotlight dimming) |
 | RM-019 | planned | build | Step grouping into sections (by window / app change) |
-| RM-020 | planned | build | Optional local OCR to name the clicked element (off by default) |
+| RM-020 | done | build | Local OCR names clicked elements the OS does not name (Windows / macOS built-in, tesseract on Linux; `--no-ocr`) |
 | RM-021 | done | build | Use accessibility APIs (UIA / AX) to name clicked controls and get exact frames (AT-SPI: RM-069) |
 | RM-022 | planned | build | More UI languages for automatic texts (zh, ko, de, fr, es) |
 | RM-023 | planned | build | Animated GIF / WebP per step option for drags |
@@ -61,7 +61,7 @@ one to discuss it. Numbers are stable; new ideas get the next free number.
 | RM-051 | planned | dev | Documentation site with a full CLI reference |
 | RM-052 | planned | dev | Performance benchmark for 4K / multi-monitor recording |
 | RM-053 | planned | build | Batch build for many sessions and a combined index page |
-| RM-054 | planned | build | Diff two recordings of the same procedure (changed steps) |
+| RM-054 | done | build | `stepcap diff`: two recordings of the same procedure (missing / extra / changed steps, HTML report); also checks an agent's run |
 | RM-055 | done | build | Frame the clicked element (image-based detection, ring fallback, draw/remove in `edit`, `--marker box\|ring`) |
 | RM-056 | done | build | Arrows (automatic for small targets, hand-drawn in `edit`) and `--spotlight` |
 | RM-057 | done | build | Printable A4 checklist (`checklist.html`): tick boxes, target crops, notes, sign-off |
@@ -75,6 +75,7 @@ one to discuss it. Numbers are stable; new ideas get the next free number.
 | RM-065 | planned | record | `stepcap shell` for Windows PowerShell |
 | RM-066 | done | record | Voice notes: `record --voice`, local speech-to-text (faster-whisper), narration in guide + skill, voice edition binaries |
 | RM-067 | done | agents | Check a skill against its recording: apps, elements, inputs, URLs, commands, notes still mentioned (`check-skill --session`) |
-| RM-068 | planned | agents | One skill from several recordings of the same task (merge variants, detect inputs) |
+| RM-068 | done | agents | `stepcap skill A B C`: one skill from several recordings (optional steps, values per run, extra steps) |
 | RM-069 | planned | record | Element names on Linux via AT-SPI |
 | RM-070 | planned | record | Browser URL on Linux for `--record-urls` (AT-SPI address bar) |
+| RM-071 | done | build | `stepcap share`: password-protected single-file guide (AES-GCM, decrypted in the browser) |

@@ -226,6 +226,19 @@ def test_generalise_then_add_to_claude(demo_session, tmp_path, monkeypatch):
     assert not (Path(res.installed_to) / "_context").exists()
 
 
+def test_share_guide(demo_session, tmp_path):
+    import json
+    import re
+
+    from stepcap import share
+
+    out = ctl.share_guide(demo_session, tmp_path / "x-protected.html", "a long password", "ja")
+    text = out.read_text("utf-8")
+    assert "パスワード" in text
+    blob = json.loads(re.search(r'type="application/json">(.*?)</script>', text, re.S).group(1))
+    assert "Create a project" in share.decrypt(blob, "a long password")
+
+
 def test_refine_agent(monkeypatch):
     from stepcap.skill import agents
 
@@ -294,6 +307,7 @@ def test_window_views(tmp_path, monkeypatch):
             "for_people",
             "open_guide",
             "checklist",
+            "share",
             "for_agents",
             "add_claude",
             "add_agents",

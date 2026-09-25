@@ -70,3 +70,13 @@ class Harness:
 @pytest.fixture
 def harness():
     return Harness
+
+
+@pytest.fixture(autouse=True)
+def _no_ocr_by_default(request, monkeypatch):
+    """Titles in most tests are the window-name templates; OCR would make them depend on
+    which OCR engine the machine has. Tests marked `ocr` keep the real backend."""
+    if request.node.get_closest_marker("ocr") is None:
+        from stepcap.build import ocr
+
+        monkeypatch.setattr(ocr, "backend", lambda: None)

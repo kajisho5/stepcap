@@ -75,6 +75,8 @@ jobs:
           ${{ matrix.exe }} build smoke -f md,html
           test -f smoke/guide.html
           ${{ matrix.exe }} schema steps > schema.json
+          echo 'a long password' | ${{ matrix.exe }} share smoke -o shared.html --password-stdin
+          grep -q stepcap-protected-v1 shared.html
           python -c "import json;assert json.load(open('schema.json'))['title']=='stepcap steps.json'"
           ${{ matrix.exe }} doctor --json > doctor.json || true
           python -c "import json;d=json.load(open('doctor.json'));print([c['id'] for c in d['checks'] if c['status']=='fail'])"

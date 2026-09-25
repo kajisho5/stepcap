@@ -32,6 +32,15 @@ dependencies = [
   "mss>=9.0",
   "pynput>=1.7.7",
   "comtypes>=1.4; sys_platform == 'win32'",  # UI Automation: names of clicked elements
+  "cryptography>=42",  # stepcap share: AES-GCM password-protected guides
+  # build: name unnamed clicked elements with the OS's built-in OCR (build/ocr.py)
+  "winrt-Windows.Media.Ocr>=2.0; sys_platform == 'win32'",
+  "winrt-Windows.Graphics.Imaging>=2.0; sys_platform == 'win32'",
+  "winrt-Windows.Storage.Streams>=2.0; sys_platform == 'win32'",
+  "winrt-Windows.Globalization>=2.0; sys_platform == 'win32'",
+  "winrt-Windows.Foundation>=2.0; sys_platform == 'win32'",
+  "winrt-Windows.Foundation.Collections>=2.0; sys_platform == 'win32'",
+  "pyobjc-framework-Vision>=10; sys_platform == 'darwin'",
 ]
 
 [project.optional-dependencies]
@@ -58,6 +67,7 @@ include = ["src/stepcap", "tests", "README.md", "README.ja.md", "LICENSE", "CHAN
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["ocr: uses the real OCR backend of this machine (others see none)"]
 addopts = "-q"
 
 [tool.ruff]

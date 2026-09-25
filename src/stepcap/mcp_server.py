@@ -167,6 +167,7 @@ class Tools:
         install: str = "none",
         scope: str = "user",
         replace: bool = False,
+        more_sessions: list[str] | None = None,
     ) -> dict[str, Any]:
         from stepcap.gui.controller import export_dir
         from stepcap.skill.run import SkillError, SkillOptions, run_skill
@@ -183,6 +184,7 @@ class Tools:
                     scope=scope,
                     force=replace,
                     home=self.home,
+                    also=tuple(self._session(m) for m in more_sessions or ()),
                 ),
             )
         except SkillError as exc:
@@ -190,6 +192,15 @@ class Tools:
         data = res.to_dict()
         data["skill_md"] = str(Path(res.skill_dir) / "SKILL.md")
         return data
+
+    def compare_recordings(self, reference: str, other: str) -> dict[str, Any]:
+        from stepcap import diff
+        from stepcap.session import SessionError
+
+        try:
+            return diff.compare(self._session(reference), self._session(other)).to_dict()
+        except (SessionError, OSError, ValueError) as exc:
+            raise ToolError(str(exc)) from exc
 
     def check_skill(self, skill_dir: str, session: str | None = None) -> dict[str, Any]:
         from stepcap.skill import coverage
@@ -210,7 +221,8 @@ INSTRUCTIONS = (
     "get_steps to read it and step_image to look at a step. make_skill writes an Agent "
     "Skill (SKILL.md) from it and can install it for an agent; improve its text, then run "
     "check_skill with the session to see what the recording showed but the skill no "
-    "longer mentions."
+    "longer mentions. compare_recordings shows which steps of a reference recording are "
+    "missing, extra or different in another one (e.g. a recording of your own run)."
 )
 
 
@@ -261,12 +273,22 @@ def build_server(tools: Tools):
         install: str = "none",
         scope: str = "user",
         replace: bool = False,
+        more_sessions: list[str] | None = None,
     ) -> dict[str, Any]:
         """Write an Agent Skill (SKILL.md + annotated references) from a recording. install:
         none, claude, agents (Codex / Gemini CLI / Cursor), codex, gemini, cursor or an agent
         from agents.toml; scope user or project. Existing skills are only replaced with
-        replace=true. Validated; the result includes coverage of the recording."""
-        return guard(tools.make_skill, session, out_dir, name, install, scope, replace)
+        replace=true. more_sessions: other recordings of the same task (optional steps,
+        values typed in each run). Validated; the result includes coverage."""
+        return guard(
+            tools.make_skill, session, out_dir, name, install, scope, replace, more_sessions
+        )
+
+    @server.tool()
+    def compare_recordings(reference: str, other: str) -> dict[str, Any]:
+        """Compare two recordings of the same task: steps missing in other, extra steps,
+        matched steps whose screen or typed value differs, and differing URLs / commands."""
+        return guard(tools.compare_recordings, reference, other)
 
     @server.tool()
     def check_skill(skill_dir: str, session: str | None = None) -> dict[str, Any]:
