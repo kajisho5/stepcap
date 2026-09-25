@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 import time
@@ -120,6 +121,119 @@ def test_helpers(tmp_path, monkeypatch):
 
 def test_texts_have_the_same_keys():
     assert set(ctl.TEXTS["en"]) == set(ctl.TEXTS["ja"])
+    for lang in ("en", "ja"):  # every placeholder the window fills in exists in both languages
+        t = ctl.TEXTS[lang]
+        t["installed_claude"].format(path="p", name="n")
+        t["installed_codex"].format(path="p", name="n")
+        assert "$n" in t["installed_codex"].format(path="p", name="n")
+        assert "/n" in t["installed_claude"].format(path="p", name="n")
+        t["exists"].format(name="n", path="p")
+        t["refine"].format(agent="a")
+        t["refine_confirm"].format(agent="a")
+        assert "SKILL.md" in t["subtitle"]
+
+
+def test_step_count_and_guide(demo_session):
+    n = ctl.step_count(demo_session)
+    assert n > 0
+    assert ctl.step_count(demo_session.parent / "missing") == 0
+    paths = ctl.build_guide(demo_session, "ja")
+    assert paths["guide"].is_file() and paths["checklist"].is_file()
+    assert paths["guide"].parent == demo_session
+
+
+def test_add_skill_to_claude_and_codex(demo_session, tmp_path):
+    home = tmp_path / "home"
+    name, target = ctl.skill_target(demo_session, "claude", home)
+    assert target == home / ".claude" / "skills" / name
+    assert name == ctl.skill_name(demo_session)
+    assert not target.exists()  # the check writes nothing
+
+    res = ctl.make_skill(demo_session, "claude", home=home)
+    assert res.ok and res.installed_to == str(target)
+    assert (target / "SKILL.md").is_file()
+    assert Path(res.skill_dir) == ctl.export_dir(demo_session) / "skill" / name
+
+    # a second time without replace: the draft folder is ours, the installed skill is not
+    from stepcap.skill.run import SkillError
+
+    (target / "SKILL.md").write_text("mine", encoding="utf-8")
+    with pytest.raises(SkillError, match="already exists"):
+        ctl.make_skill(demo_session, "claude", home=home)
+    assert (target / "SKILL.md").read_text(encoding="utf-8") == "mine"
+    res = ctl.make_skill(demo_session, "claude", replace=True, home=home)
+    assert res.ok and (target / "SKILL.md").read_text(encoding="utf-8").startswith("---")
+
+    res = ctl.make_skill(demo_session, "codex", home=home)
+    assert res.installed_to == str(home / ".agents" / "skills" / name)
+
+    res = ctl.make_skill(demo_session)  # SKILL.md only; repeatable
+    res = ctl.make_skill(demo_session)
+    assert res.ok and res.installed_to is None
+
+
+def test_replace_refuses_a_folder_that_is_not_a_skill(demo_session, tmp_path):
+    from stepcap.skill.run import SkillError
+
+    home = tmp_path / "home"
+    _, target = ctl.skill_target(demo_session, "claude", home)
+    target.mkdir(parents=True)
+    (target / "notes.txt").write_text("keep", encoding="utf-8")
+    with pytest.raises(SkillError, match="not a skill folder"):
+        ctl.make_skill(demo_session, "claude", replace=True, home=home)
+    assert (target / "notes.txt").is_file()
+
+
+def test_skill_name_is_unique_per_recording(demo_session, tmp_path):
+    import shutil
+
+    from stepcap.session import STEPS_FILE, read_json, write_json
+
+    ctl.build_guide(demo_session, "en")
+    doc = read_json(demo_session / STEPS_FILE)
+    doc["title"] = "照明チェック"  # no ASCII: the generic name would collide
+    for s in doc["steps"]:
+        s["app_name"] = "音響卓"
+    write_json(demo_session / STEPS_FILE, doc)
+    assert ctl.skill_name(demo_session) == "recorded-procedure-demo"
+    other = tmp_path / "録音"
+    shutil.copytree(demo_session, other)
+    name = ctl.skill_name(other)  # folder name has no ASCII either -> its time stamp
+    assert name.startswith("recorded-procedure-2") and name != "recorded-procedure-demo"
+    res = ctl.make_skill(demo_session, "claude", home=tmp_path / "home")
+    assert res.ok and res.name == "recorded-procedure-demo"
+
+    doc["title"] = "Check the mixer"
+    write_json(demo_session / STEPS_FILE, doc)
+    assert ctl.skill_name(demo_session) == "check-the-mixer"
+
+
+def test_generalise_then_add_to_claude(demo_session, tmp_path, monkeypatch):
+    from stepcap.skill import agents
+    from test_skill_gen import FAKE_AGENT
+
+    script = tmp_path / "fake_agent.py"
+    script.write_text(FAKE_AGENT, encoding="utf-8")
+    monkeypatch.setattr(agents, "find_cli", lambda a: sys.executable)
+    monkeypatch.setattr(agents, "command", lambda agent, exe, d: [exe, str(script)])
+    home = tmp_path / "home"
+    res = ctl.make_skill(demo_session, "claude", agent="claude", home=home)
+    assert res.ok, res.problems
+    text = (Path(res.installed_to) / "SKILL.md").read_text(encoding="utf-8")
+    assert "# Refined" in text and 'status: "refined by claude"' in text
+    assert not (Path(res.installed_to) / "_context").exists()
+
+
+def test_refine_agent(monkeypatch):
+    from stepcap.skill import agents
+
+    monkeypatch.setattr(agents, "find_cli", lambda a: "/x/codex" if a == "codex" else None)
+    assert ctl.refine_agent() == "codex"
+    monkeypatch.setattr(agents, "find_cli", lambda a: "/x/" + a)
+    assert ctl.refine_agent() == "claude"
+    monkeypatch.setattr(agents, "find_cli", lambda a: None)
+    assert ctl.refine_agent() is None
+    assert ctl.agent_label("claude") == "Claude Code"
 
 
 def test_window_views(tmp_path, monkeypatch):
@@ -169,12 +283,50 @@ def test_window_views(tmp_path, monkeypatch):
         app.handle({"event": "done", "ok": True, "events": 3, "session": str(app.session)})
         root.update()
         assert app.rec is None
+        labels = _texts(app.frame)
+        for key in (
+            "for_people",
+            "open_guide",
+            "checklist",
+            "for_agents",
+            "add_claude",
+            "add_codex",
+            "make_skill",
+        ):
+            assert app.t[key] in labels, key
+
+        # slow work runs on a thread and is applied on the Tk thread by poll()
+        got = []
+        app.run_job("…", lambda: 42, got.append)
+        assert all(b.instate(["disabled"]) for b in app.action_buttons)
+        end = time.time() + 5
+        while not got and time.time() < end:
+            root.update()
+            time.sleep(0.02)
+        assert got == [42] and not app.busy
+        assert not any(b.instate(["disabled"]) for b in app.action_buttons)
+        app.run_job("…", lambda: 1 / 0, got.append)
+        end = time.time() + 5
+        while app.busy and time.time() < end:
+            root.update()
+            time.sleep(0.02)
+        assert "ZeroDivisionError" in app.status.get()
         app.show_home()
         root.update()
         app.handle({"event": "error", "message": "no permission"})
         assert "no permission" in app.status.get()
     finally:
         root.destroy()
+
+
+def _texts(widget) -> set[str]:
+    """Every ``text`` shown in ``widget`` and its children (labels, buttons, frame titles)."""
+    out = set()
+    with contextlib.suppress(Exception):
+        out.add(str(widget.cget("text")))
+    for w in widget.winfo_children():
+        out |= _texts(w)
+    return out
 
 
 def test_cli_app_without_tkinter(monkeypatch, capsys):

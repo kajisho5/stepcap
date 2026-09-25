@@ -221,6 +221,9 @@ def test_names_and_token_estimate():
         "acme-tasks"
     )
     assert choose_name({"title": "", "steps": []}) == "recorded-procedure"
+    untitled = {"title": "Step-by-step guide", "auto_title": "Step-by-step guide"}
+    assert choose_name({**untitled, "steps": [{"app_name": "Acme Tasks"}]}) == "acme-tasks"
+    assert choose_name({**untitled, "steps": []}) == "recorded-procedure"
     assert estimate_tokens("abcd" * 10) == 10 and estimate_tokens("日本語") == 3
 
 

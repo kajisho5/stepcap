@@ -54,7 +54,12 @@ Python を入れたくない場合は、[Releases](https://github.com/kajisho5/s
 stepcap app          # または Releases の単体実行ファイルをダブルクリック
 ```
 
-保存先を選んで **記録開始** を押し、作業をして、常に前面に出る小さなバーの **停止** を押します（F9 / F8 / F7 も使えます）。バー自体のクリックはステップになりません。終わったら **手順を編集** または **手順書とスキルを書き出す**（記録の隣に `<名前>-export/guide/` と `<名前>-export/skill/<名前>/` として出力）。表示言語はシステムの言語（日本語 / English）に合わせます。
+保存先を選んで **記録開始** を押し、作業をして、常に前面に出る小さなバーの **停止** を押します（F9 / F8 / F7 も使えます）。バー自体のクリックはステップになりません。停止すると、2 種類の成果物を選べます。
+
+- **AI エージェント向け：スキル（SKILL.md）**: **Claude Code に追加**（`~/.claude/skills/<名前>/` にコピー。Claude Code で `/<名前>` と入力するか、作業をそのまま頼む）、**Codex に追加**（`~/.agents/skills/<名前>/`。`$<名前>` または `/skills`）、または **SKILL.md を作る** だけ。`claude` / `codex` CLI が入っていれば「先に一般化する」にチェックすると、1 回分の記録から汎用的な手順に書き直させられます（実行前に確認します）。同じ名前のスキルが既にある場合は、確認してから置き換えます。
+- **人向け：手順書**: **手順書を開く**・**印刷用チェックリスト**・**手順を編集**。
+
+**手順書とスキルを書き出す（共有用）** は両方を記録の隣（`<名前>-export/`）に出力します。表示言語はシステムの言語（日本語 / English）に合わせます。
 
 ![stepcap app: 開始画面・記録バー・完了画面](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/app.png)
 
@@ -187,12 +192,13 @@ stepcap はこの 2 つの空白を埋めます。1 回のローカル記録か�
 
 ## 他ツールとの比較
 
-各プロジェクトの公開情報に基づきます（2026-09-24 時点で確認。詳細は各リンクを参照してください）。
+各プロジェクトの公開情報に基づきます（2026-09-24 時点で確認、Claude の行は 2026-09-25。詳細は各リンクを参照してください）。
 
 | | 動作環境 | 人向け手順書 | エージェント用 SKILL.md | アカウント | 外部送信 |
 |---|---|---|---|---|---|
 | **stepcap** | Windows / macOS / Linux(X11) | ✅ MD・HTML・チェックリスト | ✅ どのエージェントでも（Claude Code、Codex など） | 不要 | なし（任意のエージェント連携は利用者自身の CLI） |
 | [skill-recorder](https://github.com/microsoft/skill-recorder) | macOS / Windows 11 / Ubuntu | —（スキルと自動化のみ） | ✅ Microsoft Scout / Copilot Cowork / Copilot Studio 向け | Copilot を使える GitHub アカウント | Analyze 時にイベントと画面画像を GitHub のクラウドへ |
+| [Claude の「Record a skill」](https://support.claude.com/en/articles/12512198-how-to-create-custom-skills) | Claude for Mac（Cowork）。Windows 非対応 | — | ✅ Claude 向け（Claude のスキルに保存） | Pro / Max / Team プラン | 記録（画面・操作・音声）を Claude が確認。動画と音声は保持されず、スクリーンショットが保存される |
 | [OpenSteps](https://github.com/ebanez8/openstep) | Windows 10 以降 | ✅ MD・HTML | — | 不要 | なし（ローカル） |
 | [BetterStepsRecorder](https://github.com/Mentaleak/BetterStepsRecorder) | Windows | ✅ HTML・RTF・ODT | — | 不要 | 記載なし |
 | [Scribe](https://scribe.com/pricing) | ブラウザ（Pro はデスクトップアプリも） | ✅（PDF / HTML / Markdown 書き出しは Pro） | — | 必要 | クラウド |

@@ -70,9 +70,18 @@ stepcap app          # or double-click the release binary
 
 Pick where to save, press **Start recording**, do the task, press **Stop** on the small
 always-on-top bar (F9 / F8 / F7 keep working). Clicks on the bar itself are never steps.
-Then **Edit steps** or **Export guide + skill** (written next to the recording as
-`<name>-export/guide/` and `<name>-export/skill/<name>/`). The window follows the system
-language (English / 日本語).
+When you stop, the window offers the two results:
+
+- **For AI agents: skill (SKILL.md)**: **Add to Claude Code** (copies it to
+  `~/.claude/skills/<name>/`; then type `/<name>` or just ask for the task),
+  **Add to Codex** (`~/.agents/skills/<name>/`; `$<name>` or `/skills`), or
+  **Create SKILL.md** only. If the `claude` or `codex` CLI is installed, tick
+  *Generalise first* to let it rewrite the one-run draft into a general procedure (asks
+  before running). An installed skill with the same name is only replaced after you confirm.
+- **For people: guide**: **Open guide**, **Printable checklist**, **Edit steps**.
+
+**Export guide + skill** writes both next to the recording (`<name>-export/`) to share. The
+window follows the system language (English / 日本語).
 
 ![stepcap app: start, recording bar, done](https://raw.githubusercontent.com/kajisho5/stepcap/main/docs/demo/app.png)
 
@@ -248,12 +257,13 @@ any agent.
 
 ## How it compares
 
-Facts as published by each project (checked 2026-09-24; follow the links).
+Facts as published by each project (checked 2026-09-24, Claude row 2026-09-25; follow the links).
 
 | | Runs on | Guide for people | SKILL.md for agents | Account | Sends data |
 |---|---|---|---|---|---|
 | **stepcap** | Windows, macOS, Linux (X11) | ✅ MD, HTML, checklist | ✅ any agent (Claude Code, Codex, ...) | none | nothing (the optional agent step is your own CLI) |
 | [skill-recorder](https://github.com/microsoft/skill-recorder) | macOS, Windows 11, Ubuntu | — (skills and automations) | ✅ for Microsoft Scout / Copilot Cowork / Copilot Studio | GitHub account with Copilot | events and screen images to GitHub's cloud on Analyze |
+| [Claude "Record a skill"](https://support.claude.com/en/articles/12512198-how-to-create-custom-skills) | Claude for Mac (Cowork); not on Windows | — | ✅ for Claude (saved to your Claude skills) | Pro, Max or Team plan | the recording (screen, input, voice) is reviewed by Claude; video and audio are not retained, screenshots are |
 | [OpenSteps](https://github.com/ebanez8/openstep) | Windows 10+ | ✅ MD, HTML | — | none | none (local) |
 | [BetterStepsRecorder](https://github.com/Mentaleak/BetterStepsRecorder) | Windows | ✅ HTML, RTF, ODT | — | none | none documented |
 | [Scribe](https://scribe.com/pricing) | browser; desktop apps on Pro | ✅ (PDF/HTML/Markdown export on Pro) | — | required | cloud |

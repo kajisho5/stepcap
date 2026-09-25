@@ -44,7 +44,10 @@ def slugify(text: str | None) -> str:
 
 
 def choose_name(doc: dict[str, Any]) -> str:
-    candidates = [doc.get("title")]
+    title = doc.get("title")
+    # the automatic "Step-by-step guide" says nothing about the task (and every
+    # untitled recording would get the same name); the app names say more
+    candidates = [] if title and title == doc.get("auto_title") else [title]
     candidates += [s.get("app_name") for s in doc.get("steps", [])]
     for c in candidates:
         slug = slugify(c)
