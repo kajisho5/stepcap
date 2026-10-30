@@ -6,11 +6,11 @@ under the SIL Open Font License (below), so its license expression is `MIT AND O
 
 | Package | Why | License |
 |---|---|---|
-| [Pillow](https://python-pillow.github.io/) ≥ 10.1 | image annotation, encoding, simulate screens; bundled font (`ImageFont.load_default(size=…)`) | MIT-CMU (HPND) |
+| [Pillow](https://python-pillow.github.io/) ≥ 13.0.0 | image annotation, encoding, simulate screens; bundled font (`ImageFont.load_default(size=…)`) | MIT-CMU (HPND) |
 | [mss](https://github.com/BoboTiG/python-mss) ≥ 9.0 | fast multi-monitor screenshots | MIT |
 | [pynput](https://github.com/moses-palmer/pynput) ≥ 1.7.7 | global mouse / keyboard hooks | **LGPL-3.0** |
 | [comtypes](https://github.com/enthought/comtypes) ≥ 1.4 (Windows only) | UI Automation: name and frame of the clicked element | MIT |
-| [cryptography](https://github.com/pyca/cryptography) ≥ 42 | `stepcap share`: AES-256-GCM, PBKDF2 | Apache-2.0 OR BSD-3-Clause |
+| [cryptography](https://github.com/pyca/cryptography) ≥ 50.0.0 | `stepcap share`: AES-256-GCM, PBKDF2 | Apache-2.0 OR BSD-3-Clause |
 | [sv-ttk](https://github.com/rdbende/Sun-Valley-ttk-theme) ≥ 2.6 | `stepcap app`: Sun Valley ttk theme (light / dark) | MIT |
 | [pywinrt](https://github.com/pywinrt/pywinrt) `winrt-Windows.Media.Ocr` + Graphics.Imaging, Storage.Streams, Globalization, Foundation, Foundation.Collections (Windows only) | build: Windows' built-in OCR for unnamed elements | MIT |
 | [pyobjc-framework-Vision](https://github.com/ronaldoussoren/pyobjc) (macOS only) | build: macOS Vision text recognition for unnamed elements | MIT |
