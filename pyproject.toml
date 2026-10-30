@@ -68,7 +68,10 @@ include = ["src/stepcap", "tests", "README.md", "README.ja.md", "LICENSE", "CHAN
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["ocr: uses the real OCR backend of this machine (others see none)"]
+markers = [
+  "ocr: uses the real OCR backend of this machine (others see none)",
+  "ffmpeg_skill: runs the real ffmpeg-skill and ffmpeg (skipped when either is missing)",
+]
 addopts = "-q"
 
 [tool.ruff]

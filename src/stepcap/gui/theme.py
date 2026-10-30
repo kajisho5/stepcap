@@ -19,6 +19,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import tkinter as tk
 import tkinter.font as tkfont
 from dataclasses import dataclass, field
@@ -209,6 +210,20 @@ def dark_title_bar(win: tk.Misc, dark: bool) -> None:
         )
 
 
+def _wait_for_family(root: tk.Misc, timeout: float = 2.0) -> bool:
+    """macOS announces a newly registered font through a notification that reaches Tk's event
+    loop asynchronously: one `update()` is sometimes too early (seen on CI runners), so keep
+    turning the loop for up to `timeout` seconds until Tk lists the family."""
+    deadline = time.monotonic() + timeout
+    while True:
+        root.update()
+        if FAMILY in tkfont.families(root):
+            return True
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+
+
 def apply(root: tk.Tk, dark: bool | None = None) -> Theme:
     """Theme, fonts and the few custom styles the window uses."""
     dark = os_prefers_dark() if dark is None else dark
@@ -224,15 +239,11 @@ def apply(root: tk.Tk, dark: bool | None = None) -> Theme:
     family, note = "", ""
     if not register_fonts():
         note = register_error
-    elif FAMILY in tkfont.families(root):
+    elif FAMILY in tkfont.families(root) or _wait_for_family(root):
         family = FAMILY
     else:
-        root.update()  # macOS announces newly registered fonts through the event loop
-        if FAMILY in tkfont.families(root):
-            family = FAMILY
-        else:
-            similar = [f for f in tkfont.families(root) if "noto" in f.lower()]
-            note = f"registered, but Tk does not list {FAMILY!r} (similar: {similar[:8]})"
+        similar = [f for f in tkfont.families(root) if "noto" in f.lower()]
+        note = f"registered, but Tk does not list {FAMILY!r} (similar: {similar[:8]})"
     if family:
         for name in tkfont.names(root):  # sv-ttk's fonts included; not TkFixedFont
             if name != "TkFixedFont":

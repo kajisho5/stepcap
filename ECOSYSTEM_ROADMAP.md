@@ -13,7 +13,7 @@ v0.1.7, Python 3.11+. record, build, edit, simulate, skill, export, share, diff,
 
 | Owned job | Status | Note |
 |---|---|---|
-| 画面収録→手順書 | done | outputs screenshots / Markdown / HTML / SKILL.md; no video |
+| 画面収録→手順書 | done | outputs screenshots / Markdown / HTML / SKILL.md; optional how-to MP4 (`stepcap video`, through ffmpeg-skill) |
 
 ## Wiring
 
@@ -23,7 +23,7 @@ Not a production step; not wired to the agent (by design).
 
 - [x] **1. `contract --json` in the OS schema** — provides guide.build, skill.draft
   - Done when: validates in CI
-- [ ] **2. Optional how-to video export** — steps -> MP4 via ffmpeg-skill (not raw ffmpeg)
+- [x] **2. Optional how-to video export** — steps -> MP4 via ffmpeg-skill (not raw ffmpeg) ([#79](https://github.com/kajisho5/stepcap/pull/79))
   - Done when: ffmpeg-skill check passes the file
 - [ ] **3. Transcription overlap note** — keep the built-in engine or hand off to transcription-skill
   - Done when: written decision
