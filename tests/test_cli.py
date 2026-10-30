@@ -48,3 +48,25 @@ def test_simulate_dry_run(tmp_path, spec, capsys):
 def test_record_rejects_bad_hotkeys(capsys):
     assert main(["record", "--hotkey-stop", "F7"]) == 2
     assert "different" in capsys.readouterr().err
+
+
+def test_contract_has_the_os_registry_keys(capsys):
+    assert main(["contract", "--json"]) == 0
+    c = json.loads(capsys.readouterr().out)
+    for k in (
+        "skill_id",
+        "version",
+        "contract_version",
+        "provides",
+        "dependencies",
+        "not_provided",
+    ):
+        assert k in c
+    assert (c["skill_id"], c["version"]) == ("stepcap", __version__)
+    assert {p["id"] for p in c["provides"]} == {"guide.build", "skill.draft"}
+    tool_ids = {t["tool_id"] for t in c["tools"]}
+    for p in c["provides"]:
+        assert set(p) == {"id", "lifecycle", "tool_id"}
+        assert p["lifecycle"] in ("PROPOSED", "EXPERIMENTAL", "STABLE", "DEPRECATED", "RETIRED")
+        assert p["tool_id"] in tool_ids
+    assert c["execution"]["network"] is False

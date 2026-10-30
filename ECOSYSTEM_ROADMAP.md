@@ -21,7 +21,7 @@ Not a production step; not wired to the agent (by design).
 
 ## Steps
 
-- [ ] **1. `contract --json` in the OS schema** — provides guide.build, skill.draft
+- [x] **1. `contract --json` in the OS schema** — provides guide.build, skill.draft
   - Done when: validates in CI
 - [ ] **2. Optional how-to video export** — steps -> MP4 via ffmpeg-skill (not raw ffmpeg)
   - Done when: ffmpeg-skill check passes the file
