@@ -342,6 +342,7 @@ stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--js
 stepcap diff SESSION_A SESSION_B [-o report.html] [--fail-on none|missing|any] [--json]
 stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
 stepcap schema [session|event|steps|terminal|voice] [--path]
+stepcap contract [--json]                                  # machine-readable contract
 stepcap agents [--json]                                    # agents you can --install / --agent
 stepcap mcp [--root DIR ...]                               # MCP server for agents (stdio)
 stepcap shell SESSION_DIR [--shell bash|zsh] [--json]      # macOS / Linux

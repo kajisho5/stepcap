@@ -505,6 +505,13 @@ def cmd_schema(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_contract(args: argparse.Namespace) -> int:
+    from stepcap.contract import contract
+
+    _print_json(contract())
+    return EXIT_OK
+
+
 # ---------------------------------------------------------------------------- app
 def cmd_app(args: argparse.Namespace) -> int:
     try:
@@ -913,6 +920,12 @@ def build_parser() -> argparse.ArgumentParser:
     j.add_argument("name", nargs="?", choices=schema_names)
     j.add_argument("--path", action="store_true", help="print the schema file path instead")
     j.set_defaults(func=cmd_schema)
+
+    ct = sub.add_parser(
+        "contract", help="print the machine-readable contract (AI Video Production OS registry)"
+    )
+    ct.add_argument("--json", action="store_true", help="accepted; the output is always JSON")
+    ct.set_defaults(func=cmd_contract)
 
     a = sub.add_parser("app", help="open the stepcap window: start / stop recordings, edit, export")
     a.add_argument("--lang", choices=("en", "ja"), help="window language (default: system)")
