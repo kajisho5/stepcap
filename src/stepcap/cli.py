@@ -512,6 +512,53 @@ def cmd_contract(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_video(args: argparse.Namespace) -> int:
+    from stepcap.video import VideoError, VideoOptions, run_video
+
+    try:
+        width, height = _frame_size(args.size)
+        res = run_video(
+            Path(args.session),
+            VideoOptions(
+                output=Path(args.output) if args.output else None,
+                seconds=args.seconds,
+                width=width,
+                height=height,
+                fps=args.fps,
+                platform=args.platform,
+                fast=args.fast,
+                lang=args.lang,
+                ffmpeg_skill=args.ffmpeg_skill,
+            ),
+        )
+    except (VideoError, SessionError, ValueError, OSError) as exc:
+        _err(str(exc))
+        return EXIT_FAIL
+    if args.json:
+        _print_json(res.to_dict())
+        return EXIT_OK if res.ok else EXIT_FAIL
+    for w in res.warnings:
+        print(f"warning: {w}", file=sys.stderr)
+    w, h = res.frame
+    print(
+        f"Video {res.output}: {res.steps} steps, {res.duration:g} s, {w}x{h}, {res.fps:g} fps "
+        f"(ffmpeg-skill {res.ffmpeg_skill['version']})"
+    )
+    c = res.check
+    verdict = "passed" if res.ok else "FAILED: " + ", ".join(c["failed"])
+    warn = f" ({len(c['warnings'])} warnings: {', '.join(c['warnings'])})" if c["warnings"] else ""
+    print(f"  ffmpeg-skill check --platform {c['platform']}: {verdict}{warn}")
+    return EXIT_OK if res.ok else EXIT_FAIL
+
+
+def _frame_size(text: str) -> tuple[int, int]:
+    try:
+        w, h = (int(v) for v in text.lower().split("x"))
+    except ValueError:
+        raise ValueError(f"--size must look like 1920x1080, not {text!r}") from None
+    return w, h
+
+
 # ---------------------------------------------------------------------------- app
 def cmd_app(args: argparse.Namespace) -> int:
     try:
@@ -814,6 +861,36 @@ def build_parser() -> argparse.ArgumentParser:
     x.add_argument("--lang", choices=("en", "ja"), help="language of automatic guide texts")
     _skill_args(x)
     x.set_defaults(func=cmd_export)
+
+    v = sub.add_parser(
+        "video",
+        help="turn the guide into a how-to MP4 (step images + captions; needs ffmpeg-skill)",
+    )
+    v.add_argument("session", metavar="SESSION_DIR")
+    v.add_argument("-o", "--output", metavar="FILE.mp4", help="default: SESSION_DIR/guide.mp4")
+    v.add_argument(
+        "--seconds",
+        type=float,
+        default=4.0,
+        help="time on screen per step; longer texts stay longer (default 4)",
+    )
+    v.add_argument("--size", default="1920x1080", metavar="WxH", help="frame (default 1920x1080)")
+    v.add_argument("--fps", type=float, default=10.0, help="frame rate (default 10: stills)")
+    v.add_argument(
+        "--platform",
+        default="youtube",
+        help="delivery spec ffmpeg-skill check tests the file against (default youtube)",
+    )
+    v.add_argument("--fast", action="store_true", help="preview quality, encodes faster")
+    v.add_argument("--lang", choices=("en", "ja"), help="language of automatic step texts")
+    v.add_argument(
+        "--ffmpeg-skill",
+        metavar="DIR",
+        help="ffmpeg-skill checkout (else $STEPCAP_FFMPEG_SKILL_DIR, $FFMPEG_SKILL_DIR, "
+        "~/.claude/skills/ffmpeg-skill, ./vendor/ffmpeg-skill, ../ffmpeg-skill)",
+    )
+    v.add_argument("--json", action="store_true")
+    v.set_defaults(func=cmd_video)
 
     h = sub.add_parser(
         "shell",

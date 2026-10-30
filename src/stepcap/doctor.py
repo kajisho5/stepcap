@@ -185,6 +185,10 @@ def collect_probes(include_hooks: bool = True) -> dict[str, Any]:
 
     p["voice"] = voice.probe()
     p["ocr"] = ocr.backend()
+    from stepcap import video
+
+    found = video.locate()
+    p["video"] = {"root": str(found.root), "version": found.version} if found else None
     return p
 
 
@@ -396,6 +400,18 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
             if plat != "linux" and not plat.startswith("linux"):
                 fix = "reinstall stepcap (pip install -U stepcap) to get the OCR bindings"
             checks.append(Check("ocr", INFO, label, "unavailable; steps keep window names", fix))
+    if "video" in p:
+        label = "How-to video (stepcap video)"
+        if p["video"]:
+            v = p["video"]
+            checks.append(Check("video", OK, label, f"ffmpeg-skill {v['version']} at {v['root']}"))
+        else:
+            from stepcap.video import REPO_URL
+
+            fix = f"clone {REPO_URL} and set STEPCAP_FFMPEG_SKILL_DIR (FFmpeg 6.1+ on PATH)"
+            checks.append(
+                Check("video", INFO, label, "ffmpeg-skill not found; only needed for video", fix)
+            )
     v = p.get("voice")
     if isinstance(v, dict):
         label = "Voice notes (--voice)"

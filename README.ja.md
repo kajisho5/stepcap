@@ -188,6 +188,7 @@ $ cat demo/terminal.jsonl
 - **エージェント向けの文脈**: アプリ / ウィンドウの切り替えは常に記録します。`--record-urls` で前面のブラウザタブの URL（Windows: Chrome・Edge などの Chromium 系を UI Automation で。Firefox は非対応。macOS: Safari・Chrome・Edge・Arc。`--keep-query` なしではクエリ文字列を除去）、`--record-clipboard` でコピーした文字列（文字数と先頭 80 文字）も記録します。これらはステップにはならず、`stepcap skill` が「Browser at …」「Then: copied …」として使います
 - **パスワード付きで共有**（`stepcap share`、またはウィンドウの「パスワード付きで共有」）: 手順書を AES-256-GCM で暗号化した 1 つの HTML ファイルにします（鍵はパスワードから PBKDF2-SHA256・60 万回で生成）。パスワードを入れると、どのブラウザでもオフラインで開けます（ブラウザ標準の WebCrypto で復号）。期限の設定はありません（1 ファイルでは期限を強制できないため）
 - **2 つの録画を比較**（`stepcap diff A B -o report.html`）: 手順を順番に、何をしたか（部品名、なければアプリ＋ウィンドウ）で対応付けるので、ボタンの位置やタイトルの文言が変わっても対応が取れます。A にしかない手順、B にしかない手順、対応はするが画面の見た目が変わった手順や入力値が違う手順、違う URL・ターミナルのコマンドを一覧にします。HTML のレポートにはスクリーンショットが左右に並びます。アプリの画面が変わったとき（録り直して、直すべき手順を確認）や、エージェントが何をしたかの確認に使います
+- **操作説明動画（任意）**（`stepcap video SESSION_DIR`）: 手順書を MP4 にします。各ステップの画像を数秒ずつ（`--seconds`。長い文章はその分長く）表示し、タイトルと説明を下に字幕として焼き込みます。日本語も同梱の Noto Sans JP で表示されます。動画の処理はすべて [ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill) が行い（`sequence` と `caption`、最後に出来上がったファイルを `check`）、stepcap 自身は FFmpeg を実行しません。ffmpeg-skill が必要なのはこのコマンドだけです。clone して `--ffmpeg-skill DIR` を渡すか `STEPCAP_FFMPEG_SKILL_DIR` を設定してください（FFmpeg 6.1 以上が PATH に必要）。無い場合は `stepcap video` がその旨を表示して止まり、ほかの機能には影響しません。音声トラックはありません
 - **音声メモ**（`--voice`、既定はオフ）: 記録しながら「何をしているか・なぜか」を声で話せます。停止時にマイクの音声を**この PC 上で**文字起こし（faster-whisper、CPU）し、各ステップの説明と、スキルの「Narration: …」（最初のクリック前に話した内容は Goal）に入れます。`audio.wav` は文字起こし後に削除します（`--keep-audio` で保持）。一時停止中に話した内容は残りません。`pip install "stepcap[voice]"` または単体実行ファイルの音声版が必要です。音声モデル（`--voice-model base` で約 150 MB。日本語は `small` の方が精度が上がります）は初回だけ Hugging Face からダウンロードし、以降はオフラインで動きます
 - **プライバシー重視の初期設定**: `--record-typing` を付けない限り入力内容は保存しません。パスワード / ログイン画面では常にマスクします。`--exclude-app` を指定したアプリが前面の間は記録もスクショもしません。通信は一切行いません（`--voice` の音声モデルの初回ダウンロードを除く）
 
@@ -195,7 +196,7 @@ $ cat demo/terminal.jsonl
 
 - **Wayland**（Linux）には非対応で、X11 のみです。Wayland では理由を表示して停止します
 - **AI による文章化**はしません。タイトルは部品名（アクセシビリティ API、なければクリックした部品の OCR）から作ります。文章として整えたい場合は同梱のエージェント用スキルか、`stepcap skill --agent claude|codex` を使ってください。Linux のアクセシビリティ（AT-SPI）による部品名は未対応です（OCR は対応）
-- **動画**、クラウド共有、チーム管理
+- **画面の動画収録**やナレーション音声（`stepcap video` はスクリーンショットを字幕付きのスライドショーにします）、クラウド共有、チーム管理
 - PDF の直接出力（`guide.html` をブラウザで印刷 → PDF）
 
 ## なぜ作ったか
@@ -246,6 +247,8 @@ stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--js
 stepcap diff SESSION_A SESSION_B [-o report.html] [--fail-on none|missing|any] [--json]
 stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
 stepcap schema [session|event|steps|terminal|voice] [--path]
+stepcap video SESSION_DIR [-o FILE.mp4] [--seconds 4] [--size 1920x1080] [--fps 10]
+              [--platform youtube] [--fast] [--lang en|ja] [--ffmpeg-skill DIR] [--json]
 stepcap contract [--json]                                  # 機械可読な契約（contract）
 stepcap agents [--json]                                    # agents you can --install / --agent
 stepcap mcp [--root DIR ...]                               # MCP server for agents (stdio)

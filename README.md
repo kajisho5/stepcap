@@ -252,6 +252,14 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   screen looks different or where a different value was typed, plus URLs and terminal
   commands that differ; the HTML report puts the screenshots side by side. Use it when the
   app changed (record again, see which steps to update) or to check what an agent did.
+- **How-to video, optional** (`stepcap video SESSION_DIR`): an MP4 of the guide, each
+  step's image on screen for a few seconds (`--seconds`, longer for long texts) with its
+  title and description as a caption below it, Japanese included (the bundled Noto Sans JP
+  font). Every media step is done by [ffmpeg-skill](https://github.com/kajisho5/ffmpeg-skill)
+  (its `sequence` and `caption` tools, then its `check` on the file); stepcap never runs
+  FFmpeg itself. It is the only command that needs ffmpeg-skill: clone it and pass
+  `--ffmpeg-skill DIR` or set `STEPCAP_FFMPEG_SKILL_DIR` (FFmpeg 6.1+ on PATH); without it
+  `stepcap video` stops with that message and nothing else changes. No audio track.
 - **Rebuilds are idempotent**: edits in `steps.json` (by you, `stepcap edit` or an AI
   agent) are never overwritten; `--reset` starts over.
 - **Frames the clicked element** (button, input, checkbox, card) detected from the
@@ -285,7 +293,8 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   of the clicked control); for full sentences use the bundled agent skill or
   `stepcap skill --agent claude|codex`. Linux accessibility names (AT-SPI) are not
   supported yet (OCR is).
-- **Video**, cloud sharing, team workspaces.
+- **Screen video**: no screen recording or narration audio (`stepcap video` turns the
+  screenshots into a captioned slideshow); no cloud sharing or team workspaces.
 - Direct PDF export — print `guide.html` to PDF from any browser.
 
 ## Why
@@ -342,6 +351,8 @@ stepcap check-skill SKILL_DIR [--session SESSION_DIR [--min-coverage 0.8]] [--js
 stepcap diff SESSION_A SESSION_B [-o report.html] [--fail-on none|missing|any] [--json]
 stepcap transcribe SESSION_DIR [--model base] [--language ja] [--keep-audio] [--json]
 stepcap schema [session|event|steps|terminal|voice] [--path]
+stepcap video SESSION_DIR [-o FILE.mp4] [--seconds 4] [--size 1920x1080] [--fps 10]
+              [--platform youtube] [--fast] [--lang en|ja] [--ffmpeg-skill DIR] [--json]
 stepcap contract [--json]                                  # machine-readable contract
 stepcap agents [--json]                                    # agents you can --install / --agent
 stepcap mcp [--root DIR ...]                               # MCP server for agents (stdio)
