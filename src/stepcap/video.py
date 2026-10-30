@@ -133,10 +133,14 @@ def candidates(explicit: str | None = None) -> list[Path]:
 def _found(path: Path) -> FfmpegSkill | None:
     if not all((path / "scripts" / f"{t}.py").is_file() for t in TOOLS_USED):
         return None
-    version = "unknown"
-    with contextlib.suppress(OSError, ValueError, AttributeError):
-        version = str(json.loads((path / "package.json").read_text("utf-8")).get("version"))
-    return FfmpegSkill(path.resolve(), version)
+    return FfmpegSkill(path.resolve(), _version(path))
+
+
+def _version(path: Path) -> str:
+    try:
+        return str(json.loads((path / "package.json").read_text("utf-8")).get("version"))
+    except (OSError, ValueError, AttributeError):
+        return "unknown"
 
 
 def locate(explicit: str | None = None) -> FfmpegSkill | None:

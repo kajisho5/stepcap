@@ -77,8 +77,7 @@ def contract() -> dict[str, Any]:
             }
         ],
         "not_provided": [
-            "editing or encoding video itself (stepcap video hands every media step to "
-            "ffmpeg-skill)",
+            "editing or encoding video itself (stepcap video delegates it to ffmpeg-skill)",
             "network access (an --agent rewrite runs your own agent CLI, after asking)",
         ],
         "tools": TOOLS,

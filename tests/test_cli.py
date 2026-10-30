@@ -63,7 +63,7 @@ def test_contract_has_the_os_registry_keys(capsys):
     ):
         assert k in c
     assert (c["skill_id"], c["version"]) == ("stepcap", __version__)
-    assert {p["id"] for p in c["provides"]} == {"guide.build", "skill.draft"}
+    assert {p["id"] for p in c["provides"]} == {"guide.build", "skill.draft", "guide.video"}
     tool_ids = {t["tool_id"] for t in c["tools"]}
     for p in c["provides"]:
         assert set(p) == {"id", "lifecycle", "tool_id"}
