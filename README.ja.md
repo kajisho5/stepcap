@@ -197,6 +197,7 @@ $ cat demo/terminal.jsonl
 - **Wayland**（Linux）には非対応で、X11 のみです。Wayland では理由を表示して停止します
 - **AI による文章化**はしません。タイトルは部品名（アクセシビリティ API、なければクリックした部品の OCR）から作ります。文章として整えたい場合は同梱のエージェント用スキルか、`stepcap skill --agent claude|codex` を使ってください。Linux のアクセシビリティ（AT-SPI）による部品名は未対応です（OCR は対応）
 - **画面の動画収録**やナレーション音声（`stepcap video` はスクリーンショットを字幕付きのスライドショーにします）、クラウド共有、チーム管理
+- **文字起こし**: 音声メモは手順の説明文になるだけです。録音や音声・動画ファイルの文字起こし（JSON、SRT/VTT、単語タイミング）は [transcription-skill](https://github.com/kajisho5/transcription-skill) を使ってください（理由: [docs/DECISIONS.md](docs/DECISIONS.md)）
 - PDF の直接出力（`guide.html` をブラウザで印刷 → PDF）
 
 ## なぜ作ったか

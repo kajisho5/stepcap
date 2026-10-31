@@ -25,7 +25,7 @@ Not a production step; not wired to the agent (by design).
   - Done when: validates in CI
 - [x] **2. Optional how-to video export** — steps -> MP4 via ffmpeg-skill (not raw ffmpeg) ([#79](https://github.com/kajisho5/stepcap/pull/79))
   - Done when: ffmpeg-skill check passes the file
-- [ ] **3. Transcription overlap note** — keep the built-in engine or hand off to transcription-skill
+- [x] **3. Transcription overlap note** — keep the built-in engine or hand off to transcription-skill: kept, and voice notes do not grow into transcription (docs/DECISIONS.md, README) ([#81](https://github.com/kajisho5/stepcap/pull/81))
   - Done when: written decision
 
 ## Boundaries
