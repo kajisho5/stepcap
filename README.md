@@ -296,6 +296,9 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
 - **Screen video**: no screen recording or narration audio (`stepcap video` turns the
   screenshots into a captioned slideshow); no cloud sharing or team workspaces.
 - Direct PDF export — print `guide.html` to PDF from any browser.
+- **Transcripts** — voice notes only become step descriptions; for a transcript (JSON, SRT/VTT,
+  word timings) of a recording or any audio/video file, use
+  [transcription-skill](https://github.com/kajisho5/transcription-skill) (why: [docs/DECISIONS.md](docs/DECISIONS.md)).
 
 ## Why
 
