@@ -27,6 +27,9 @@ Not a production step; not wired to the agent (by design).
   - Done when: ffmpeg-skill check passes the file
 - [x] **3. Transcription overlap note** — keep the built-in engine or hand off to transcription-skill: kept, and voice notes do not grow into transcription (docs/DECISIONS.md, README) ([#81](https://github.com/kajisho5/stepcap/pull/81))
   - Done when: written decision
+- [ ] **4. Secrets hidden in setup guides** — guides recorded from streaming and switcher setups (OBS, vMix, encoders) hide stream keys, passwords and ingest URLs that appear on screen: OCR (detection-skill text) on each step's screenshot, matching regions blurred before export, every blur listed. Field review 2026-11-05 (Velisa ROADMAP, third round)
+  - なぜ要るか：配信設定の手順書を共有したときに、配信キーが映り込んで漏れる事故を防ぐ
+  - Done when: a fixture screenshot with a stream key is blurred, and the list names it
 
 ## Boundaries
 
