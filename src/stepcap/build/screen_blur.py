@@ -155,6 +155,31 @@ def _label_kind(text: str) -> str:
     return "secret"
 
 
+def _label(line: list[Word], i: int) -> tuple[re.Match[str], str] | None:
+    """The label in word ``i`` (or split over the word before it: "API" "Key:") and the
+    text after it in that word."""
+    w = line[i]
+    m = _LABEL.search(w.text)
+    if m:
+        return m, w.text[m.end() :]
+    if i > 0:
+        joined = f"{line[i - 1].text} {w.text}"
+        m = _LABEL.search(joined)
+        if m and m.end() > len(line[i - 1].text) + 1:  # the label ends in this word
+            return m, joined[m.end() :]
+    return None
+
+
+def _value_start(line: list[Word], i: int, rest: str) -> int | None:
+    """Index of the first value word after the label in word ``i``, or None (no separator:
+    "API keys" as a heading)."""
+    if rest.strip() in _SEPARATORS:
+        return i + 1  # "Password:" - the value follows
+    if not rest.strip() and i + 1 < len(line) and line[i + 1].text in _SEPARATORS:
+        return i + 2  # "OPENAI_API_KEY" "=" value
+    return None
+
+
 def find(words: list[Word]) -> list[tuple[Word, str]]:
     """(word, kind) for each word that shows a secret. Kinds are fixed labels."""
     hits: dict[int, tuple[Word, str]] = {}
@@ -164,28 +189,29 @@ def find(words: list[Word]) -> list[tuple[Word, str]]:
             if kinds:
                 hits[id(w)] = (w, kinds[0])
                 continue
-            m = _LABEL.search(w.text)
-            if not m:
+            found = _label(line, i)
+            if not found:
                 continue
-            rest = w.text[m.end() :]
+            m, rest = found
+            kind = _label_kind(m.group(0))
             inline = re.match(r"^\s*(?::=|[:=：])\s*(\S+)", rest)
             if inline and not _MASKED.match(inline.group(1)):  # password=hunter2 in one word
-                hits[id(w)] = (w, _label_kind(m.group(0)))
+                hits[id(w)] = (w, kind)
                 continue
-            j = i + 1
-            if rest.strip() in _SEPARATORS:
-                pass  # "Password:" - the value follows
-            elif j < len(line) and line[j].text in _SEPARATORS and not rest.strip():
-                j += 1  # "OPENAI_API_KEY" "=" value
-            else:
-                continue  # "API keys" as a heading: no value
+            j = _value_start(line, i, rest)
+            if j is None:
+                continue
             prev = line[j - 1]
-            for v in line[j:]:
+            for k in range(j, len(line)):
+                v = line[k]
                 gap = v.box[0] - (prev.box[0] + prev.box[2])
-                if gap > 4 * max(v.box[3], prev.box[3]) or _LABEL.search(v.text):
-                    break  # another column, or the next label
+                if gap > 4 * max(v.box[3], prev.box[3]):
+                    break  # another column
+                nxt = _label(line, k) if k > j else None
+                if nxt and _value_start(line, k, nxt[1]) is not None:
+                    break  # the next "Label:" on the same row (a value is never cut short)
                 if not _MASKED.match(v.text):
-                    hits.setdefault(id(v), (v, _label_kind(m.group(0))))
+                    hits.setdefault(id(v), (v, kind))
                 prev = v
         joined = " ".join(w.text for w in line)
         if "card" in leak_kinds(joined):
@@ -225,6 +251,30 @@ class ScanResult:
     warnings: list[str] | None = None
 
 
+def _forget_undone(session: Path, state: dict[str, Any]) -> None:
+    """Drop blur records that no longer match ``work/``.
+
+    A work copy identical to raw/ was reset by a person (`stepcap edit` Reset image, even
+    one racing a build): its records go, and it stays checked. A missing work copy is
+    recreated from raw/ unblurred, so that screenshot is checked again.
+    """
+    from stepcap.build import steps as steps_mod
+
+    keep, gone, reset = [], set(), set()
+    for b in state["blurs"]:
+        sid = b.get("screenshot")
+        work = steps_mod.work_path(session, sid)
+        raw = steps_mod.raw_path(session, sid)
+        if sid in gone or not work.exists():
+            gone.add(sid)
+        elif sid in reset or (raw.exists() and work.read_bytes() == raw.read_bytes()):
+            reset.add(sid)
+        else:
+            keep.append(b)
+    state["blurs"][:] = keep
+    state["checked"][:] = [c for c in state["checked"] if c not in gone]
+
+
 def scan(
     session: Path,
     doc: dict[str, Any],
@@ -237,6 +287,7 @@ def scan(
     state = doc.setdefault(DOC_KEY, {"checked": [], "blurs": []})
     state.setdefault("checked", [])
     state.setdefault("blurs", [])
+    _forget_undone(session, state)
     res = ScanResult(blurs=state["blurs"], warnings=[])
     todo = []
     for s in doc.get("steps", []):

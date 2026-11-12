@@ -262,7 +262,11 @@ def cmd_skill(args: argparse.Namespace) -> int:
     if args.json:
         _print_json(data)
     else:
+        for w in res.warnings:
+            print(f"warning: {w}", file=sys.stderr)
         _print_skill(data)
+        if not res.dry_run:
+            _print_screen_blurs(res.screen_blurs)
     return EXIT_OK if res.ok else EXIT_FAIL
 
 
@@ -292,9 +296,10 @@ def cmd_export(args: argparse.Namespace) -> int:
     if res.guide_dir:
         tag = "[dry-run] would write" if res.dry_run else "Guide"
         print(f"{tag} {res.guide_dir}: {len(res.guide_files)} files")
-        _print_screen_blurs(res.screen_blurs)
     if res.skill:
         _print_skill(res.skill)
+    if not res.dry_run:
+        _print_screen_blurs(res.screen_blurs)
     return EXIT_OK if res.ok else EXIT_FAIL
 
 

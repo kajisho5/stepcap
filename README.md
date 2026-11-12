@@ -243,7 +243,9 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   `Password:` or `API_KEY =`. The blur goes into `work/` (`raw/` keeps the original), so the
   guide, checklist, skill references and video all show it, and every blur is listed (step,
   kind, rectangle; never the text read) in the build output and `steps.json`. Check them in
-  `stepcap edit`; Reset image there undoes one. Optional: without detection-skill the build
+  `stepcap edit`; Reset image there restores the whole screenshot (every automatic blur on
+  it, true or false) and the next build does not blur it again, so blur any real secret
+  left on it by hand. Optional: without detection-skill the build
   warns that the screenshots were not checked. `build --no-secret-scan` turns it off.
 - **Reuses identical screenshots**: consecutive steps on the same screen (≥ 98 % same
   area) share one image, so blurring it once covers all of them.

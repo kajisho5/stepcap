@@ -244,3 +244,72 @@ def test_reset_image_in_edit_undoes_an_automatic_blur(demo_session, monkeypatch)
     assert sid not in {
         b["screenshot"] for b in run_build(demo_session, BuildOptions()).screen_blurs
     }
+
+
+def test_label_split_over_two_words():
+    words = [W("API", 10, 10, 30), W("Key:", 45, 10, 40), W("fake-abc-123", 95, 10, 100)]
+    assert kinds(words) == [("fake-abc-123", "api-key")]
+    words = [W("Access", 10, 10), W("token", 75, 10), W("=", 140, 14, 8, 6), W("fake1", 155, 10)]
+    assert kinds(words) == [("fake1", "token")]
+
+
+def test_a_value_that_contains_a_label_word_is_still_blurred():
+    words = [W("Password:", 10, 10, 90), W("secretvalue", 105, 10, 100)]
+    assert kinds(words) == [("secretvalue", "password")]
+    words = [W("Password:", 10, 10, 90), W("fake", 105, 10, 40), W("tokenpart", 150, 10, 90)]
+    assert kinds(words) == [("fake", "password"), ("tokenpart", "password")]
+    # the next "Label:" on the row ends the value, and its own value is found too
+    words = [
+        W("Password:", 10, 10, 90),
+        W("fake1", 105, 10),
+        W("Token:", 170, 10),
+        W("fake2", 235, 10),
+    ]
+    assert kinds(words) == [("fake1", "password"), ("fake2", "token")]
+
+
+def test_skill_dry_run_does_not_blur_and_skill_reports(demo_session, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(ss, "_run", fake_runner([det(FAKE_KEY, [300, 200, 300, 20])]))
+    monkeypatch.setattr(ss, "locate", lambda: ["detection"])
+    out = tmp_path / "skills"
+    assert main(["skill", str(demo_session), "-o", str(out), "--dry-run"]) == 0
+    assert not (demo_session / "work").exists() or not any((demo_session / "work").iterdir())
+    assert "screen_secrets" not in read_json(demo_session / "steps.json")
+    capsys.readouterr()
+    assert main(["skill", str(demo_session), "-o", str(out), "--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["screen_blurs"][0]["kind"] == "openai-key"
+
+
+def test_skill_only_export_warns_when_not_checked(demo_session, tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(ss, "locate", lambda: None)
+    out = tmp_path / "out"
+    assert main(["export", str(demo_session), "--format", "skill", "-o", str(out), "--json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert any("not checked for passwords or keys" in w for w in data["warnings"])
+    assert any("not checked for passwords or keys" in w for w in data["skill"]["warnings"])
+
+
+def test_records_follow_work_copies(demo_session, monkeypatch):
+    runner = fake_runner([det(FAKE_KEY, [300, 200, 300, 20])])
+    monkeypatch.setattr(ss, "_run", runner)
+    monkeypatch.setattr(ss, "locate", lambda: ["detection"])
+    # stripes so a blur changes the image
+    for raw in (demo_session / "raw").iterdir():
+        img = Image.open(raw).convert("RGB")
+        for x in range(300, 600, 4):
+            img.paste((0, 0, 0), (x, 200, x + 2, 220))
+        img.save(raw)
+    first = run_build(demo_session, BuildOptions()).screen_blurs
+    a, b = sorted({x["screenshot"] for x in first})[:2]
+    # a reset that raced a build: work/ equals raw/ -> its records go, it stays checked
+    (demo_session / "work" / f"{a}.png").write_bytes(
+        (demo_session / "raw" / f"{a}.png").read_bytes()
+    )
+    # a deleted work copy comes back unblurred -> checked again and blurred again
+    (demo_session / "work" / f"{b}.png").unlink()
+    calls = len(runner.calls)
+    after = run_build(demo_session, BuildOptions()).screen_blurs
+    assert a not in {x["screenshot"] for x in after}
+    assert b in {x["screenshot"] for x in after}
+    assert len(runner.calls) == calls + 1

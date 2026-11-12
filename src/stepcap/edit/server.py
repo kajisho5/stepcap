@@ -256,16 +256,17 @@ class EditApp:
     def reset_image(self, body: dict[str, Any]) -> dict[str, Any]:
         sid = self._sid(body.get("screenshot"))
         with self.lock:
-            dst = steps_mod.work_path(self.session, sid)
-            dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(steps_mod.raw_path(self.session, sid), dst)
-            # automatic blurs of this screenshot are undone too; it stays checked, so the
-            # next build does not blur it again (the person decided)
+            # automatic blurs of this screenshot are undone too, recorded before the image is
+            # restored; it stays checked, so the next build does not blur it again (the
+            # person decided). A build racing this is caught by the next one (_forget_undone).
             doc = steps_mod.load_steps(self.session)
             state = (doc or {}).get(screen_blur.DOC_KEY)
             if doc is not None and state and state.get("blurs"):
                 state["blurs"] = [b for b in state["blurs"] if b.get("screenshot") != sid]
                 write_json(self.session / STEPS_FILE, doc)
+            dst = steps_mod.work_path(self.session, sid)
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(steps_mod.raw_path(self.session, sid), dst)
         return {"ok": True, "screenshot": sid}
 
     # --------------------------------------------------------------- build
