@@ -13,11 +13,11 @@ v0.1.7, Python 3.11+. record, build, edit, simulate, skill, export, share, diff,
 
 | Owned job | Status | Note |
 |---|---|---|
-| 画面収録→手順書 | done | outputs screenshots / Markdown / HTML / SKILL.md; optional how-to MP4 (`stepcap video`, through ffmpeg-skill) |
+| 画面収録→手順書 | done | outputs screenshots / Markdown / HTML / SKILL.md; optional how-to MP4 (`stepcap video`, through ffmpeg-skill); secrets seen on screen blurred before export (through detection-skill text) |
 
 ## Wiring
 
-Not a production step; not wired to the agent (by design).
+Not a production step; not wired to the agent (by design). Optional hand-offs: ffmpeg-skill (`stepcap video`), detection-skill `text` (on-screen secrets at build time).
 
 ## Steps
 
@@ -27,7 +27,7 @@ Not a production step; not wired to the agent (by design).
   - Done when: ffmpeg-skill check passes the file
 - [x] **3. Transcription overlap note** — keep the built-in engine or hand off to transcription-skill: kept, and voice notes do not grow into transcription (docs/DECISIONS.md, README) ([#81](https://github.com/kajisho5/stepcap/pull/81))
   - Done when: written decision
-- [ ] **4. Secrets hidden in guides** — passwords, API keys and access tokens that appear on screen in a recorded guide are found by OCR (detection-skill text) on each step's screenshot and blurred before export, every blur listed. Field review 2026-11-05 (Velisa ROADMAP, third round)
+- [x] **4. Secrets hidden in guides** — passwords, API keys and access tokens that appear on screen in a recorded guide are found by OCR (detection-skill text) on each step's screenshot and blurred before export, every blur listed. Field review 2026-11-05 (Velisa ROADMAP, third round) ([#84](https://github.com/kajisho5/stepcap/pull/84))
   - なぜ要るか：手順書を共有したときに、パスワードやキーが映り込んで漏れる事故を防ぐ
   - Done when: a fixture screenshot with an API key is blurred, and the list names it
 
