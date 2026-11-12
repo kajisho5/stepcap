@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.8](https://github.com/kajisho5/stepcap/compare/v0.1.7...v0.1.8) (2026-11-12)
+
+
+### Features
+
+* **app:** new look, bar painted out of screenshots, Undo, combine/compare recent recordings ([#76](https://github.com/kajisho5/stepcap/issues/76)) ([605c160](https://github.com/kajisho5/stepcap/commit/605c160fdd835daeda1def9fd31180c47a776ab2))
+* blur secrets seen on screen before export (detection-skill text) ([#84](https://github.com/kajisho5/stepcap/issues/84)) ([8dd1ca9](https://github.com/kajisho5/stepcap/commit/8dd1ca9272c94e0ba45b9acaa48251c2a3c02021))
+* stepcap contract --json in the OS registry shape ([#78](https://github.com/kajisho5/stepcap/issues/78)) ([7f34c4c](https://github.com/kajisho5/stepcap/commit/7f34c4c574ec0eda4117dbd0d9b4669f00a866fa))
+* stepcap video — optional how-to MP4 through ffmpeg-skill ([#79](https://github.com/kajisho5/stepcap/issues/79)) ([7fd8fce](https://github.com/kajisho5/stepcap/commit/7fd8fcecb029de1627bce4df39ddf7ef1b717661))
+
+
+### Documentation
+
+* **prompts:** agent-facing text matches the code; MCP tool contracts ([#74](https://github.com/kajisho5/stepcap/issues/74)) ([e25ff25](https://github.com/kajisho5/stepcap/commit/e25ff25de23b03fdc277a1046e6137dba200f648))
+* **roadmap:** field review step 4 (2026-11-05) ([#82](https://github.com/kajisho5/stepcap/issues/82)) ([419ed32](https://github.com/kajisho5/stepcap/commit/419ed32872744ab672c1e78d959ee99d0981cb3e))
+* **roadmap:** no live-streaming context (out of scope) ([#83](https://github.com/kajisho5/stepcap/issues/83)) ([4f68e4c](https://github.com/kajisho5/stepcap/commit/4f68e4cdecd7da380df405793ab1806b8cb80fa2))
+
 ## [0.1.7](https://github.com/kajisho5/stepcap/compare/v0.1.6...v0.1.7) (2026-09-25)
 
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "stepcap"
-version = "0.1.7"
+version = "0.1.8"
 description = "Record once: a step-by-step guide for people (Markdown / single-file HTML / checklist) and an Agent Skill (SKILL.md) for any agent. Fully local, works offline, no account."
 readme = "README.md"
 requires-python = ">=3.11"
