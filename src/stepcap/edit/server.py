@@ -25,8 +25,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from PIL import Image, ImageFilter
+from PIL import Image
 
+from stepcap.build import screen_blur
 from stepcap.build import steps as steps_mod
 from stepcap.build.annotate import BOX_KINDS, MARKERS
 from stepcap.build.pipeline import (
@@ -155,15 +156,7 @@ class EditApp:
             x1, y1 = min(img.width, max(x, x + w)), min(img.height, max(y, y + h))
             if x1 - x0 < 2 or y1 - y0 < 2:
                 raise ApiError(400, "rectangle is empty or outside the image")
-            region = img.crop((x0, y0, x1, y1))
-            radius = max(8, min(x1 - x0, y1 - y0) / 4)
-            # pixelate first so a Gaussian blur cannot be partially reversed
-            small = region.resize(
-                (max(1, (x1 - x0) // 12), max(1, (y1 - y0) // 12)), Image.Resampling.BOX
-            )
-            region = small.resize(region.size, Image.Resampling.NEAREST)
-            region = region.filter(ImageFilter.GaussianBlur(radius))
-            img.paste(region, (x0, y0))
+            screen_blur.blur_region(img, x0, y0, x1, y1)
             tmp = path.with_name(path.name + ".tmp")
             img.save(tmp, format="PNG")
             tmp.replace(path)
@@ -263,6 +256,14 @@ class EditApp:
     def reset_image(self, body: dict[str, Any]) -> dict[str, Any]:
         sid = self._sid(body.get("screenshot"))
         with self.lock:
+            # automatic blurs of this screenshot are undone too, recorded before the image is
+            # restored; it stays checked, so the next build does not blur it again (the
+            # person decided). A build racing this is caught by the next one (_forget_undone).
+            doc = steps_mod.load_steps(self.session)
+            state = (doc or {}).get(screen_blur.DOC_KEY)
+            if doc is not None and state and state.get("blurs"):
+                state["blurs"] = [b for b in state["blurs"] if b.get("screenshot") != sid]
+                write_json(self.session / STEPS_FILE, doc)
             dst = steps_mod.work_path(self.session, sid)
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(steps_mod.raw_path(self.session, sid), dst)

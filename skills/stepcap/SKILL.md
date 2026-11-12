@@ -119,8 +119,12 @@ asks before running it.
 - Typed text is usually **not recorded** (`Typed 12 characters (content not recorded)`).
   Describe the intent ("Enter your employee ID") - never guess or invent the value,
   and never write passwords, tokens or personal data into the guide even if visible.
-- If a screenshot shows sensitive data (passwords, customer names, tokens, e-mail
-  addresses), tell the user and suggest `stepcap edit SESSION_DIR` → "Blur area".
+- `stepcap build` blurs API keys, tokens and labelled passwords that OCR reads on screen
+  (detection-skill) and prints `Blurred N secret(s) seen on screen` with each step and kind.
+  Relay that list to the user (kinds only, never a value) and ask them to check the images;
+  if the build warns that screenshots were not checked, say so. OCR misses small text, so
+  other sensitive data (customer names, e-mail addresses, anything left) still needs a look:
+  tell the user and suggest `stepcap edit SESSION_DIR` → "Blur area".
   Do not upload screenshots or guides anywhere; everything stays local.
 - Do not edit `guide.md`, `guide.html` or files under `raw/`: they are regenerated or
   immutable. `stepcap build --reset` discards all text edits - only use it if asked.

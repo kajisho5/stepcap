@@ -1,8 +1,9 @@
 """Replace secrets in text with ``[REDACTED:kind]``.
 
 Applied to every string stepcap saves (events.jsonl, and everything derived
-from it) and checked again before a skill is written. It only sees text:
-secrets visible in screenshots must be blurred in ``stepcap edit``.
+from it) and checked again before a skill is written. It only sees text: secrets visible in
+screenshots are blurred at build time by ``stepcap.build.screen_blur`` (detection-skill
+OCR, the same patterns) or by hand in ``stepcap edit``.
 """
 
 from __future__ import annotations

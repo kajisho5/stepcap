@@ -14,6 +14,25 @@
     "marker": {"enum": ["box", "ring"]},
     "spotlight": {"type": "boolean"},
     "auto_arrows": {"type": "boolean"},
+    "screen_secrets": {
+      "type": "object",
+      "description": "secrets found on screen by detection-skill text and blurred in work/ at build time: the screenshots already checked and every blur (the text read is never stored)",
+      "properties": {
+        "checked": {"type": "array", "items": {"type": "string"}},
+        "blurs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["screenshot", "rect", "kind"],
+            "properties": {
+              "screenshot": {"type": "string"},
+              "rect": {"type": "array", "items": {"type": "integer"}, "minItems": 4, "maxItems": 4, "description": "[x, y, width, height] in screenshot pixels"},
+              "kind": {"type": "string", "description": "password, api-key, token, secret, card, or a redact pattern such as openai-key"}
+            }
+          }
+        }
+      }
+    },
     "steps": {"type": "array", "items": {"$ref": "#/$defs/step"}}
   },
   "$defs": {

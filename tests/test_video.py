@@ -182,7 +182,9 @@ def test_run_video_hands_every_media_step_to_ffmpeg_skill(no_skill, demo_session
     assert run.args("check")[2] == str(demo_session.resolve() / "guide.mp4")
     assert res.ok and res.output == str(demo_session.resolve() / "guide.mp4")
     assert (demo_session / "guide.mp4").read_bytes() == b"mp4"
-    assert res.check["warnings"] == ["audio"] and res.warnings == []
+    assert res.check["warnings"] == ["audio"]
+    # the only build warning: detection-skill is switched off in tests (conftest)
+    assert [w for w in res.warnings if "detection-skill" not in w] == []
     assert res.font["how"] == "fonts_dir"
     assert res.ffmpeg_skill["version"] == "2.21.0"
     # nothing else (caption's adjusted SRT, frames) is left in the session
@@ -240,8 +242,12 @@ def test_doctor_reports_video_export():
 def test_contract_declares_the_optional_dependency(capsys):
     assert main(["contract", "--json"]) == 0
     c = json.loads(capsys.readouterr().out)
-    (dep,) = c["dependencies"]
-    assert dep["skill_id"] == "ffmpeg-skill" and dep["required"] is False
+    deps = {d["skill_id"]: d for d in c["dependencies"]}
+    assert set(deps) == {"ffmpeg-skill", "detection-skill"}
+    dep = deps["ffmpeg-skill"]
+    assert dep["required"] is False and dep["used_by"] == ["stepcap/video"]
+    assert deps["detection-skill"]["required"] is False
+    assert deps["detection-skill"]["tools"] == ["detection/text"]
     assert dep["version_range"] == video.CONTRACT_RANGE
     assert {"id": "guide.video", "lifecycle": "EXPERIMENTAL", "tool_id": "stepcap/video"} in c[
         "provides"

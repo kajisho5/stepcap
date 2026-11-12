@@ -12,7 +12,7 @@ from typing import Any
 
 from PIL import Image
 
-from stepcap.build import annotate
+from stepcap.build import annotate, screen_blur
 from stepcap.build import steps as steps_mod
 from stepcap.build.pipeline import (
     CHECKLIST_HTML,
@@ -67,6 +67,9 @@ class SkillResult:
     info: dict[str, Any] = field(default_factory=dict)
     dry_run: bool = False
     recordings: list[str] = field(default_factory=list)
+    # secrets seen on screen and blurred in the reference screenshots (build/screen_blur.py)
+    screen_blurs: list[dict[str, Any]] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -145,7 +148,8 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
         raise SkillError(
             f"--name {opt.name!r}: use 1-{MAX_NAME} characters of a-z, 0-9 and single hyphens"
         )
-    meta, doc, events = load_recording(session)
+    warnings: list[str] = []
+    meta, doc, events = load_recording(session, opt.dry_run, warnings)
     others = []
     for extra in opt.also:
         extra = Path(extra)
@@ -153,7 +157,7 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
             extra.resolve() == p.resolve() for p, _, _ in others
         ):
             raise SkillError(f"{extra} is given twice")
-        others.append((extra, *load_recording(extra)[1:]))
+        others.append((extra, *load_recording(extra, opt.dry_run)[1:]))
     variants = merge.analyse((session, doc, events), others) if others else None
     name = opt.name or draft.choose_name(doc)
     skill_dir = Path(opt.out_dir) / name
@@ -178,6 +182,8 @@ def run_skill(session: Path, opt: SkillOptions, confirm: Confirm | None = None) 
         dry_run=opt.dry_run,
         installed_to=str(target) if target else None,
         recordings=[str(session), *(str(p) for p, _, _ in others)],
+        screen_blurs=screen_blur.listing(doc),
+        warnings=list(dict.fromkeys(warnings)),
     )
     res.files = ["SKILL.md", *(r[0] for r in refs.values())]
     exe = None
@@ -250,6 +256,9 @@ class ExportResult:
     guide_files: list[str] = field(default_factory=list)
     skill: dict[str, Any] | None = None
     dry_run: bool = False
+    # blurs of secrets seen on screen in the guide's screenshots (build/screen_blur.py)
+    screen_blurs: list[dict[str, Any]] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -303,12 +312,16 @@ def run_export(
             res.guide_files = [GUIDE_MD, f"{IMAGES_DIR}/", GUIDE_HTML, CHECKLIST_HTML]
         return res
     if fmt in ("guide", "both"):
-        run_build(session, build_opt or BuildOptions())
+        built = run_build(session, build_opt or BuildOptions())
+        res.screen_blurs, res.warnings = built.screen_blurs, list(built.warnings)
         if guide_dir.exists():
             shutil.rmtree(guide_dir)
         res.guide_files = _copy_guide(session, guide_dir)
     if fmt in ("skill", "both"):
-        res.skill = run_skill(session, skill_opt, confirm).to_dict()
+        made = run_skill(session, skill_opt, confirm)
+        res.skill = made.to_dict()
+        res.screen_blurs = res.screen_blurs or made.screen_blurs
+        res.warnings += [w for w in made.warnings if w not in res.warnings]
     return res
 
 
