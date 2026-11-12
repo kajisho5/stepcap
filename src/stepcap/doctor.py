@@ -189,9 +189,9 @@ def collect_probes(include_hooks: bool = True) -> dict[str, Any]:
 
     found = video.locate()
     p["video"] = {"root": str(found.root), "version": found.version} if found else None
-    from stepcap.build import screen_secrets
+    from stepcap.build import screen_blur
 
-    cmd = screen_secrets.locate()
+    cmd = screen_blur.locate()
     p["secrets"] = " ".join(cmd) if cmd else None
     return p
 
@@ -421,7 +421,7 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
         if p["secrets"]:
             checks.append(Check("secrets", OK, label, f"detection-skill: {p['secrets']}"))
         else:
-            from stepcap.build.screen_secrets import ENV_COMMAND, REPO_URL
+            from stepcap.build.screen_blur import ENV_COMMAND, REPO_URL
 
             fix = f"pip install git+{REPO_URL} (and tesseract), or set {ENV_COMMAND}"
             checks.append(

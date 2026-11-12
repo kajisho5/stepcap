@@ -1,4 +1,4 @@
-"""Secrets seen on screen are blurred before export (build/screen_secrets.py).
+"""Secrets seen on screen are blurred before export (build/screen_blur.py).
 
 Every value here is an obviously fake placeholder, never a real credential.
 """
@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from stepcap.build import screen_secrets as ss
+from stepcap.build import screen_blur as ss
 from stepcap.build.pipeline import BuildOptions, run_build
 from stepcap.cli import main
 from stepcap.session import read_json
@@ -152,14 +152,14 @@ def test_build_records_and_keeps_the_list(demo_session, monkeypatch):
     monkeypatch.setattr(ss, "_run", runner)
     monkeypatch.setattr(ss, "locate", lambda: ["detection"])
     res = run_build(demo_session, BuildOptions())
-    assert res.secret_blurs and {b["kind"] for b in res.secret_blurs} == {"password"}
-    assert res.secret_scan["engine"] == "tesseract 5.3.4"
+    assert res.screen_blurs and {b["kind"] for b in res.screen_blurs} == {"password"}
+    assert res.screen_scan["engine"] == "tesseract 5.3.4"
     n = len(runner.calls)
     res2 = run_build(demo_session, BuildOptions())
-    assert res2.secret_blurs == res.secret_blurs and len(runner.calls) == n
+    assert res2.screen_blurs == res.screen_blurs and len(runner.calls) == n
     assert res2.written == []
     # --dry-run never writes work/
-    assert run_build(demo_session, BuildOptions(dry_run=True, reset=True)).secret_blurs == []
+    assert run_build(demo_session, BuildOptions(dry_run=True, reset=True)).screen_blurs == []
 
 
 def test_cli_lists_every_blur(demo_session, monkeypatch, capsys):
@@ -170,7 +170,7 @@ def test_cli_lists_every_blur(demo_session, monkeypatch, capsys):
     assert "Blurred" in out and "openai-key at 296,196 308x28" in out and FAKE_KEY not in out
     assert main(["build", str(demo_session), "--json"]) == 0
     data = json.loads(capsys.readouterr().out)
-    assert data["secret_blurs"][0]["kind"] == "openai-key"
+    assert data["screen_blurs"][0]["kind"] == "openai-key"
 
 
 def test_no_secret_scan_flag(demo_session, monkeypatch):
@@ -188,7 +188,7 @@ def test_export_reports_the_blurs(demo_session, tmp_path, monkeypatch, capsys):
     out = tmp_path / "out"
     assert main(["export", str(demo_session), "--format", "guide", "-o", str(out), "--json"]) == 0
     data = json.loads(capsys.readouterr().out)
-    assert data["secret_blurs"][0]["kind"] == "openai-key"
+    assert data["screen_blurs"][0]["kind"] == "openai-key"
 
 
 # ------------------------------------------------- the real engine (detection-skill text)
@@ -201,9 +201,9 @@ def test_fixture_screenshot_with_an_api_key_is_blurred(tmp_path):
     session = tmp_path / "keys"
     simulate(json.loads(FIXTURE.read_text(encoding="utf-8")), session)
     res = run_build(session, BuildOptions())
-    assert res.secret_scan["checked"] == 1, res.warnings
-    by_kind = {b["kind"]: b for b in res.secret_blurs}
-    assert {"openai-key", "password"} <= set(by_kind), res.secret_blurs
+    assert res.screen_scan["checked"] == 1, res.warnings
+    by_kind = {b["kind"]: b for b in res.screen_blurs}
+    assert {"openai-key", "password"} <= set(by_kind), res.screen_blurs
     assert by_kind["openai-key"]["steps"] == [1]
     # read the exported image back: the key and the password are gone, the rest is still there
     words, _ = ss.read_words(session / "work" / "0001.png", ss.locate())
@@ -242,5 +242,5 @@ def test_reset_image_in_edit_undoes_an_automatic_blur(demo_session, monkeypatch)
     assert all(b["screenshot"] != sid for b in state["blurs"])
     assert sid in state["checked"]  # the person's decision: the next build does not blur it again
     assert sid not in {
-        b["screenshot"] for b in run_build(demo_session, BuildOptions()).secret_blurs
+        b["screenshot"] for b in run_build(demo_session, BuildOptions()).screen_blurs
     }

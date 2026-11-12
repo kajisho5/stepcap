@@ -27,7 +27,7 @@ from urllib.parse import urlsplit
 
 from PIL import Image
 
-from stepcap.build import screen_secrets
+from stepcap.build import screen_blur
 from stepcap.build import steps as steps_mod
 from stepcap.build.annotate import BOX_KINDS, MARKERS
 from stepcap.build.pipeline import (
@@ -156,7 +156,7 @@ class EditApp:
             x1, y1 = min(img.width, max(x, x + w)), min(img.height, max(y, y + h))
             if x1 - x0 < 2 or y1 - y0 < 2:
                 raise ApiError(400, "rectangle is empty or outside the image")
-            screen_secrets.blur_region(img, x0, y0, x1, y1)
+            screen_blur.blur_region(img, x0, y0, x1, y1)
             tmp = path.with_name(path.name + ".tmp")
             img.save(tmp, format="PNG")
             tmp.replace(path)
@@ -262,7 +262,7 @@ class EditApp:
             # automatic blurs of this screenshot are undone too; it stays checked, so the
             # next build does not blur it again (the person decided)
             doc = steps_mod.load_steps(self.session)
-            state = (doc or {}).get(screen_secrets.DOC_KEY)
+            state = (doc or {}).get(screen_blur.DOC_KEY)
             if doc is not None and state and state.get("blurs"):
                 state["blurs"] = [b for b in state["blurs"] if b.get("screenshot") != sid]
                 write_json(self.session / STEPS_FILE, doc)

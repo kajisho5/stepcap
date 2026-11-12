@@ -136,11 +136,11 @@ def cmd_build(args: argparse.Namespace) -> int:
     )
     for o in res.outputs:
         print(f"  {Path(res.session) / o}")
-    _print_secret_blurs(res.secret_blurs)
+    _print_screen_blurs(res.screen_blurs)
     return EXIT_OK
 
 
-def _print_secret_blurs(blurs: list[dict]) -> None:
+def _print_screen_blurs(blurs: list[dict]) -> None:
     """Every automatic blur, so a person can check it (kinds only, never the text)."""
     if not blurs:
         return
@@ -292,7 +292,7 @@ def cmd_export(args: argparse.Namespace) -> int:
     if res.guide_dir:
         tag = "[dry-run] would write" if res.dry_run else "Guide"
         print(f"{tag} {res.guide_dir}: {len(res.guide_files)} files")
-        _print_secret_blurs(res.secret_blurs)
+        _print_screen_blurs(res.screen_blurs)
     if res.skill:
         _print_skill(res.skill)
     return EXIT_OK if res.ok else EXIT_FAIL

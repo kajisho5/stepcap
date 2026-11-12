@@ -22,10 +22,10 @@ from stepcap.simulate import simulate
 @pytest.fixture(autouse=True)
 def _no_secret_engine(request, monkeypatch):
     """Builds in other tests do not run detection-skill (it is slow); its own tests do."""
-    if request.module.__name__ != "test_screen_secrets":
-        from stepcap.build import screen_secrets
+    if request.module.__name__ != "test_screen_blur":
+        from stepcap.build import screen_blur
 
-        monkeypatch.setattr(screen_secrets, "locate", lambda: None)
+        monkeypatch.setattr(screen_blur, "locate", lambda: None)
 
 
 @pytest.fixture

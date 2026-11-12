@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from stepcap import __version__, schemas, video
-from stepcap.build import screen_secrets
+from stepcap.build import screen_blur
 
 SKILL_ID = "stepcap"
 CONTRACT_VERSION = "1.0"
@@ -79,14 +79,14 @@ def contract() -> dict[str, Any]:
             },
             {
                 "skill_id": "detection-skill",
-                "version_range": screen_secrets.CONTRACT_RANGE,
+                "version_range": screen_blur.CONTRACT_RANGE,
                 "range_of": "contract_version",
                 "required": False,
                 "used_by": ["stepcap/build", "stepcap/skill", "stepcap/video"],
-                "tools": [f"detection/{t}" for t in screen_secrets.TOOLS_USED],
+                "tools": [f"detection/{t}" for t in screen_blur.TOOLS_USED],
                 "purpose": "find passwords, API keys and tokens shown in screenshots, to blur "
                 "them before export (skipped with a warning without it; build --no-secret-scan)",
-                "located_by": [f"${screen_secrets.ENV_COMMAND}", "detection on PATH"],
+                "located_by": [f"${screen_blur.ENV_COMMAND}", "detection on PATH"],
             },
         ],
         "not_provided": [

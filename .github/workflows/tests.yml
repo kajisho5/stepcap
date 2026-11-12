@@ -131,13 +131,13 @@ jobs:
       - name: Secret tests run (not skipped)
         run: |
           set -o pipefail
-          python -m pytest tests/test_screen_secrets.py -rs -v 2>&1 | tee secrets.log
+          python -m pytest tests/test_screen_blur.py -rs -v 2>&1 | tee secrets.log
           ! grep -q "SKIPPED" secrets.log
       - name: End-to-end (fixture screen with a fake API key -> build -> export)
         run: |
           stepcap simulate tests/fixtures/secret_screen.json -o keys
           stepcap build keys --json > build.json
-          python -c "import json;r=json.load(open('build.json'));k={b['kind'] for b in r['secret_blurs']};assert {'openai-key','password'}<=k,r['secret_blurs']"
+          python -c "import json;r=json.load(open('build.json'));k={b['kind'] for b in r['screen_blurs']};assert {'openai-key','password'}<=k,r['screen_blurs']"
           stepcap export keys --format guide -o dist
           stepcap doctor --json > doctor.json || true
           python -c "import json;c={x['id']:x for x in json.load(open('doctor.json'))['checks']};assert c['secrets']['status']=='ok',c['secrets']"

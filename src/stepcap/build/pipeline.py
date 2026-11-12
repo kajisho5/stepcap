@@ -10,7 +10,7 @@ from typing import Any
 from PIL import Image, features
 
 from stepcap import __version__
-from stepcap.build import annotate, checklist, html, markdown, naming, screen_secrets
+from stepcap.build import annotate, checklist, html, markdown, naming, screen_blur
 from stepcap.build import steps as steps_mod
 from stepcap.session import STEPS_FILE, SessionError, load_session, write_json
 
@@ -37,7 +37,7 @@ class BuildOptions:
     spotlight: bool | None = None  # dim around the target; None = keep saved value
     auto_arrows: bool | None = None  # arrow to small targets; None = keep saved value
     ocr: bool = True  # name unnamed clicked elements from the screenshot text (build/ocr.py)
-    secret_scan: bool = True  # blur secrets shown on screen (build/screen_secrets.py)
+    secret_scan: bool = True  # blur secrets shown on screen (build/screen_blur.py)
 
 
 @dataclass
@@ -53,10 +53,10 @@ class BuildResult:
     image_format: str = "webp"
     warnings: list[str] = field(default_factory=list)
     ocr_named: int = 0  # steps named from the screenshot text in this build
-    # secrets seen on screen and blurred (build/screen_secrets.py): every blur so far, with
+    # secrets seen on screen and blurred (build/screen_blur.py): every blur so far, with
     # its screenshot, rectangle, kind and step numbers; never the text that was read
-    secret_blurs: list[dict[str, Any]] = field(default_factory=list)
-    secret_scan: dict[str, Any] = field(default_factory=dict)
+    screen_blurs: list[dict[str, Any]] = field(default_factory=list)
+    screen_scan: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return dict(self.__dict__)
@@ -106,10 +106,10 @@ def load_or_create_steps(session: Path, opt: BuildOptions, res: BuildResult):
     if opt.ocr:
         res.ocr_named = steps_mod.ocr_names(session, doc["steps"], doc["lang"])
     if opt.secret_scan and not opt.dry_run:  # blurring writes work/
-        scanned = screen_secrets.scan(session, doc)
+        scanned = screen_blur.scan(session, doc)
         res.warnings += scanned.warnings or []
-        res.secret_scan = {"checked": scanned.checked, "engine": scanned.engine}
-    res.secret_blurs = screen_secrets.listing(doc)
+        res.screen_scan = {"checked": scanned.checked, "engine": scanned.engine}
+    res.screen_blurs = screen_blur.listing(doc)
     marker = opt.marker or doc.get("marker") or "box"
     if marker not in annotate.MARKERS:
         raise ValueError(f"unknown marker {marker!r}; use box or ring")
