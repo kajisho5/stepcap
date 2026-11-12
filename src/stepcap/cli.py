@@ -111,6 +111,7 @@ def cmd_build(args: argparse.Namespace) -> int:
             spotlight=args.spotlight,
             auto_arrows=args.auto_arrows,
             ocr=not args.no_ocr,
+            secret_scan=not args.no_secret_scan,
         )
         res = run_build(Path(args.session), opts)
     except (SessionError, ValueError) as exc:
@@ -135,7 +136,19 @@ def cmd_build(args: argparse.Namespace) -> int:
     )
     for o in res.outputs:
         print(f"  {Path(res.session) / o}")
+    _print_secret_blurs(res.secret_blurs)
     return EXIT_OK
+
+
+def _print_secret_blurs(blurs: list[dict]) -> None:
+    """Every automatic blur, so a person can check it (kinds only, never the text)."""
+    if not blurs:
+        return
+    print(f"Blurred {len(blurs)} secret(s) seen on screen (check them in `stepcap edit`):")
+    for b in blurs:
+        steps = ", ".join(str(n) for n in b["steps"]) or "-"
+        x, y, w, h = b["rect"]
+        print(f"  step {steps}: {b['kind']} at {x},{y} {w}x{h} (screenshot {b['screenshot']})")
 
 
 # ---------------------------------------------------------------------------- edit
@@ -274,9 +287,12 @@ def cmd_export(args: argparse.Namespace) -> int:
     if args.json:
         _print_json(data)
         return EXIT_OK if res.ok else EXIT_FAIL
+    for w in res.warnings:
+        print(f"warning: {w}", file=sys.stderr)
     if res.guide_dir:
         tag = "[dry-run] would write" if res.dry_run else "Guide"
         print(f"{tag} {res.guide_dir}: {len(res.guide_files)} files")
+        _print_secret_blurs(res.secret_blurs)
     if res.skill:
         _print_skill(res.skill)
     return EXIT_OK if res.ok else EXIT_FAIL
@@ -781,6 +797,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="do not read the screenshot text to name clicked elements that have no name "
         "(Windows / macOS built-in OCR, tesseract on Linux; runs on this computer)",
+    )
+    b.add_argument(
+        "--no-secret-scan",
+        action="store_true",
+        help="do not read the screenshots for passwords, API keys and tokens to blur "
+        "(detection-skill text, runs on this computer)",
     )
     b.add_argument(
         "--reset",

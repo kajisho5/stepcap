@@ -250,6 +250,9 @@ class ExportResult:
     guide_files: list[str] = field(default_factory=list)
     skill: dict[str, Any] | None = None
     dry_run: bool = False
+    # blurs of secrets seen on screen in the guide's screenshots (build/screen_secrets.py)
+    secret_blurs: list[dict[str, Any]] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -303,7 +306,8 @@ def run_export(
             res.guide_files = [GUIDE_MD, f"{IMAGES_DIR}/", GUIDE_HTML, CHECKLIST_HTML]
         return res
     if fmt in ("guide", "both"):
-        run_build(session, build_opt or BuildOptions())
+        built = run_build(session, build_opt or BuildOptions())
+        res.secret_blurs, res.warnings = built.secret_blurs, built.warnings
         if guide_dir.exists():
             shutil.rmtree(guide_dir)
         res.guide_files = _copy_guide(session, guide_dir)

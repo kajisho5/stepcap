@@ -106,3 +106,38 @@ jobs:
           python ffmpeg-skill/scripts/check.py demo/guide.mp4 --platform youtube
           stepcap doctor --json > doctor.json || true
           python -c "import json;c={x['id']:x for x in json.load(open('doctor.json'))['checks']};assert c['video']['status']=='ok',c['video']"
+
+  secrets:
+    # Secrets seen on screen against the real engine: detection-skill main (read-only checkout,
+    # its `text` tool on tesseract). Fails when the real-engine test is skipped.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: kajisho5/detection-skill
+          ref: main
+          path: detection-skill
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: OCR engine for detection-skill text
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tesseract-ocr
+      - name: Install
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[dev]" ./detection-skill
+      - name: Secret tests run (not skipped)
+        run: |
+          set -o pipefail
+          python -m pytest tests/test_screen_secrets.py -rs -v 2>&1 | tee secrets.log
+          ! grep -q "SKIPPED" secrets.log
+      - name: End-to-end (fixture screen with a fake API key -> build -> export)
+        run: |
+          stepcap simulate tests/fixtures/secret_screen.json -o keys
+          stepcap build keys --json > build.json
+          python -c "import json;r=json.load(open('build.json'));k={b['kind'] for b in r['secret_blurs']};assert {'openai-key','password'}<=k,r['secret_blurs']"
+          stepcap export keys --format guide -o dist
+          stepcap doctor --json > doctor.json || true
+          python -c "import json;c={x['id']:x for x in json.load(open('doctor.json'))['checks']};assert c['secrets']['status']=='ok',c['secrets']"

@@ -189,6 +189,10 @@ def collect_probes(include_hooks: bool = True) -> dict[str, Any]:
 
     found = video.locate()
     p["video"] = {"root": str(found.root), "version": found.version} if found else None
+    from stepcap.build import screen_secrets
+
+    cmd = screen_secrets.locate()
+    p["secrets"] = " ".join(cmd) if cmd else None
     return p
 
 
@@ -411,6 +415,23 @@ def evaluate(p: dict[str, Any]) -> list[Check]:
             fix = f"clone {REPO_URL} and set STEPCAP_FFMPEG_SKILL_DIR (FFmpeg 6.1+ on PATH)"
             checks.append(
                 Check("video", INFO, label, "ffmpeg-skill not found; only needed for video", fix)
+            )
+    if "secrets" in p:
+        label = "Blur secrets seen on screen (build)"
+        if p["secrets"]:
+            checks.append(Check("secrets", OK, label, f"detection-skill: {p['secrets']}"))
+        else:
+            from stepcap.build.screen_secrets import ENV_COMMAND, REPO_URL
+
+            fix = f"pip install git+{REPO_URL} (and tesseract), or set {ENV_COMMAND}"
+            checks.append(
+                Check(
+                    "secrets",
+                    INFO,
+                    label,
+                    "detection-skill not found; screenshots are not checked (blur by hand)",
+                    fix,
+                )
             )
     v = p.get("voice")
     if isinstance(v, dict):

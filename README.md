@@ -236,6 +236,15 @@ session (`stepcap simulate`), so they are reproducible and contain no real data.
   `build --no-ocr` turns this off; the window name (`Click in "Settings"`) is the last
   resort. Password fields never report a name and typing into them is always masked.
   English or Japanese (`--lang ja`).
+- **Blurs secrets seen on screen**: before anything is exported, `stepcap build` reads each
+  screenshot with [detection-skill](https://github.com/kajisho5/detection-skill)'s `text`
+  tool (Tesseract, on this computer) and blurs API keys and tokens (GitHub / OpenAI /
+  Anthropic / AWS, JWTs, URLs with a password or token) and the value after a label such as
+  `Password:` or `API_KEY =`. The blur goes into `work/` (`raw/` keeps the original), so the
+  guide, checklist, skill references and video all show it, and every blur is listed (step,
+  kind, rectangle; never the text read) in the build output and `steps.json`. Check them in
+  `stepcap edit`; Reset image there undoes one. Optional: without detection-skill the build
+  warns that the screenshots were not checked. `build --no-secret-scan` turns it off.
 - **Reuses identical screenshots**: consecutive steps on the same screen (≥ 98 % same
   area) share one image, so blurring it once covers all of them.
 - **Outputs** `guide.md` + `images/`, a single-file `guide.html` (table of contents,
@@ -550,8 +559,11 @@ on 127.0.0.1 only (with Host/Origin checks). Your screenshots stay in the sessio
 
 **Are secrets masked?** In text, yes: typed text (with `--record-typing`), window titles,
 notes and everything in the skill are scanned for GitHub / AWS / OpenAI / Anthropic keys,
-JWTs, passwords in URLs and card numbers and saved as `[REDACTED:kind]`. Pixels are not
-scanned — blur screenshots that show secrets in `stepcap edit`.
+JWTs, passwords in URLs and card numbers and saved as `[REDACTED:kind]`. In screenshots,
+with [detection-skill](https://github.com/kajisho5/detection-skill) installed: the same
+keys and labelled passwords that OCR can read (English text) are blurred at build time and
+listed. OCR misses small or stylised text, so look through the guide before sharing it and
+blur anything left in `stepcap edit`.
 
 **Does it run in the browser, without installing?** The editor and the guides do; the
 recorder cannot. A web page can only see clicks inside its own tab, so desktop-wide

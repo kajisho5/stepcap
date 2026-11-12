@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from stepcap import __version__, schemas, video
+from stepcap.build import screen_secrets
 
 SKILL_ID = "stepcap"
 CONTRACT_VERSION = "1.0"
@@ -62,7 +63,8 @@ def contract() -> dict[str, Any]:
             {"id": "skill.draft", "lifecycle": "EXPERIMENTAL", "tool_id": "stepcap/skill"},
             {"id": "guide.video", "lifecycle": "EXPERIMENTAL", "tool_id": "stepcap/video"},
         ],
-        # Recording, OCR and voice notes are local libraries; only `stepcap video` delegates.
+        # Recording, OCR names and voice notes are local libraries; `stepcap video` delegates
+        # to ffmpeg-skill and the on-screen secret check of every build to detection-skill.
         "dependencies": [
             {
                 "skill_id": "ffmpeg-skill",
@@ -74,7 +76,18 @@ def contract() -> dict[str, Any]:
                 "located_by": ["--ffmpeg-skill"]
                 + [f"${e}" for e in video.ENV_DIRS]
                 + ["~/.claude/skills/ffmpeg-skill", "./vendor/ffmpeg-skill", "../ffmpeg-skill"],
-            }
+            },
+            {
+                "skill_id": "detection-skill",
+                "version_range": screen_secrets.CONTRACT_RANGE,
+                "range_of": "contract_version",
+                "required": False,
+                "used_by": ["stepcap/build", "stepcap/skill", "stepcap/video"],
+                "tools": [f"detection/{t}" for t in screen_secrets.TOOLS_USED],
+                "purpose": "find passwords, API keys and tokens shown in screenshots, to blur "
+                "them before export (skipped with a warning without it; build --no-secret-scan)",
+                "located_by": [f"${screen_secrets.ENV_COMMAND}", "detection on PATH"],
+            },
         ],
         "not_provided": [
             "editing or encoding video itself (stepcap video delegates it to ffmpeg-skill)",
