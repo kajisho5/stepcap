@@ -1,0 +1,147 @@
+{
+  "skill_id": "stepcap",
+  "id": "stepcap",
+  "version": "0.1.8",
+  "contract_version": "1.0",
+  "provides": [
+    {
+      "id": "guide.build",
+      "lifecycle": "EXPERIMENTAL",
+      "tool_id": "stepcap/build"
+    },
+    {
+      "id": "skill.draft",
+      "lifecycle": "EXPERIMENTAL",
+      "tool_id": "stepcap/skill"
+    },
+    {
+      "id": "guide.video",
+      "lifecycle": "EXPERIMENTAL",
+      "tool_id": "stepcap/video"
+    }
+  ],
+  "dependencies": [
+    {
+      "skill_id": "ffmpeg-skill",
+      "version_range": ">=1.0 <2.0",
+      "range_of": "contract_version",
+      "required": false,
+      "used_by": [
+        "stepcap/video"
+      ],
+      "tools": [
+        "ffmpeg-skill/sequence",
+        "ffmpeg-skill/caption",
+        "ffmpeg-skill/check"
+      ],
+      "located_by": [
+        "--ffmpeg-skill",
+        "$STEPCAP_FFMPEG_SKILL_DIR",
+        "$FFMPEG_SKILL_DIR",
+        "~/.claude/skills/ffmpeg-skill",
+        "./vendor/ffmpeg-skill",
+        "../ffmpeg-skill"
+      ]
+    },
+    {
+      "skill_id": "detection-skill",
+      "version_range": ">=1.0 <2.0",
+      "range_of": "contract_version",
+      "required": false,
+      "used_by": [
+        "stepcap/build",
+        "stepcap/skill",
+        "stepcap/video"
+      ],
+      "tools": [
+        "detection/text"
+      ],
+      "purpose": "find passwords, API keys and tokens shown in screenshots, to blur them before export (skipped with a warning without it; build --no-secret-scan)",
+      "located_by": [
+        "$STEPCAP_DETECTION",
+        "detection on PATH"
+      ]
+    }
+  ],
+  "not_provided": [
+    "editing or encoding video itself (stepcap video delegates it to ffmpeg-skill)",
+    "network access (an --agent rewrite runs your own agent CLI, after asking)"
+  ],
+  "tools": [
+    {
+      "tool_id": "stepcap/build",
+      "description": "Generate guide.md / guide.html / checklist and steps.json from a recording",
+      "argv": [
+        "build",
+        "<session_dir>",
+        "[-f md,html,checklist]",
+        "[--lang en|ja]",
+        "--json"
+      ],
+      "writes": [
+        "guide.md",
+        "guide.html",
+        "checklist.html",
+        "steps.json"
+      ]
+    },
+    {
+      "tool_id": "stepcap/skill",
+      "description": "Draft an Agent Skill (SKILL.md + references/) from one or more recordings",
+      "argv": [
+        "skill",
+        "<session_dir>",
+        "[<session_dir> ...]",
+        "-o",
+        "<out_dir>",
+        "[--agent none]",
+        "--json"
+      ],
+      "writes": [
+        "<out_dir>/<name>/SKILL.md",
+        "<out_dir>/<name>/references/"
+      ]
+    },
+    {
+      "tool_id": "stepcap/video",
+      "description": "How-to MP4 from a recording: each step's guide image with its text burned in as a caption, through ffmpeg-skill (sequence, caption, then its check)",
+      "argv": [
+        "video",
+        "<session_dir>",
+        "[-o FILE.mp4]",
+        "[--seconds 4]",
+        "[--size 1920x1080]",
+        "[--platform youtube]",
+        "[--ffmpeg-skill DIR]",
+        "--json"
+      ],
+      "writes": [
+        "guide.mp4 (or -o)",
+        "steps.json",
+        "images/"
+      ],
+      "requires": "ffmpeg-skill (optional dependency; exit 1 with a dependency error without it)"
+    }
+  ],
+  "schemas": [
+    "session",
+    "event",
+    "steps",
+    "terminal",
+    "voice"
+  ],
+  "execution": {
+    "canonical_invocation": [
+      "stepcap",
+      "<command>",
+      "...",
+      "--json"
+    ],
+    "network": false,
+    "exit_codes": {
+      "ok": 0,
+      "fail": 1,
+      "usage": 2
+    }
+  }
+}
