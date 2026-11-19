@@ -1,4 +1,4 @@
-"""contract/contract.json is the committed copy of the contract; it must match what the code prints."""
+"""contract/contract.json is the committed contract; it must match what the code prints."""
 import subprocess
 import sys
 import unittest

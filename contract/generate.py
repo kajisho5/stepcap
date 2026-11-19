@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write or check contract/contract.json, this Skill's machine-readable contract as a committed file.
+"""Write or check contract/contract.json: this Skill's machine-readable contract, committed.
 
 The file is the output of `stepcap contract --json` (unchanged), so the contract of any commit
 or release tag can be read with `git show <tag>:contract/contract.json`, without installing or
@@ -8,8 +8,8 @@ running this repository's code.
     python contract/generate.py           # regenerate the file after changing the contract
     python contract/generate.py --check   # exit 1 when the committed file is out of date (CI)
 
-release-please moves its version with the other version files (extra-files), so every tag's file is that tag's
-own contract output.
+release-please moves its version with the other version files (extra-files), so every
+tag's file is that tag's own contract output.
 """
 import argparse
 import os
@@ -31,7 +31,7 @@ def render() -> bytes:
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
     paths = (str(ROOT / "src"), env.get("PYTHONPATH"))
     env["PYTHONPATH"] = os.pathsep.join(p for p in paths if p)
-    out = subprocess.run(COMMAND, cwd=str(ROOT), env=env, check=True,  # noqa: S603 - fixed argv
+    out = subprocess.run(COMMAND, cwd=str(ROOT), env=env, check=True,
                          stdout=subprocess.PIPE).stdout
     out = out.replace(b"\r\n", b"\n")  # print() on Windows writes CRLF; the file is LF everywhere
     return out
