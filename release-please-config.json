@@ -18,7 +18,10 @@
     ".": {
       "package-name": "stepcap",
       "changelog-path": "CHANGELOG.md",
-      "extra-files": ["src/stepcap/__init__.py"]
+      "extra-files": [
+        "src/stepcap/__init__.py",
+        {"type": "json", "path": "contract/contract.json", "jsonpath": "$.version"}
+      ]
     }
   }
 }

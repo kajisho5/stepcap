@@ -376,6 +376,11 @@ stepcap app [--lang en|ja]                                 # window: start / sto
 stepcap doctor [--json]
 ```
 
+`contract/contract.json` is the contract committed as a file (the `stepcap contract --json` output, unchanged), so
+any release's contract is `git show vX.Y.Z:contract/contract.json`, with nothing installed or run. Regenerate it
+with `python contract/generate.py` after a contract change; a test fails when it is stale, and release-please moves
+its `version` with the other version files.
+
 Every command exits non-zero on failure. `--json` gives machine-readable output.
 stepcap never overwrites an existing, non-empty session directory, and `build`
 never touches `raw/`.
