@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/kajisho5/stepcap/compare/v0.1.8...v0.1.9) (2026-11-19)
+
+
+### CI
+
+* commit the contract as contract/contract.json ([#85](https://github.com/kajisho5/stepcap/issues/85)) ([a0af6c3](https://github.com/kajisho5/stepcap/commit/a0af6c38306df39a2e074541c7c1be994beab8c6))
+
 ## [0.1.8](https://github.com/kajisho5/stepcap/compare/v0.1.7...v0.1.8) (2026-11-12)
 
 
