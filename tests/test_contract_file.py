@@ -1,4 +1,5 @@
 """contract/contract.json is the committed contract; it must match what the code prints."""
+
 import subprocess
 import sys
 import unittest
@@ -9,8 +10,11 @@ ROOT = Path(__file__).resolve().parent.parent
 
 class CommittedContractFileTest(unittest.TestCase):
     def test_contract_file_is_up_to_date(self):
-        result = subprocess.run([sys.executable, str(ROOT / "contract" / "generate.py"), "--check"],
-                                capture_output=True, text=True)
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "contract" / "generate.py"), "--check"],
+            capture_output=True,
+            text=True,
+        )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 

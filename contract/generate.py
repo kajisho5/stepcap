@@ -11,6 +11,7 @@ running this repository's code.
 release-please moves its version with the other version files (extra-files), so every
 tag's file is that tag's own contract output.
 """
+
 import argparse
 import os
 import subprocess
@@ -31,8 +32,7 @@ def render() -> bytes:
     env = dict(os.environ, PYTHONIOENCODING="utf-8")
     paths = (str(ROOT / "src"), env.get("PYTHONPATH"))
     env["PYTHONPATH"] = os.pathsep.join(p for p in paths if p)
-    out = subprocess.run(COMMAND, cwd=str(ROOT), env=env, check=True,
-                         stdout=subprocess.PIPE).stdout
+    out = subprocess.run(COMMAND, cwd=str(ROOT), env=env, check=True, stdout=subprocess.PIPE).stdout
     out = out.replace(b"\r\n", b"\n")  # print() on Windows writes CRLF; the file is LF everywhere
     return out
 
@@ -45,8 +45,11 @@ def main(argv=None) -> int:
     if args.check:
         have = TARGET.read_bytes() if TARGET.exists() else b""
         if have != want:
-            print(f"{TARGET.relative_to(ROOT).as_posix()} is out of date; "
-                  "run: python contract/generate.py", file=sys.stderr)
+            print(
+                f"{TARGET.relative_to(ROOT).as_posix()} is out of date; "
+                "run: python contract/generate.py",
+                file=sys.stderr,
+            )
             return 1
         print(f"{TARGET.relative_to(ROOT).as_posix()}: up to date")
         return 0
